@@ -285,6 +285,12 @@ https://www.mocagh.org/forsale/mps1000-manual.pdf
 	-> 3 wires total
 	-> one dedicated controller
 
+* IEEE -> IEC:
+	* 16->4 Leitungen (inkl. SRQ) 
+	* NDAC removed
+	* DAV replaced by CLK
+	* NRFD replaced by DATA
+
 * connector & electrical
 	* 6-pin DIN
 		* 1 SRQ (not used)
@@ -451,10 +457,20 @@ https://www.mocagh.org/forsale/mps1000-manual.pdf
 	* "When fast serial communications are available, files are loaded by sectors (254-byte chunks of data) using a special feature of the 1571 drive known as burst mode. However, fast mode SAVEs are still done byte by byte." (Mapping the 128)
 	* TODO
 
-* cbdos.spec:
-	Standard serial: Actual transfer rate = 4800-6800 baud.
-	    Fast serial: Actual transfer rate = 21000-23000 baud.
-	   Burst serial: Actual transfer rate = 78400-80000 baud.
+* Notes
+	* Fast: setzen devices beim Unlisten das fast Flag zurück?
+	* Fast macht SRQ kaputt :(
+		* PET kann SRQ in Hardware, aber Software hat keinen Support
+		* SRQ als Feature hat parallel nach seriell überlebt, VIC-20 und C64 können SRQ 
+		* wenn auch 1541 kein SRQ in Hardware kann
+		* beim 264 ist SRQ Hardware Support weggefallen
+		* C128 benutzt SRQ-Leitung für Fast
+		* -> ansich war SRQ noch mit erweiterter Software möglich, wenn auch ungenutzt aber C128 macht das kaputt
+
+	* cbdos.spec:
+		Standard serial: Actual transfer rate = 4800-6800 baud.
+		    Fast serial: Actual transfer rate = 21000-23000 baud.
+		   Burst serial: Actual transfer rate = 78400-80000 baud.
 
 # Part 5: Jiffy DOS
 
@@ -508,23 +524,3 @@ https://www.mocagh.org/forsale/mps1000-manual.pdf
 * IEC calls are going to CBDOS drive first, and if failure, to IEC
 
 
-
-
-
-
-
-
-
-
-
-# XXX
-
-* Fast: setzen devices beim Unlisten das fast Flag zurück?
-* Parallel überführt nach seriell: Leitungen wegnehmen bis seriell
-
-* kein data accepted
-* data valid gleich clock
-* not ready for data gleich data
-* SRQ als Feature hat parallel nach seriell überlebt
-* Fast macht SRQ kaputt :(
-* 16->4 Leitungen (inkl. SRQ) 
