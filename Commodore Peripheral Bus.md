@@ -109,7 +109,8 @@
       12   CHASSIS GND   N   GND  
 
 
-	* all lines are open collector
+	* IFC is RESET
+	* all other lines are open collector
 		* defaults to 5V (line is "incative")
 		* will be 0V if any device pulls it down ("asserts" it, line is "active")
 		* it's impossible to tell who pulls it down
@@ -124,8 +125,7 @@
 	* any number of passive devices
 		* will leave everything alone
 	* send byte
-		* three-way handshake
-		* TODO
+		* TODO three-way handshake
 	* EOI
 		* TODO
 
@@ -147,6 +147,9 @@
 		* controller sends 1 byte
 		* *all* other devices receive control byte
 		* controller releases ATN
+
+* SRQ and REN
+	* TODO
 
 # Part 1b: Bus Arbitration, TALK/LISTEN
 
@@ -182,12 +185,7 @@
 		* all drives only support 16 (ignore bit #4)
 		* C64 will send all bits though
 	* after talk/untalk, an extra command has to be sent to select channel
-
-.
-
-	60 + secondary address
-
-* ...
+	* 60 + secondary address
 	* image showing "interface" != "device" (c't)
 	* in practice, this could be
 		* different devices behind the same interface
@@ -200,27 +198,32 @@
 	* a device can use names for channels
 	* only 16 channels available (bit #4 used for open/close)
 	* there are commands to open and close named channels
+	* E0 CLOSE
+	* F0 OPEN (create channel with filename)
+	* Commodore calls these commands "secondary address open"/"secondary address close"!
+	* they have to be sent with LISTEN/UNLISTEN so the correct device gets it
+	* 28, E1, 3F
+	* LISTEN 8, CLOSE 1, UNLISTEN
+	* open has an argument, sent with ATN off
+	* 28, F1, "FOO", 3F
+	* LISTEN 8, OPEN 1, "FOO", UNLISTEN
+	* disk drives use the secondary address for channels
+	* channels represent different open files that can be read from or written to
+	* TODO open error
+
+* unsupported features
+	* TODO
 
 .
 
-	E0 CLOSE
-	F0 OPEN (create channel with filename)
+	?? 000xxxxx unsupported
+	20 001xxxxx listen
+	40 010xxxxx talk
+	60 0110xxxx secondary
+	E0 1110xxxx close (extension)
+	F0 1111xxxx open (extension)
 
-* Commodore calls these commands "secondary address open"/"secondary address close"!
-* they have to be sent with LISTEN/UNLISTEN so the correct device gets it
 
-	28, E1, 3F
-	LISTEN 8, CLOSE 1, UNLISTEN
-
-* open has an argument, sent with ATN off
-
-	28, F1, "FOO", 3F
-	LISTEN 8, OPEN 1, "FOO", UNLISTEN
-
-* disk drives use the secondary address for channels
-* channels represent different open files that can be read from or written to
-
-* TODO open error
 
 * KERNAL API
 	* on the VIC-20 and all later machines (C64, C128, C65, Plus4, CBM-II)
