@@ -1,25 +1,28 @@
 # Commodore Peripheral Bus
 
 * 6 part series about the "IEC" family peripheral bus of the 8 bit Commodore machines
+* family of connectors and protocols
 * from the PET, over VIC-20 and the C64/C128, up to the C65
+* based on IEEE-488
+	* with added features
+	* some features removed
+* variants use different connectors and different byte transfer protocols
+* but the same bus arbitration and device API
+
+| layer              | IEEE-488                    | Serial              | JiffyDOS    | Fast Serial | TCBM                   | CBDOS       |
+|--------------------|-----------------------------|---------------------|-------------|-------------|------------------------|-------------|
+| 4: device API      | CBM DOS                     | CBM DOS             | CBM DOS     | CBM DOS     | CBM DOS                | CBM DOS     |
+| 3: bus arbitration | TALK/LISTEN                 | TALK/LISTEN         | TALK/LISTEN | TALK/LISTEN | TALK/LISTEN            | TALK/LISTEN |
+| 2: byte transfer   | 8 bit, 3-way handshake, ATN | 1 bit CLK/DATA, ATN | *different* | + SRQ       | 8 bit, DAV ACK ST0 ST1 | *none*      |
+| 1: electrical      | 24 pin, TTL                 | 6 pin DIN TTL       | *same*      | *same*      | 16 pin TTL             | *none*      |
 
 * overview/features
 	* multiple devices, daisy-chained
 	* byte oriented
-	* any device can send data to any set of devices (one-to-many)
-	* one dedicated controller
-	* (named) channels
-
-* four different connectors
-* one connector with three protocol variants
-* compatible upper layers
-
-| layer              | IEEE-488                    | Serial        | Fast Serial | JiffyDOS    | TCBM                 | CBDOS       |
-|--------------------|-----------------------------|---------------|-------------|-------------|----------------------|-------------|
-| 4: device API      | CBM DOS                     | CBM DOS       | CBM DOS     | CBM DOS     | CBM DOS              | CBM DOS     |
-| 3: bus arbitration | TALK/LISTEN                 | TALK/LISTEN   | TALK/LISTEN | TALK/LISTEN | TALK/LISTEN          | TALK/LISTEN |
-| 2: byte transfer   | D1-D8 EOI DAV NRFD NDAC SRQ | CLK DATA      | + SRQ       | CLK' DATA'  | D0-8 DAV ACK ST0 ST1 | *none*-     |
-| 1: electrical      | 24 pin, TTL                 | 6 pin DIN TTL | *same*      | *same*      | 16 pin TTL           | *none*-     |
+	* generally, any device can send data to any set of devices (one-to-many)
+	* one dedicated controller for bus arbitration - the computer
+	* a device has multiple channels for different functions
+	* and named channels
 
 * parts
 	* Part 1a: IEEE-488 (IEC)
@@ -42,18 +45,13 @@
 	* Part 6: CBDOS
 		* computer-based
 		* C65
-* layers
-	* electrical
-	* transfering bytes
-	* bus arbitration
-		* KERNAL API
-	* device specific: channels
 
+# Part 1a: IEEE-488 (IEC)
 
-# Part 1: IEEE-488 (IEC)
-
-* HP-IB, standardized as IEEE-488, IEC
-* 24 pin Centronics
+* HP-IB, standardized as IEEE-488, "IEC Bus" (name used in Europe)
+* electrical
+	* TTL
+	* 24 pin Centronics or 24 pin board connector
 	* Data
 		* DIO1-8
 	* Handshake
@@ -61,163 +59,195 @@
 		* DAV
 		* NDAC
 	* Protocol
+		* IFC (RESET)
 		* ATN
 		* SRQ
-		* EOI
-		* IFC (RESET)
 		* REN (remote enable, grounded on PET "to prevent remote devices from returning to local control")
-* all lines are open collector
-	* defaults to 5V (line is "incative")
-	* will be 0V if any device pulls it down ("asserts" it, line is "active")
-	* it's impossible to tell who pulls it down
+		* EOI
+
+.
+
+         1  2  3  4  5  6  7  8  9 10 11 12   
+      +--o--o--o--o--o--o--o--o--o--o--o--o--+
+      |                                      |
+       +-o--o--o--o--o--o--o--o--o--o--o--o-+ 
+        13 14 15 16 17 18 19 20 21 22 23 24   
+
+      Pin Signal                   Pin Signal
+       01: DIO1(Data Input/Output)  13: DIO5(Data Input/Output)
+       02: DIO2(Data Input/Output)  14: DIO6(Data Input/Output)
+       03: DIO3(Data Input/Output)  15: DIO7(Data Input/Output)
+       04: DIO4(Data Input/Output)  16: DIO8(Data Input/Output)
+       05: EOI(End Or Identify)     17: REN(Remote ENable)
+       06: DAV(DAta Valid)          18: GND (for DAV)
+       07: NRFD(Not Ready For Data) 19: GND (for NRFD)
+       08: NDAC(No Data ACcepted)   20: GND (for NDAC)
+       09: IFC(InterFace Clear)     21: GND (for IFC)
+       10: SRQ(Service ReQuest)     22: GND (for SRQ)
+       11: ATN(ATteNtion)           23: GND (for ATN)
+       12: SHIELD                   24: Signal GND              
+      
+
+         1  2  3  4  5  6  7  8  9 10 11 12   
+      +--o--o--o--o--o--o--o--o--o--o--o--o--+
+      |                                      |
+      +--o--o--o--o--o--o--o--o--o--o--o--o--+
+         A  B  C  D  E  F  H  J  K  L  M  N
+      
+      Pin  Signal       Pin Signal
+       1   DIO 1         A   DIO 5
+       2   DIO 2         B   DIO 6
+       3   DIO 3         C   DIO 7
+       4   DIO 4         D   DIO 8
+       5   EOI           E   REN  
+       6   DAV           F   GND  
+       7   NRFD          H   GND  
+       8   NDAC          J   GND  
+       9   IFC           K   GND  
+      10   SRQ           L   GND  
+      11   ATN           M   GND  
+      12   CHASSIS GND   N   GND  
 
 
-# Part 2: Serial IEC
+	* all lines are open collector
+		* defaults to 5V (line is "incative")
+		* will be 0V if any device pulls it down ("asserts" it, line is "active")
+		* it's impossible to tell who pulls it down
+* transfering bytes
+	* bus is byte oriented
+	* 8-bit parallel
+		* 8 bit data DIO1-DIO8
+	* one sender
+		* puts data on DIO and participates in handshake
+	* any number of receivers
+		* read data off DIO and participate in handshake
+	* any number of passive devices
+		* will leave everything alone
+	* send byte
+		* three-way handshake
+		* TODO
+	* EOI
+		* TODO
 
-# Part 3: TCBM
+	
+	* comments:
+		* no timing requirements!
+		* slowest device defines speed
+			* anyone can pause at any time
+			* great for CPUs that have other things to do as well
 
-# Part 4: Fast Serial
+* controller and command bytes
+	* just this supports the use case of one device that is always the sender, and plus some devices which are only receivers
+		* e.g with a computer and a printer or a disk copy station with one source and one or many destinations
+	* one device needs to be the designated "controller"
+	
+	* controller can interrupt the bus at any time
+	* sends one control byte
+		* controller pulls ATN
+		* controller sends 1 byte
+		* *all* other devices receive control byte
+		* controller releases ATN
 
-# Part 5: Jiffy DOS
+# Part 1b: Bus Arbitration, TALK/LISTEN
 
-# Part 6: CBDOS
+* primary addresses and TALK/LISTEN
+	* time division: at any time, there can only be one sender and its receivers, but controller redefines the current sender and receivers
+	* a device that is currently a sender is a "talker"
+	* a device that is currently a receiver is a "listener"
+	* every *other* device has a predefined (think: dip-switches) "primary" address, 0 to 30
+	* the controller tells devices to become talkers or listeners
+		* and can decide to become a talker or listener
+	
+	* sends one byte to start/stop takling/listening
 
-***************************
-overview, idea, motivation, features
-***************************
-* multiple devices, daisy-chained
-* byte oriented
-* any device can send data to any set of devices (one-to-many)
-* channels
-* timing based on min/max delays, not strict implicit clock (like RS-232), can be implemented in software
--> 3 wires total
--> one dedicated controller
+.
 
-***************************
-connector & electrical
-***************************
-* 6-pin DIN
-	* 1 SRQ (not used)
-	* 2 GND
-	* 3 ATN
-	* 4 CLK
-	* 5 DATA
-	* 6 RESET
-* all 3 data lines are open collector
-	* defaults to 5V (line is "incative")
-	* will be 0V if any device pulls it down ("asserts" it, line is "active")
-	* it's impossible to tell who pulls it down
+	20 + address LISTEN
+	40 + address TALK
 
-***************************
-transfering bytes
-***************************
-* bus is byte oriented
-* one sender
-* any number of receivers
-* any number of passive devices
-* two wires, CLK and DATA
-* CLK is the sender's handshaking flag, DATA the receivers'
-* everyone not involved will leave CLK and DATA alone
-* protocol
-	* setup
-		* sender pulls DATA = I am interested in sending data, but I don't have any data yet
-		* all receivers pull CLK = I am interested in accepting data
-		* this state can be held indefinitely
-	* ready to send:
-		* sender releases CLK = I am ready to send a byte
-		* all receivers release DATA = I am ready to receive a byte
-		* there is no time limit, any receiver that is busy can delay this indefinitely
-	* prepare sending byte
-		* sender pulls CLK = there is no valid bit on the DATA line
-	* for every bit (LSB first)
-		* sender sets/clears DATA
-		* sender releases CLK, pulls this for 60+ µs = there is a valid bit on the DATA line
-		* sender pulls CLK, releases DATA = there is no valid bit on the DATA line
-	* byte ack
-		* receiver pulls DATA within 1000 µs (any receiver!) = byte received OK
-c* EOI
-	* if "prepare sending byte" takes 200+ µs, the following byte is the last one
-	* at the end of transmission
-		* sender releases CLK
-		* receivers release DATA
+	3F UNLISTEN
+	5F UNTALK
 
-comments:
-* transfer cannot start until all receivers are ready
-* any receiver can ACK
-	* no ACK means that all receivers died
-* EOI is a timing sidechannel
-* what are the timing requirements?
-	* receiver must be able to measure 200 µs reliably
-	* receiver must be able to accept bit within 60 µs
-	* receiver must be able to ack byte within 1000 µs
-	* TODO ...
-	* TODO otherwise...?
-* it's impossible to ack every bit with just two wires in order to make the protocol completely timing independent
 
-***************************
-controller
-***************************
-* just this supports the use case of one device that is always the sender, and plus some devices which are only receivers
-	* e.g with a computer and a printer or a disk copy station with one source and one or many destinations
-* one device needs to be the designated "controller"
+* device numbers, convention
+	* 4, 5 printer
+	* 6, 7 plotter
+	* 8-11 (hard) disk drives
+	* third party drives support 12+
 
-* controller can interrupt the bus at any time
-* XXX not in the middle of a byte transmission
-* sends one control byte
-	* controller pulls ATN
-	* controller sends 1 byte
-	* *all* other devices receive control byte
-	* controller releases ATN
+* secondary addresses
+	* multiplexing functions/contexts of a device would be nice
+	* 32 secondary addresses per device (0-31) [C64PRG agrees to IEEE spec]
+		* OPEN/CLOSE only support 16!
+		* all drives only support 16 (ignore bit #4)
+		* C64 will send all bits though
+	* after talk/untalk, an extra command has to be sent to select channel
 
-***************************
-primary addresses and TALK/LISTEN
-***************************
-* time division: at any time, there can only be one sender and its receivers, but controller redefines the current sender and receivers
-* a device that is currently a sender is a "talker"
-* a device that is currently a receiver is a "listener"
-* every *other* device has a predefined (think: dip-switches) "primary" address, 0 to 30
-* the controller tells devices to become talkers or listeners
-	* and can decide to become a talker or listener
+.
 
-* sends one byte to start/stop takling/listening
+	60 + secondary address
 
-20 + address LISTEN
-40 + address TALK
+* ...
+	* image showing "interface" != "device" (c't)
+	* in practice, this could be
+		* different devices behind the same interface
+		* different functions of the same device
+		* options/flags (printer 0 vs. 7)
+		* contexts (disk drive)
 
-3F UNLISTEN
-5F UNTALK
+* named channels (OPEN/CLOSE)
+	* instead of having fixed functions behind secondary addresses
+	* a device can use names for channels
+	* only 16 channels available (bit #4 used for open/close)
+	* there are commands to open and close named channels
 
-#####
-device numbers, convention
-#####
-* 4, 5 printer
-* 6, 7 plotter
-* 8-11 (hard) disk drives
-* third party drives support 12+
+.
 
-***************************
-secondary addresses
-***************************
-* multiplexing functions/contexts of a device would be nice
-* 32 secondary addresses per device (0-31) [C64PRG agrees to IEEE spec]
-	* OPEN/CLOSE only support 16!
-	* all drives only support 16 (ignore bit #4)
-	* C64 will send all bits though
-* after talk/untalk, an extra command has to be sent to select channel
+	E0 CLOSE
+	F0 OPEN (create channel with filename)
 
-60 + secondary address
+* Commodore calls these commands "secondary address open"/"secondary address close"!
+* they have to be sent with LISTEN/UNLISTEN so the correct device gets it
 
-* image showing "interface" != "device" (c't)
-* in practice, this could be
-	* different devices behind the same interface
-	* different functions of the same device
-	* options/flags (printer 0 vs. 7)
-	* contexts (disk drive)
+	28, E1, 3F
+	LISTEN 8, CLOSE 1, UNLISTEN
 
-#####
-Printers
-#####
-* printers use the secondary address to pre-select a character set
+* open has an argument, sent with ATN off
+
+	28, F1, "FOO", 3F
+	LISTEN 8, OPEN 1, "FOO", UNLISTEN
+
+* disk drives use the secondary address for channels
+* channels represent different open files that can be read from or written to
+
+* TODO open error
+
+* KERNAL API
+	* on the VIC-20 and all later machines (C64, C128, C65, Plus4, CBM-II)
+
+.
+
+	$FFB4: TALK – send TALK command
+	$FFB1: LISTEN – send LISTEN command
+	$FFAE: UNLSN – send UNLISTEN command
+	$FFAB: UNTLK – send UNTALK command
+	$FF96: TKSA – send TALK secondary address
+	$FF93: SECOND – send LISTEN secondary address (same as above, but with bus turnaround)
+	$FFA8: IECOUT – send byte to serial bus
+	$FFA5: IECIN – read byte from serial bus
+	$FFA2: SETTMO – set timeout [no effect on non-IEEE-488]
+
+# Part 1c: CBM DOS
+
+* disk drives
+	* channel = 0 is reserved for a reading a PRG file.
+	* channel = 1 is reserved for a writing a PRG file.
+	* channel = 2-14 need the filetype and the read/write flag in the filename as ",P,W" for example.
+	* channel = 15 for DOS commands or device status info.
+
+* Printers
+	* printers use the secondary address to pre-select a character set
+
 0 graphic
 7 business
 
@@ -244,92 +274,111 @@ https://www.mocagh.org/forsale/mps1000-manual.pdf
 	* listen 4, secondary 7, "Hello", unlisten
 	* TODO: bus turnaround
 
-***************************
-named channels (OPEN/CLOSE)
-***************************
-* instead of having fixed functions behind secondary addresses
-* a device can use names for channels
-* only 16 channels available (bit #4 used for open/close)
-* there are commands to open and close named channels
-E0 CLOSE
-F0 OPEN (create channel with filename)
-* Commodore calls these commands "secondary address open"/"secondary address close"!
-* they have to be sent with LISTEN/UNLISTEN so the correct device gets it
-28, E1, 3F
-LISTEN 8, CLOSE 1, UNLISTEN
-* open has an argument, sent with ATN off
-28, F1, "FOO", 3F
-LISTEN 8, OPEN 1, "FOO", UNLISTEN
+# Part 2: Serial IEC
 
-* disk drives use the secondary address for channels
-* channels represent different open files that can be read from or written to
+* overview, idea, motivation, features
+	* multiple devices, daisy-chained
+	* byte oriented
+	* any device can send data to any set of devices (one-to-many)
+	* channels
+	* timing based on min/max delays, not strict implicit clock (like RS-232), can be implemented in software
+	-> 3 wires total
+	-> one dedicated controller
 
-* TODO open error
+* connector & electrical
+	* 6-pin DIN
+		* 1 SRQ (not used)
+		* 2 GND
+		* 3 ATN
+		* 4 CLK
+		* 5 DATA
+		* 6 RESET
+	* all 3 data lines are open collector
+		* defaults to 5V (line is "incative")
+		* will be 0V if any device pulls it down ("asserts" it, line is "active")
+		* it's impossible to tell who pulls it down
 
-#####
-disk drives
-#####
-* channel = 0 is reserved for a reading a PRG file.
-* channel = 1 is reserved for a writing a PRG file.
-* channel = 2-14 need the filetype and the read/write flag in the filename as ",P,W" for example.
-* channel = 15 for DOS commands or device status info.
+* transfering bytes
+	* bus is byte oriented
+	* one sender
+	* any number of receivers
+	* any number of passive devices
+	* two wires, CLK and DATA
+	* CLK is the sender's handshaking flag, DATA the receivers'
+	* everyone not involved will leave CLK and DATA alone
+	* protocol
+		* setup
+			* sender pulls DATA = I am interested in sending data, but I don't have any data yet
+			* all receivers pull CLK = I am interested in accepting data
+			* this state can be held indefinitely
+		* ready to send:
+			* sender releases CLK = I am ready to send a byte
+			* all receivers release DATA = I am ready to receive a byte
+			* there is no time limit, any receiver that is busy can delay this indefinitely
+		* prepare sending byte
+			* sender pulls CLK = there is no valid bit on the DATA line
+		* for every bit (LSB first)
+			* sender sets/clears DATA
+			* sender releases CLK, pulls this for 60+ µs = there is a valid bit on the DATA line
+			* sender pulls CLK, releases DATA = there is no valid bit on the DATA line
+		* byte ack
+			* receiver pulls DATA within 1000 µs (any receiver!) = byte received OK
+	* EOI
+		* if "prepare sending byte" takes 200+ µs, the following byte is the last one
+		* at the end of transmission
+			* sender releases CLK
+			* receivers release DATA
+	
+	* comments:
+		* transfer cannot start until all receivers are ready
+		* any receiver can ACK
+			* no ACK means that all receivers died
+		* EOI is a timing sidechannel
+		* what are the timing requirements?
+			* receiver must be able to measure 200 µs reliably
+			* receiver must be able to accept bit within 60 µs
+			* receiver must be able to ack byte within 1000 µs
+			* TODO ...
+			* TODO otherwise...?
+		* it's impossible to ack every bit with just two wires in order to make the protocol completely timing independent
 
-***************************
-KERNAL API
-***************************
-* on the VIC-20 and all later machines (C64, C128, C65, Plus4, CBM-II)
-$FFB4: TALK – send TALK command
-$FFB1: LISTEN – send LISTEN command
-$FFAE: UNLSN – send UNLISTEN command
-$FFAB: UNTLK – send UNTALK command
-$FF96: TKSA – send TALK secondary address
-$FF93: SECOND – send LISTEN secondary address (same as above, but with bus turnaround)
-$FFA8: IECOUT – send byte to serial bus
-$FFA5: IECIN – read byte from serial bus
-$FFA2: SETTMO – set timeout [no effect on non-IEEE-488]
+* ATN	
+		* XXX ATN in the middle of a byte transmission?
 
-******************************************************
-JIFFY DOS
-******************************************************
+# Part 3: TCBM
+
 * history
-	* Mark Fellows, 1985
-	* ROM replacements
-	* available for all Commodore computers and practically all IEC disk drives
-	* supported by modern devices ike SD2IEC
-* software-only faster protocol
-* same connector, same wires (ATN, CLK, DATA)
-* faster byte send
-* same ATN command protocol above
+	* Commodore 1984
+	* only used in the 264 series (C16, C116, Plus/4)
+* 17 pin header
+	*  1  GND
+	*  2  DEV
+	*  3  pa0
+	*  4  pa1
+	*  5  pa2
+	*  6  pa3
+	*  7  pa4
+	*  8  pa5
+	*  9  pa6
+	* 10  pa7
+	* 11  DAV: data available
+	* 12  ST0: status0
+	* 13  ACK
+	* 14  ST1: status1
+	* 15  RESET
+	* 16  GND
+	* 17  GND
+* Point-to-point, two TCBM drives talk can't to each other
+* computer didn't have the port, I/O chip ("controller card") came with drive
+* two drives means two I/O chips, i.e. two busses
+* 264 series had up to three IEC-like busses, one serial IEC, and up to two TCBM
+* if device 8 or 9
+	* ROM driver checks for presence of first or second I/O chip
+	* if found, uses TCBM over that chip
+	* otherwise, uses serial IEC
 
-* new byte send protocol
-	* send 2 bits at a time
-	* every TODO µs
-* original protocol has a "no slower than" requirement
-* Jiffy DOS has a "no faster or slower than" requirement
-* within TODO µs, receiver must be able to read two bits every TODO µs
+# Part 4: Fast Serial
 
-* backwards compatibility
-	* devices that can speak Jiffy DOS and devices that can't can share the same bus
-	* all devices that speak Jiffy DOS also speak the original protocol
-	* -> ok if a set of devices speak Jiffy DOS, while others are passive
-	* -> if not everyone in a set of devices can speak Jiffy DOS, they can revert to the original protocol
-	* commands from the controller have to be received by all devices
-	* -> commands have to use the regular protocol
-	* detection & enabling
-		* controller waits TODO µs between bit 6 and 7 of LISTEN or TALK
-		* -> device will speak fast protocol in this TALK/LISTEN session
-		* addressed device pulls DATA for TODO µs
-		* -> controller knows device will speak fast protocol
-	* if all listeners and talkers speak Jiffy DOS, everything is OK
-	* otherwise UNTALT, UNLISTEN and try again with original protocol
-	* common case: point-to-point between controller and one device
-	* -> signal Jiffy DOS protocol, if device replies, speak Jiffy DOS
-
-* is the send/receive protocol actually symmetrical? could two devices talk to each other?
-
-******************************************************
-FAST IEC
-******************************************************
 * "synchronous serial", "burst"
 * "Commodore Fast Serial Interface Protocol"
 * history
@@ -407,42 +456,46 @@ FAST IEC
 	    Fast serial: Actual transfer rate = 21000-23000 baud.
 	   Burst serial: Actual transfer rate = 78400-80000 baud.
 
-******************************************************
-TCBM
-******************************************************
-* history
-	* Commodore 1984
-	* only used in the 264 series (C16, C116, Plus/4)
-* 17 pin header
-	*  1  GND
-	*  2  DEV
-	*  3  pa0
-	*  4  pa1
-	*  5  pa2
-	*  6  pa3
-	*  7  pa4
-	*  8  pa5
-	*  9  pa6
-	* 10  pa7
-	* 11  DAV: data available
-	* 12  ST0: status0
-	* 13  ACK
-	* 14  ST1: status1
-	* 15  RESET
-	* 16  GND
-	* 17  GND
-* Point-to-point, two TCBM drives talk can't to each other
-* computer didn't have the port, I/O chip ("controller card") came with drive
-* two drives means two I/O chips, i.e. two busses
-* 264 series had up to three IEC-like busses, one serial IEC, and up to two TCBM
-* if device 8 or 9
-	* ROM driver checks for presence of first or second I/O chip
-	* if found, uses TCBM over that chip
-	* otherwise, uses serial IEC
+# Part 5: Jiffy DOS
 
-******************************************************
-CBDOS (C65)
-******************************************************
+* history
+	* Mark Fellows, 1985
+	* ROM replacements
+	* available for all Commodore computers and practically all IEC disk drives
+	* supported by modern devices ike SD2IEC
+* software-only faster protocol
+* same connector, same wires (ATN, CLK, DATA)
+* faster byte send
+* same ATN command protocol above
+
+* new byte send protocol
+	* send 2 bits at a time
+	* every TODO µs
+* original protocol has a "no slower than" requirement
+* Jiffy DOS has a "no faster or slower than" requirement
+* within TODO µs, receiver must be able to read two bits every TODO µs
+
+* backwards compatibility
+	* devices that can speak Jiffy DOS and devices that can't can share the same bus
+	* all devices that speak Jiffy DOS also speak the original protocol
+	* -> ok if a set of devices speak Jiffy DOS, while others are passive
+	* -> if not everyone in a set of devices can speak Jiffy DOS, they can revert to the original protocol
+	* commands from the controller have to be received by all devices
+	* -> commands have to use the regular protocol
+	* detection & enabling
+		* controller waits TODO µs between bit 6 and 7 of LISTEN or TALK
+		* -> device will speak fast protocol in this TALK/LISTEN session
+		* addressed device pulls DATA for TODO µs
+		* -> controller knows device will speak fast protocol
+	* if all listeners and talkers speak Jiffy DOS, everything is OK
+	* otherwise UNTALT, UNLISTEN and try again with original protocol
+	* common case: point-to-point between controller and one device
+	* -> signal Jiffy DOS protocol, if device replies, speak Jiffy DOS
+
+* is the send/receive protocol actually symmetrical? could two devices talk to each other?
+
+# Part 6: CBDOS
+
 * history
 	* Commodore, 1991, canceled
 	* C64 successor
@@ -464,14 +517,14 @@ CBDOS (C65)
 
 
 
+# XXX
 
+* Fast: setzen devices beim Unlisten das fast Flag zurück?
+* Parallel überführt nach seriell: Leitungen wegnehmen bis seriell
 
-Fast: setzen devices beim Unlisten das fast Flag zurück?
-Parallel überführt nach seriell: Leitungen wegnehmen bis seriell
-Notes:
-kein data accepted
-data valid gleich clock
-not ready for data gleich data
-SRQ als Feature hat parallel nach seriell überlebt
-Fast macht SRQ kaputt :(
-16->4 Leitungen (inkl. SRQ) 
+* kein data accepted
+* data valid gleich clock
+* not ready for data gleich data
+* SRQ als Feature hat parallel nach seriell überlebt
+* Fast macht SRQ kaputt :(
+* 16->4 Leitungen (inkl. SRQ) 
