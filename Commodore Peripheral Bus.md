@@ -167,6 +167,11 @@
 		* if there is no receiver, NDAC and NRFD are released
 			* -> device not present
 		* XXX if there is no sender?
+	* timeout		
+		* sender: by default, if data not accepted within 64 us
+			* -> send timeout
+		* receiver: by default, if data not available within 64 us
+			* -> receive timeout
 	* EOI
 		* EOI pulled by sender while data is valid
 	* bus turnaround
@@ -184,10 +189,6 @@
 			* anyone can pause at any time
 			* great for CPUs that have other things to do as well
 			* IRQs remain on, NMIs and DMA okay
-		* sender: optionally, if data not accepted within 64 us
-			* -> send timeout
-		* receiver: optionally, if data not available within 64 us
-			* -> receive timeout
 
 * controller and command bytes
 	* just this supports the use case of one device that is always the sender, and plus some devices which are only receivers
