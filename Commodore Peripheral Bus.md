@@ -160,7 +160,7 @@
 		* receiver releases NDAC (receiver has accepted the data)
 			* as soon as all receivers do this, NDAC is released
 		* sender releases DAV (data is not available)
-		* sender sets data to $FF (all DIO lines are released)
+		* sender sets data to $00 (all DIO lines are released)
 		* receiver waits for DAV to be released
 		* receiver pulls NDAC (receiver has not accepted data)
 		* we're in the original state again
