@@ -166,20 +166,28 @@
 	* errors
 		* if there is no receiver, NDAC and NRFD are released
 			* -> device not present
-		* sender: optionally, if data not accepted within 64 us
-			* -> send timeout
-		* receiver: optionally, if data not available within 64 us
-			* -> receive timeout
 		* XXX if there is no sender?
 	* EOI
 		* EOI pulled by sender while data is valid
-
+	* bus turnaround
+		* sender becomes receiver (secondary after talk)
+			* while ATN pulled
+			* pull NRFD and NDAC
+			* release ATN
+		* receiver becomes sender
+			* TODO
+			
 	
 	* comments:
 		* no timing requirements!
 		* slowest device defines speed
 			* anyone can pause at any time
 			* great for CPUs that have other things to do as well
+			* IRQs remain on, NMIs and DMA okay
+		* sender: optionally, if data not accepted within 64 us
+			* -> send timeout
+		* receiver: optionally, if data not available within 64 us
+			* -> receive timeout
 
 * controller and command bytes
 	* just this supports the use case of one device that is always the sender, and plus some devices which are only receivers
@@ -379,9 +387,15 @@ https://www.mocagh.org/forsale/mps1000-manual.pdf
 			* receiver pulls DATA within 1000 µs (any receiver!) = byte received OK
 	* EOI
 		* if "prepare sending byte" takes 200+ µs, the following byte is the last one
+		* receiver pulls data for a short while to acknowledge
+			* TODO
 		* at the end of transmission
 			* sender releases CLK
 			* receivers release DATA
+	* sender doesn't actually have any data
+		* will release clock and do nothing
+		* receiver first thinks it's EOI, but it takes even longer
+		* receiver times out
 	
 	* comments:
 		* transfer cannot start until all receivers are ready
@@ -398,6 +412,10 @@ https://www.mocagh.org/forsale/mps1000-manual.pdf
 
 * ATN	
 		* XXX ATN in the middle of a byte transmission?
+
+* TALK/LISTEN level differences
+	* file not found detection
+		* when drive becomes talker, it causes a "sender doesn't actually have any data" timeout
 
 # Part 3: TCBM
 
