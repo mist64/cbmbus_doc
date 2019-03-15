@@ -394,7 +394,10 @@ Sa=10: Reset the printer
 		* for every bit (LSB first)
 			* sender sets/clears DATA
 			* sender releases CLK, pulls this for 60+ µs = there is a valid bit on the DATA line
+				* C64 holds CLK it for 42 ticks only, releases CLK and DATA at the same time
+				* 1541 holds CLK for 74 ticks -> $E976, releases first CLK then DATA
 			* sender pulls CLK, releases DATA = there is no valid bit on the DATA line
+			* XXX does it have to release DATA???
 		* byte ack
 			* receiver pulls DATA within 1000 µs (any receiver!) = byte received OK
 	* EOI
