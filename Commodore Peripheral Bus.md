@@ -46,6 +46,17 @@
 		* computer-based
 		* C65
 
+* interesting historical detail:
+	* they started with a complex industry standard
+	* didn't support all use features, but allowed users to do so
+	* newer variants tried to pull over some of the unused features as well
+		* Serial supports one-to-many
+		* Serial supports device-to-device
+	* they were only slowly removed
+		* Fast Serial breaks SRQ
+		* Fast Serial breaks device-to-device for different protocol versions
+		* TCBM amnd CBDOS break device-to-device and one-to-many
+
 # Part 1a: IEEE-488 (IEC)
 
 * HP-IB, standardized as IEEE-488, "IEC Bus" (name used in Europe)
@@ -114,6 +125,7 @@
 		* defaults to 5V (line is "incative")
 		* will be 0V if any device pulls it down ("asserts" it, line is "active")
 		* it's impossible to tell who pulls it down
+		* for data, pulled = 0V = logical 1
 * transfering bytes
 	* bus is byte oriented
 	* 8-bit parallel
@@ -124,10 +136,43 @@
 		* read data off DIO and participate in handshake
 	* any number of passive devices
 		* will leave everything alone
-	* send byte
-		* TODO three-way handshake
+	* send byte: three-wire-handshake
+		* ownership
+			* DIO1-8 and DAV is owned by the sender
+			* NDAC and NRFD are owned by the receivers
+			* lines that are not owned are released
+		* start
+			* sender releases DAV (data not available)
+			* every receiver pulls NDAC (not all receivers have accepted the data)
+			* every receiver pulls NRFD (not all receivers are ready for data)
+		* as soon as a receiver is no longer busy
+			* release NRFD (receiver is ready for data)
+			* as soon as all receivers do this, NRFD is released
+		* sender waits for NRFD to be released
+		* sender puts inverted data byte on DIO
+			* (inverted because pulled is logical 1)
+		* sender pulls DAV (data is available)
+		* receiver gets inverted data byte from DIO
+		* receiver pulls NRFD (receiver is not ready for data)
+			* this is the default state for a receiver so the sender doesn't continue
+			  with the next byte until the receiver has done something with the data
+		* receiver releases NDAC (receiver has accepted the data)
+			* as soon as all receivers do this, NDAC is released
+		* sender releases DAV (data is not available)
+		* sender sets data to $FF (all DIO lines are released)
+		* receiver waits for DAV to be released
+		* receiver pulls NDAC (receiver has not accepted data)
+		* we're in the original state again
+	* errors
+		* if there is no receiver, NDAC and NRFD are released
+			* -> device not present
+		* sender: optionally, if data not accepted within 64 us
+			* -> send timeout
+		* receiver: optionally, if data not available within 64 us
+			* -> receive timeout
+		* XXX if there is no sender?
 	* EOI
-		* TODO
+		* EOI pulled by sender while data is valid
 
 	
 	* comments:
