@@ -1,6 +1,6 @@
-# Commodore Peripheral Bus
+# Commodore Peripheral Bus: Part 0: Overview and Introduction
 
-* 6 part series about the "IEC" family peripheral bus of the 8 bit Commodore machines
+* 10 part series about the "IEC" family peripheral bus of the 8 bit Commodore machines
 * family of connectors and protocols
 * from the PET, over VIC-20 and the C64/C128, up to the C65
 * based on IEEE-488
@@ -36,8 +36,12 @@
 	* Part 3: TCBM
 		* parallel, 1-to-1
 		* 264
-	* Part 4: Fast Serial
+	* Part 4a: Fast Serial
 		* improvement of serial
+		* C128, C65
+	* Part 4b: Burst
+		* stream transfer similar to Fast Serial on layer 2
+		* can't be combined with layers 3 and 4
 		* C128, C65
 	* Part 5: Jiffy DOS
 		* improvement of serial
