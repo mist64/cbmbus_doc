@@ -300,6 +300,7 @@
 	$FFA8: IECOUT – send byte to serial bus
 	$FFA5: IECIN – read byte from serial bus
 	$FFA2: SETTMO – set timeout [no effect on non-IEEE-488]
+		this is layer 2 while everything else is layer 3
 
 # Part 1c: CBM DOS
 
@@ -381,8 +382,8 @@ Sa=10: Reset the printer
 	* everyone not involved will leave CLK and DATA alone
 	* protocol
 		* setup
-			* sender pulls DATA = I am interested in sending data, but I don't have any data yet
-			* all receivers pull CLK = I am interested in accepting data
+			* sender pulls CLK = I am interested in sending data, but I don't have any data yet
+			* all receivers pull DATA = I am interested in accepting data
 			* this state can be held indefinitely
 		* ready to send:
 			* sender releases CLK = I am ready to send a byte
