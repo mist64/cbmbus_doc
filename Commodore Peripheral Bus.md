@@ -192,6 +192,8 @@
 			* great for CPUs that have other things to do as well
 			* IRQs remain on, NMIs and DMA okay
 
+![alt text](ieee-488.gif  =600x315)
+
 * controller and command bytes
 	* just this supports the use case of one device that is always the sender, and plus some devices which are only receivers
 		* e.g with a computer and a printer or a disk copy station with one source and one or many destinations
