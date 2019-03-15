@@ -195,7 +195,7 @@
 			* timeouts, so it can detect that sender has no data
 			* implicit communication through timing!
 
-![alt text](ieee-488.gif  =600x315)
+![](ieee-488.gif =600x315)
 
 * controller and command bytes
 	* just this supports the use case of one device that is always the sender, and plus some devices which are only receivers
@@ -350,6 +350,7 @@ Sa=10: Reset the printer
 	* SAME: any device can send data to any set of devices (one-to-many)
 	* SAME: channels
 	* timing based on min/max delays, not strict implicit clock (like RS-232), can be implemented in software
+	* no way to do full asynchrounous (all handshake) with just 2 wires, timing requirements!
 	-> 3 wires total
 	-> one dedicated controller
 
@@ -424,6 +425,12 @@ Sa=10: Reset the printer
 			* TODO ...
 			* TODO otherwise...?
 		* it's impossible to ack every bit with just two wires in order to make the protocol completely timing independent
+		* problem!
+			* any receiver can ack a byte buy pulling DATA
+			* -> if one receiver is super fast and the other one is super slow, protocol may break
+			* XXX fixed by timing requirements?
+
+![](serial.gif =600x315)
 
 * ATN	
 		* XXX ATN in the middle of a byte transmission?
