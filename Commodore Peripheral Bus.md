@@ -141,7 +141,7 @@
 			* DIO1-8 and DAV is owned by the sender
 			* NDAC and NRFD are owned by the receivers
 			* lines that are not owned are released
-		* start
+		* initial state
 			* sender releases DAV (data not available)
 			* every receiver pulls NDAC (not all receivers have accepted the data)
 			* every receiver pulls NRFD (not all receivers are ready for data)
@@ -191,6 +191,9 @@
 			* anyone can pause at any time
 			* great for CPUs that have other things to do as well
 			* IRQs remain on, NMIs and DMA okay
+		* Commodore
+			* timeouts, so it can detect that sender has no data
+			* implicit communication through timing!
 
 ![alt text](ieee-488.gif  =600x315)
 
