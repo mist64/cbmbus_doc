@@ -164,14 +164,15 @@
 		* receiver pulls NDAC (receiver has not accepted data)
 		* we're in the original state again
 	* errors
-		* if there is no receiver, NDAC and NRFD are released
-			* -> device not present
-		* XXX if there is no sender?
-	* timeout		
-		* sender: by default, if data not accepted within 64 us
-			* -> send timeout
-		* receiver: by default, if data not available within 64 us
-			* -> receive timeout
+		* device not present
+			* if there is no receiver, NDAC *and* NRFD are released
+				* this can be detected by sender at "start"
+			* XXX if there is no sender?
+				* can't be detected?
+		* timeout (Commodore extension)
+			* receiver timeout: if data not accepted within 64 us
+			* sender timeout: if data not available within 64 us
+			* for compatibility with IEEE, this can be disabled (SETTMO #$80)
 	* EOI
 		* EOI pulled by sender while data is valid
 	* bus turnaround
