@@ -11,7 +11,7 @@
 
 | layer              | IEEE-488                    | Serial              | JiffyDOS    | Fast Serial | TCBM                   | CBDOS       |
 |--------------------|-----------------------------|---------------------|-------------|-------------|------------------------|-------------|
-| 4: device API      | CBM DOS                     | CBM DOS             | CBM DOS     | CBM DOS     | CBM DOS                | CBM DOS     |
+| 4: device API      | Commodore DOS               | Commodore DOS       | Commodore DOS | Commodore DOS | Commodore DOS          | CBM DOS     |
 | 3: bus arbitration | TALK/LISTEN                 | TALK/LISTEN         | TALK/LISTEN | TALK/LISTEN | TALK/LISTEN            | TALK/LISTEN |
 | 2: byte transfer   | 8 bit, 3-way handshake, ATN | 1 bit CLK/DATA, ATN | *different* | + SRQ       | 8 bit, DAV ACK ST0 ST1 | *none*      |
 | 1: electrical      | 24 pin, TTL                 | 6 pin DIN TTL       | *same*      | *same*      | 16 pin TTL             | *none*      |
@@ -152,6 +152,7 @@
 		* sender puts inverted data byte on DIO
 			* (inverted because pulled is logical 1)
 		* sender pulls DAV (data is available)
+		* receiver waits for DAV
 		* receiver gets inverted data byte from DIO
 		* receiver pulls NRFD (receiver is not ready for data)
 			* this is the default state for a receiver so the sender doesn't continue
@@ -309,14 +310,14 @@
 0 graphic
 7 business
 
-ftp://www.zimmers.net/pub/cbm/manuals/printers/MPS-801_Printer_Users_Manual.pdf
+	ftp://www.zimmers.net/pub/cbm/manuals/printers/MPS-801_Printer_Users_Manual.pdf
 Sa= 0: Print data exactly as received
 Sa= 6: Setting spacing between lines
 Sa= 7: Select business mode
 Sa= S: Select graphic mode
 Sa=10: Reset the printer
 
-https://www.mocagh.org/forsale/mps1000-manual.pdf
+	https://www.mocagh.org/forsale/mps1000-manual.pdf
 0 Print data exactly as received in Uppercase/Graphics mode
 1 Print data according to a previously-defined format
 2 Store the formatting data
@@ -334,24 +335,27 @@ https://www.mocagh.org/forsale/mps1000-manual.pdf
 
 # Part 2: Serial IEC
 
+* Commodore calls it the serial bus
+* literature calls it serial IEC or IEC, but it's not an IEC standard
+
 * overview, idea, motivation, features
-	* multiple devices, daisy-chained
-	* byte oriented
-	* any device can send data to any set of devices (one-to-many)
-	* channels
+	* SAME: multiple devices, daisy-chained
+	* SAME: byte oriented
+	* SAME: any device can send data to any set of devices (one-to-many)
+	* SAME: channels
 	* timing based on min/max delays, not strict implicit clock (like RS-232), can be implemented in software
 	-> 3 wires total
 	-> one dedicated controller
 
 * IEEE -> IEC:
-	* 16->4 Leitungen (inkl. SRQ) 
+	* 16->4 wires (incl. SRQ) 
 	* NDAC removed
 	* DAV replaced by CLK
 	* NRFD replaced by DATA
 
 * connector & electrical
 	* 6-pin DIN
-		* 1 SRQ (not used)
+		* 1 SRQ
 		* 2 GND
 		* 3 ATN
 		* 4 CLK
