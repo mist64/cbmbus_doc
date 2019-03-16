@@ -50,6 +50,14 @@
 		* computer-based
 		* C65
 
+* table features:
+
+|                | IEEE-488 | Serial           | JiffyDOS    | Fast Serial | TCBM                   | CBDOS       |
+|----------------|----------|------------------|-------------|-------------|------------------------|-------------|
+| wires          | 13       | 3                | 3           | 4           | 12                     | -           |
+| speed (KB/sec) | 0.4      |                  | ~2.4        |             |                        |             |
+| code size      |          |                  |             |             |                        |             |
+
 * interesting historical detail:
 	* they started with a complex industry standard
 	* didn't support all use features, but allowed users to do so
@@ -508,6 +516,21 @@ Sa=10: Reset the printer
 * SECOND/TKSA
 	* byte output with of secondary address with a $82 command
 
+* discussion
+	* C264 series had super low cost C116: rubber keyboard, 16 KB, target price $49, only sold in Europe (100 DM, 99 GBP, which was about $75)
+	* Plus/4 was pro, had additional ACIA chip
+	* Plus/4 could have had a TIA for IEEE-488 or similar
+	* C16/C116 would have required a cartridge to support the fast drive
+		* but why would you connect a fast drive to a C16/C116?
+	* they decided on having a cartridge for all systems, making the Plus/4 cheaper
+	* but expansion port does not provide a chip select for the external TIAs
+		* so cartridge needs its own PLA
+	* they decided on point-to-point instead of existing IEEE-488
+		* this requires one cartridge per drive
+		* cartridge doesn't need a connector
+	* but the drive was very custom and therefore expensive
+		* 1541 electronics would have worked
+		* maybe clocked at 2 MHz for faster transfer
 
 # Part 4: Fast Serial
 
