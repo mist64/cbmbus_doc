@@ -469,11 +469,26 @@ Sa=10: Reset the printer
 * Point-to-point, two TCBM drives talk can't to each other
 * computer didn't have the port, I/O chip ("controller card") came with drive
 * two drives means two I/O chips, i.e. two busses
-* 264 series had up to three IEC-like busses, one serial IEC, and up to two TCBM
-* if device 8 or 9
-	* ROM driver checks for presence of first or second I/O chip
+* 264 series had up to three IEC-like busses, one serial IEC, and up to two TCBM (8 and 9)
+* detection
+	* $EDA9
+	* on every TALK or LISTEN, if device 8 or 9
+	* ROM driver checks for presence of first ($FEC0) or second ($FEF0) I/O chip
+		* PA must retain its value
+		* STATUS1 (PB1) must be 
+		* offset of TIA is stored in bits #4 and #5 in $f9 ($FEC0 + MEM($F9) & 0x30)
 	* if found, uses TCBM over that chip
+		* TALK/LISTEN will set bit #6/#7 in $F9 to indicate TALKER/LISTENER is TCBM
+		* reset of bits #6/#7 on UNTALK/UNLISTEN
 	* otherwise, uses serial IEC
+* byte output
+	* store $83 into PA
+	* wait for ACK (PC7) = 0
+	* store byte into PA
+	* set DAV (PC6) = 0
+	* wait for ACK (PC7) = 1
+	* read STATUS0/STATUS1 (PB0/PB1) into lowest 2 bits of ST (timeout, r/w)
+
 
 # Part 4: Fast Serial
 
