@@ -207,7 +207,7 @@
 			* timeouts, so it can detect that sender has no data
 			* implicit communication through timing!
 
-![](ieee-488.gif =600x315)
+![](ieee-488.gif =601x577)
 
 * controller and command bytes
 	* just this supports the use case of one device that is always the sender, and plus some devices which are only receivers
@@ -442,7 +442,7 @@ Sa=10: Reset the printer
 			* -> if one receiver is super fast and the other one is super slow, protocol may break
 			* XXX fixed by timing requirements?
 
-![](serial.gif =600x315)
+![](serial.gif =601x255)
 
 * ATN	
 		* XXX ATN in the middle of a byte transmission?
@@ -665,6 +665,8 @@ Sa=10: Reset the printer
 	* but the drive was very custom and therefore expensive
 		* 1541 electronics would have worked
 		* maybe clocked at 2 MHz for faster transfer
+
+![](tcbm.gif =601x577)
 
 # Part 6: CBDOS
 
