@@ -487,7 +487,26 @@ Sa=10: Reset the printer
 	* store byte into PA
 	* set DAV (PC6) = 0
 	* wait for ACK (PC7) = 1
-	* read STATUS0/STATUS1 (PB0/PB1) into lowest 2 bits of ST (timeout, r/w)
+	* read STATUS0/STATUS1 (PB0/PB1) into lowest 2 bits of ST (timeout r/w)
+	* store $00 in PA
+	* set DAV (PC6) = 1
+* byte input
+	* store $84 in PA
+	* wait for ACK (PC7) = 0
+	* set DAV (PC6) = 0
+	* wait for ACK (PC7) = 1
+	* read STATUS0/STATUS1 (PB0/PB1)
+		* 3 means EOI
+		* otherwise store into lowest 2 bits of ST (timeout r/w)
+	* read PA
+	* set DAV (PC6) = 1
+	* wait for ACK (PC7) = 0
+	* store $00 in PA
+	* set DAV (PC6) = 0
+* TALK/LISTEN
+	* byte output with of $40/$20 with a $81 command
+* SECOND/TKSA
+	* byte output with of secondary address with a $82 command
 
 
 # Part 4: Fast Serial
