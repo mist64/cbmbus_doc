@@ -41,7 +41,7 @@ Commodore's first computer, the 1977 "PET", used the industry standard IEEE-488 
 |--------------------|-----------------------------|---------------------|-------------|-------------|------------------------|-------------|
 | 4: device API      | Commodore DOS               | Commodore DOS       | Commodore DOS | Commodore DOS | Commodore DOS          | CBM DOS     |
 | 3: bus arbitration | TALK/LISTEN                 | TALK/LISTEN         | TALK/LISTEN | TALK/LISTEN | TALK/LISTEN            | TALK/LISTEN |
-| 2: byte transfer   | 8 bit, 3-way handshake, ATN | 1 bit CLK/DATA, ATN | *different* | + SRQ       | 8 bit, DAV ACK ST0 ST1 | *none*      |
+| 2: byte transfer   | 8 bit, 3-wire handshake, ATN | 1 bit CLK/DATA, ATN | *different* | + SRQ       | 8 bit, DAV ACK ST0 ST1 | *none*      |
 | 1: electrical      | 24 pin, TTL                 | 6 pin DIN TTL       | *same*      | *same*      | 16 pin TTL             | *none*      |
 
 * overview/features
