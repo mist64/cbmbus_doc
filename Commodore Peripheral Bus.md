@@ -1,76 +1,52 @@
 # Commodore Peripheral Bus: Part 0: Overview and Introduction
 
-The Serial ("IEC") Bus of the Commodore 64 that connects to disk drives such as the 1541 is just one variant of a whole family of peripheral busses and protocols used by the 8 bit Commodore machines from the PET to the C65.
+The Serial ("IEC") Bus of the Commodore 64 that connects to disk drives such as the 1541 is just one variant of a whole family of peripheral busses and protocols used by the 8 bit Commodore machines from the PET to the C65. This is the first article of a **multi-part series** on the **Commodore Peripheral Bus family**.
 
-This is the first article of a multi-part series on the Commodore Peripheral Bus family.
+In 1977, for the PET, Commodore just implented the IEEE-488 standard, with some minor extensions. While later variants use different connectors and byte transfer protocols, they retain the same bus arbitration and device layers.
 
-All variants are based on the IEEE-488 standard. While the Commodore PET (1977) this standard bus, 
+![](cbmbus.png =600x320)
 
-* **Part 1a: IEEE-488 [PET/CBM Series]**
-Commodore's first computer, the 1977 "PET", used the industry standard IEEE-488 bus to connect disk drives and printers – with some added features. IEEE-488 is an 8-bit parallel bus.
-* **Part 1b: The TALK/LISTEN Layer**
-* **Part 1c: The Commodore DOS Layer**
-* **Part 2: Serial IEC [VIC-20, C64]**
-	* VIC-20, C64, 264, C128, C65
-	* serial
-* **Part 3a: Fast Serial [C128]**
-	* improvement of serial
-	* C128, C65
-* **Part 3b: Burst Mode [C128]**
+Most variants share the same basic architecture:
+* All participants are **daisy-chained**.
+* **One dedicated controller** (the computer) does bus arbitration of **up to 31 devices**.
+* **One-to-many**: Any participant can send data to any set of participants.
+* A device has **multiple channels** for different functions.
+* Data transmission is **byte stream** based.
+
+* **Part 1: IEEE-488 [PET/CBM Series]**
+This part covers layers 1 (electrical) and 2 (byte transfer) only of IEEE-488, an 8-bit parallel bus with three handshake lines, an ATN line for bus arbitration and very relaxed timing requirements. 
+* **Part 2: The TALK/LISTEN Layer**
+This part talks about layer 3 (TALK/LISTEN), which is shared between all bus variants.
+* **Part 3: The Commodore DOS Layer**
+This part describes layer 4 (Commodore DOS), which is shared between all bus variants.
+* **Part 4: Serial IEC [VIC-20, C64]**
+The VIC-20 introduced a serial version of layers 1 and 2 with one clock and one data line for serial data transmission, and an ATN line for bus arbitration. It has some strict timing requirements. This bus is supported by all members of the home computer line: VIC-20, C64, Plus/4 Series, C128 and C65.
+* **Part 5: Fast Serial & Burst Mode [C128]**
+The C128 introduced Fast Serial, a new layer 2 protocol that uses one clock line, one data line, and one ACK line for data transmission. Bus arbitration is unchanged. The controller detects a device's Fast Serial support and can fall back to the regular protocol.
+XXX Bust Mode
 	* stream transfer similar to Fast Serial on layer 2
 	* can't be combined with layers 3 and 4
-	* C128, C65
-* **Part 4: Jiffy DOS**
+* **Part 6: Jiffy DOS**
 	* improvement of serial
 	* third party, all serial IEC computers/devices
-* **Part 5: TCBM [C16, C116, Plus/4]**
+* **Part 7: TCBM [C16, C116, Plus/4]**
 	* parallel, 1-to-1
 	* 264
-* **Part 6: CBDOS [C65]**
+* **Part 8: CBDOS [C65]**
 	* computer-based
 	* C65
 
 
-* based on IEEE-488
-	* with added features
-	* some features removed
-* variants use different connectors and different byte transfer protocols
-* but the same bus arbitration and device API
-
-| layer              | IEEE-488                    | Serial              | JiffyDOS    | Fast Serial | TCBM                   | CBDOS       |
-|--------------------|-----------------------------|---------------------|-------------|-------------|------------------------|-------------|
-| 4: device API      | Commodore DOS               | Commodore DOS       | Commodore DOS | Commodore DOS | Commodore DOS          | CBM DOS     |
-| 3: bus arbitration | TALK/LISTEN                 | TALK/LISTEN         | TALK/LISTEN | TALK/LISTEN | TALK/LISTEN            | TALK/LISTEN |
-| 2: byte transfer   | 8 bit, 3-wire handshake, ATN | 1 bit CLK/DATA, ATN | *different* | + SRQ       | 8 bit, DAV ACK ST0 ST1 | *none*      |
-| 1: electrical      | 24 pin, TTL                 | 6 pin DIN TTL       | *same*      | *same*      | 16 pin TTL             | *none*      |
-
-* overview/features
-	* multiple devices, daisy-chained
-	* byte oriented
-	* generally, any device can send data to any set of devices (one-to-many)
-	* one dedicated controller for bus arbitration - the computer
-	* a device has multiple channels for different functions
-	* and named channels
 
 
 * table features:
 
-|                | IEEE-488 | Serial           | JiffyDOS    | Fast Serial | TCBM                   | CBDOS       |
-|----------------|----------|------------------|-------------|-------------|------------------------|-------------|
-| wires          | 13       | 3                | 3           | 4           | 12                     | -           |
-| speed (KB/sec) | 0.4      |                  | ~2.4        |             |                        |             |
-| code size      |          |                  |             |             |                        |             |
+|                | IEEE-488 | Serial        | Fast Serial   | JiffyDOS    | TCBM                   | CBDOS       |
+|----------------|----------|---------------|---------------|-------------|------------------------|-------------|
+| wires          | 13       | 3             | 4             | 3           | 12                     | -           |
+| speed (KB/sec) |          | 0.4           | 1.6/4 (Burst) | 2.4?        |                        |             |
+| code size      |          |               |               |             |                        |             |
 
-* interesting historical detail:
-	* they started with a complex industry standard
-	* didn't support all use features, but allowed users to do so
-	* newer variants tried to pull over some of the unused features as well
-		* Serial supports one-to-many
-		* Serial supports device-to-device
-	* they were only slowly removed
-		* Fast Serial breaks SRQ
-		* Fast Serial breaks device-to-device for different protocol versions
-		* TCBM amnd CBDOS break device-to-device and one-to-many
 
 # Part 1a: IEEE-488 (IEC)
 
@@ -444,6 +420,7 @@ Sa=10: Reset the printer
 			* any receiver can ack a byte buy pulling DATA
 			* -> if one receiver is super fast and the other one is super slow, protocol may break
 			* XXX fixed by timing requirements?
+		* why use the clock at all, if we have strict timing requirements? we could just as well have "data valid" windows (Jiffy does this, and uses CLK for data as well)
 
 ![](serial.gif =601x255)
 
@@ -468,6 +445,9 @@ Sa=10: Reset the printer
 
 * new byte send protocol
 	* uses SRQ as clock, DATA for data
+		* names are wrong now, should we use saner names?
+		* SRQ -> CLK
+		* CLK -> ACK
 	* MSB first
 	* 10 µs per bit
 		* 6526 docs says min clock is Phi0/4, so 8 µs per bit
@@ -687,3 +667,15 @@ Sa=10: Reset the printer
 * IEC calls are going to CBDOS drive first, and if failure, to IEC
 
 
+# Misc
+
+* interesting historical detail:
+	* they started with a complex industry standard
+	* didn't support all use features, but allowed users to do so
+	* newer variants tried to pull over some of the unused features as well
+		* Serial supports one-to-many
+		* Serial supports device-to-device
+	* they were only slowly removed
+		* Fast Serial breaks SRQ
+		* Fast Serial breaks device-to-device for different protocol versions
+		* TCBM amnd CBDOS break device-to-device and one-to-many
