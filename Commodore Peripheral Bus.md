@@ -1,8 +1,8 @@
 # Commodore Peripheral Bus: Part 0: Overview and Introduction
 
-The Serial ("IEC") Bus of the Commodore 64 that connects to disk drives such as the 1541 is just one variant of a whole family of peripheral busses and protocols used by the 8 bit Commodore machines from the PET to the C65. This is the first article of a **multi-part series** on the **Commodore Peripheral Bus family**.
+The Serial ("IEC") Bus of the Commodore 64 that connects to disk drives such as the 1541 is just one variant of a whole family of busses and protocols used by the line of 8 bit Commodore machines from the PET to the C65. This is the first article of a **multi-part series** on the **Commodore Peripheral Bus family**.
 
-In 1977, for the PET, Commodore just implented the IEEE-488 standard, with some minor extensions. While later variants use different connectors and byte transfer protocols, they retain the same bus arbitration and device layers.
+The peripheral bus of the PET (1977) was a minor variation of the existing IEEE-488 standard. Later variants use very different connectors and byte transfer protocols, but they retain the same bus arbitration and device layers.
 
 ![](cbmbus.png =600x320)
 
@@ -13,38 +13,44 @@ Most variants share the same basic architecture:
 * A device has **multiple channels** for different functions.
 * Data transmission is **byte stream** based.
 
-* **Part 1: IEEE-488 [PET/CBM Series]**
-This part covers layers 1 (electrical) and 2 (byte transfer) only of IEEE-488, an 8-bit parallel bus with three handshake lines, an ATN line for bus arbitration and very relaxed timing requirements. 
+* **Part 0: Overview and Introduction**
+*That's this part.*
+* **Part 1: IEEE-488 [PET/CBM Series; 1977]**
+This part covers layers 1 (electrical) and 2 (byte transfer) of IEEE-488, an 8-bit parallel bus with three handshake lines, an ATN line for bus arbitration and very relaxed timing requirements. 
 * **Part 2: The TALK/LISTEN Layer**
 This part talks about layer 3 (TALK/LISTEN), which is shared between all bus variants.
 * **Part 3: The Commodore DOS Layer**
 This part describes layer 4 (Commodore DOS), which is shared between all bus variants.
-* **Part 4: Serial IEC [VIC-20, C64]**
+* **Part 4: Serial IEC [VIC-20, C64; 1981]**
 The VIC-20 introduced a serial version of layers 1 and 2 with one clock and one data line for serial data transmission, and an ATN line for bus arbitration. It has some strict timing requirements. This bus is supported by all members of the home computer line: VIC-20, C64, Plus/4 Series, C128 and C65.
-* **Part 5: Fast Serial [C128]**
-The C128 introduced Fast Serial, a new layer 2 protocol that uses one clock line, one data line, and one ACK line for data transmission. Bus arbitration is unchanged. The controller detects a device's Fast Serial support and can fall back to the regular protocol.
-* **Part 6: JiffyDOS**
-JiffyDOS
-	* improvement of serial
-	* third party, all serial IEC computers/devices
-* **Part 7: TCBM [C16, C116, Plus/4]**
-	* parallel, 1-to-1
-	* 264
-* **Part 8: CBDOS [C65]**
-	* computer-based
-	* C65
+* **Part 5: TCBM [C16, C116, Plus/4; 1984]**
+The Plus/4 Series introduced a 1-to-1 bus between the computer and one drive, with 8 bit parallel data, two handshake lines, and two status line from the drive to the computer. It was a short-lived planned successor of the Standard Serial bus, but then replaced by Fast Serial.
+* **Part 6: JiffyDOS [1985]**
+JiffyDOS, a 3rd party ROM patch for computers and drives, is a new layer 2 protocol that uses the clock and data lines in a more efficient way. Bus arbitration is unchanged. The controller detects a device's JiffyDOS support and can fall back to the Standard Serial protocol.
+* **Part 7: Fast Serial [C128; 1986]**
+The C128 introduced Fast Serial, a new layer 2 protocol that uses a previously unused wire in the Serial connector as a third line for data transmission. Bus arbitration is unchanged. The controller detects a device's Fast Serial support and can fall back to the Standard Serial protocol.
+* **Part 8: CBDOS [C65; 1991]**
+The unreleased C65 added CBDOS ("computer-based DOS") by integrating one or more drive controllers into the computer. There are no layers 1 and 2, and layer 3 sits directly on top of function calls that call into the DOS code running on the same CPU.
 
+<!---
 
+Here is an overview of some of the properties of the different variants:
 
+|                         | IEEE-488 | Serial        | Fast Serial   | JiffyDOS    | TCBM                   | CBDOS       |
+|-------------------------|----------|---------------|---------------|-------------|------------------------|-------------|
+| wires                   | 13       | 3             | 4             | 3           | 12                     | -           |
+| speed (KB/sec)          |          | 0.4           | 1.6/4 (Burst) | 2.4?        |                        |             |
+| controller code (bytes) | 334      | 434           | 708           |             | 262                    | 0           |
 
-* table features:
+* size
+	* controller!
+	* IEEE: CBM2
+	* Serial: C64
+	* Fast: C128
+	* TCBM: EC8B-ED18, EDD4-EDEA, EDFA-EE5D
+		* = 99 + 22 + 141 = 262
 
-|                | IEEE-488 | Serial        | Fast Serial   | JiffyDOS    | TCBM                   | CBDOS       |
-|----------------|----------|---------------|---------------|-------------|------------------------|-------------|
-| wires          | 13       | 3             | 4             | 3           | 12                     | -           |
-| speed (KB/sec) |          | 0.4           | 1.6/4 (Burst) | 2.4?        |                        |             |
-| code size      |          |               |               |             |                        |             |
-
+-->
 
 # Part 1a: IEEE-488 (IEC)
 
@@ -646,6 +652,9 @@ Sa=10: Reset the printer
 	* but the drive was very custom and therefore expensive
 		* 1541 electronics would have worked
 		* maybe clocked at 2 MHz for faster transfer
+	* no strict separation of layers 2 and 2
+		* codes $81 and $82 have knowledge of type of command byte (main or supplementary command byte)
+		* they should only signal ATN yes/no
 
 ![](tcbm.gif =601x577)
 
