@@ -21,12 +21,10 @@ This part talks about layer 3 (TALK/LISTEN), which is shared between all bus var
 This part describes layer 4 (Commodore DOS), which is shared between all bus variants.
 * **Part 4: Serial IEC [VIC-20, C64]**
 The VIC-20 introduced a serial version of layers 1 and 2 with one clock and one data line for serial data transmission, and an ATN line for bus arbitration. It has some strict timing requirements. This bus is supported by all members of the home computer line: VIC-20, C64, Plus/4 Series, C128 and C65.
-* **Part 5: Fast Serial & Burst Mode [C128]**
+* **Part 5: Fast Serial [C128]**
 The C128 introduced Fast Serial, a new layer 2 protocol that uses one clock line, one data line, and one ACK line for data transmission. Bus arbitration is unchanged. The controller detects a device's Fast Serial support and can fall back to the regular protocol.
-XXX Bust Mode
-	* stream transfer similar to Fast Serial on layer 2
-	* can't be combined with layers 3 and 4
-* **Part 6: Jiffy DOS**
+* **Part 6: JiffyDOS**
+JiffyDOS
 	* improvement of serial
 	* third party, all serial IEC computers/devices
 * **Part 7: TCBM [C16, C116, Plus/4]**
@@ -525,7 +523,7 @@ Sa=10: Reset the printer
 
 # Part 3b: Burst
 
-# Part 4: Jiffy DOS
+# Part 4: JiffyDOS
 
 * history
 	* Mark Fellows, 1985
@@ -541,14 +539,14 @@ Sa=10: Reset the printer
 	* send 2 bits at a time
 	* every TODO µs
 * original protocol has a "no slower than" requirement
-* Jiffy DOS has a "no faster or slower than" requirement
+* JiffyDOS has a "no faster or slower than" requirement
 * within TODO µs, receiver must be able to read two bits every TODO µs
 
 * backwards compatibility
-	* devices that can speak Jiffy DOS and devices that can't can share the same bus
-	* all devices that speak Jiffy DOS also speak the original protocol
-	* -> ok if a set of devices speak Jiffy DOS, while others are passive
-	* -> if not everyone in a set of devices can speak Jiffy DOS, they can revert to the original protocol
+	* devices that can speak JiffyDOS and devices that can't can share the same bus
+	* all devices that speak JiffyDOS also speak the original protocol
+	* -> ok if a set of devices speak JiffyDOS, while others are passive
+	* -> if not everyone in a set of devices can speak JiffyDOS, they can revert to the original protocol
 	* commands from the controller have to be received by all devices
 	* -> commands have to use the regular protocol
 	* detection & enabling
@@ -556,10 +554,10 @@ Sa=10: Reset the printer
 		* -> device will speak fast protocol in this TALK/LISTEN session
 		* addressed device pulls DATA for TODO µs
 		* -> controller knows device will speak fast protocol
-	* if all listeners and talkers speak Jiffy DOS, everything is OK
+	* if all listeners and talkers speak JiffyDOS, everything is OK
 	* otherwise UNTALT, UNLISTEN and try again with original protocol
 	* common case: point-to-point between controller and one device
-	* -> signal Jiffy DOS protocol, if device replies, speak Jiffy DOS
+	* -> signal JiffyDOS protocol, if device replies, speak JiffyDOS
 
 * is the send/receive protocol actually symmetrical? could two devices talk to each other?
 
