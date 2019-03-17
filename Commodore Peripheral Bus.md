@@ -1,8 +1,36 @@
 # Commodore Peripheral Bus: Part 0: Overview and Introduction
 
-* 10 part series about the "IEC" family peripheral bus of the 8 bit Commodore machines
-* family of connectors and protocols
-* from the PET, over VIC-20 and the C64/C128, up to the C65
+The Serial ("IEC") Bus of the Commodore 64 that connects to disk drives such as the 1541 is just one variant of a whole family of peripheral busses and protocols used by the 8 bit Commodore machines from the PET to the C65.
+
+This is the first article of a multi-part series on the Commodore Peripheral Bus family.
+
+All variants are based on the IEEE-488 standard. While the Commodore PET (1977) this standard bus, 
+
+* **Part 1a: IEEE-488 [PET/CBM Series]**
+Commodore's first computer, the 1977 "PET", used the industry standard IEEE-488 bus to connect disk drives and printers – with some added features. IEEE-488 is an 8-bit parallel bus.
+* **Part 1b: The TALK/LISTEN Layer**
+* **Part 1c: The Commodore DOS Layer**
+* **Part 2: Serial IEC [VIC-20, C64]**
+	* VIC-20, C64, 264, C128, C65
+	* serial
+* **Part 3a: Fast Serial [C128]**
+	* improvement of serial
+	* C128, C65
+* **Part 3b: Burst Mode [C128]**
+	* stream transfer similar to Fast Serial on layer 2
+	* can't be combined with layers 3 and 4
+	* C128, C65
+* **Part 4: Jiffy DOS**
+	* improvement of serial
+	* third party, all serial IEC computers/devices
+* **Part 5: TCBM [C16, C116, Plus/4]**
+	* parallel, 1-to-1
+	* 264
+* **Part 6: CBDOS [C65]**
+	* computer-based
+	* C65
+
+
 * based on IEEE-488
 	* with added features
 	* some features removed
@@ -24,31 +52,6 @@
 	* a device has multiple channels for different functions
 	* and named channels
 
-* parts
-	* Part 1a: IEEE-488 (IEC)
-		* PET, CBM
-		* parallel
-	* Part 1b: TALK/LISTEN
-	* Part 1c: CBM DOS
-	* Part 2: Serial IEC
-		* VIC-20, C64, 264, C128, C65
-		* serial
-	* Part 3a: Fast Serial
-		* improvement of serial
-		* C128, C65
-	* Part 3b: Burst
-		* stream transfer similar to Fast Serial on layer 2
-		* can't be combined with layers 3 and 4
-		* C128, C65
-	* Part 4: Jiffy DOS
-		* improvement of serial
-		* third party, all serial IEC computers/devices
-	* Part 5: TCBM
-		* parallel, 1-to-1
-		* 264
-	* Part 6: CBDOS
-		* computer-based
-		* C65
 
 * table features:
 
@@ -668,10 +671,12 @@ Sa=10: Reset the printer
 
 ![](tcbm.gif =601x577)
 
+* TODO: TCBM receive
+
 # Part 6: CBDOS
 
 * history
-	* Commodore, 1991, canceled
+	* Commodore C65, 1991, canceled
 	* C64 successor
 	* "Computer Based DOS"
 * drives are not external computers any more
