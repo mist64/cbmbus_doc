@@ -1,8 +1,8 @@
-# Commodore Peripheral Bus: Part 0: Overview and Introduction
+# Commodore Peripheral Bus: Overview
 
-The Serial ("IEC") Bus of the Commodore 64 that connects to disk drives such as the 1541 is just one variant of a whole family of busses and protocols used by the line of 8 bit Commodore machines from the PET to the C65. This is the first article of a **multi-part series** on the **Commodore Peripheral Bus family**.
+The well-known Serial ("IEC") Bus of the Commodore 64 that connects to disk drives such as the 1541 is just one variant of a whole family of busses and protocols used by the line of 8 bit Commodore machines from the PET to the C65. This is the first article of a **multi-part series** on the **Commodore Peripheral Bus family**.
 
-The peripheral bus of the PET (1977) was a minor variation of the existing IEEE-488 standard. Later variants use very different connectors and byte transfer protocols, but they retain the same bus arbitration and device layers.
+The peripheral bus of the PET (1977) is a minor variation of the existing IEEE-488 standard. Later variants use different connectors and byte transfer protocols, but they retain the same bus arbitration and device layers.
 
 ![](cbmbus.png =600x320)
 
@@ -13,6 +13,7 @@ Most variants share the same basic architecture:
 * A device has **multiple channels** for different functions.
 * Data transmission is **byte stream** based.
 
+The different variants and layers are described in the following articles:
 * **Part 0: Overview and Introduction**
 *That's this part.*
 * **Part 1: IEEE-488 [PET/CBM Series; 1977]**
@@ -21,14 +22,14 @@ This part covers layers 1 (electrical) and 2 (byte transfer) of IEEE-488, an 8-b
 This part talks about layer 3 (TALK/LISTEN), which is shared between all bus variants.
 * **Part 3: The Commodore DOS Layer**
 This part describes layer 4 (Commodore DOS), which is shared between all bus variants.
-* **Part 4: Serial IEC [VIC-20, C64; 1981]**
+* **Part 4: Standard Serial (IEC) [VIC-20, C64; 1981]**
 The VIC-20 introduced a serial version of layers 1 and 2 with one clock and one data line for serial data transmission, and an ATN line for bus arbitration. It has some strict timing requirements. This bus is supported by all members of the home computer line: VIC-20, C64, Plus/4 Series, C128 and C65.
 * **Part 5: TCBM [C16, C116, Plus/4; 1984]**
-The Plus/4 Series introduced a 1-to-1 bus between the computer and one drive, with 8 bit parallel data, two handshake lines, and two status line from the drive to the computer. It was a short-lived planned successor of the Standard Serial bus, but then replaced by Fast Serial.
+The Plus/4 Series introduced a 1-to-1 bus between the computer and one drive, with 8 bit parallel data, two handshake lines, and two status lines from the drive to the computer. It was the short-lived planned successor of the Standard Serial bus, but was then replaced by Fast Serial.
 * **Part 6: JiffyDOS [1985]**
-JiffyDOS, a 3rd party ROM patch for computers and drives, is a new layer 2 protocol that uses the clock and data lines in a more efficient way. Bus arbitration is unchanged. The controller detects a device's JiffyDOS support and can fall back to the Standard Serial protocol.
+JiffyDOS, a 3rd party ROM patch for computers and drives, replaces layer 2 byte transmission of Standard Serial by using the clock and data lines in a more efficient way. Bus arbitration is unchanged. The controller detects a device's JiffyDOS support and can fall back to the Standard Serial protocol.
 * **Part 7: Fast Serial [C128; 1986]**
-The C128 introduced Fast Serial, a new layer 2 protocol that uses a previously unused wire in the Serial connector as a third line for data transmission. Bus arbitration is unchanged. The controller detects a device's Fast Serial support and can fall back to the Standard Serial protocol.
+The C128 introduced Fast Serial, which replaces layer 2 byte transmission of Standard Serial by using a previously unused wire in the Serial connector as a third line for data transmission. Bus arbitration is unchanged. The controller detects a device's Fast Serial support and can fall back to the Standard Serial protocol.
 * **Part 8: CBDOS [C65; 1991]**
 The unreleased C65 added CBDOS ("computer-based DOS") by integrating one or more drive controllers into the computer. There are no layers 1 and 2, and layer 3 sits directly on top of function calls that call into the DOS code running on the same CPU.
 
@@ -39,7 +40,7 @@ Here is an overview of some of the properties of the different variants:
 |                         | IEEE-488 | Serial        | Fast Serial   | JiffyDOS    | TCBM                   | CBDOS       |
 |-------------------------|----------|---------------|---------------|-------------|------------------------|-------------|
 | wires                   | 13       | 3             | 4             | 3           | 12                     | -           |
-| speed (KB/sec)          |          | 0.4           | 1.6/4 (Burst) | 2.4?        |                        |             |
+| speed (KB/sec)          |          | 0.4           | 1.2           | 2.0         | 0.35??                 | inf         |
 | controller code (bytes) | 334      | 434           | 708           |             | 262                    | 0           |
 
 * size
@@ -50,9 +51,45 @@ Here is an overview of some of the properties of the different variants:
 	* TCBM: EC8B-ED18, EDD4-EDEA, EDFA-EE5D
 		* = 99 + 22 + 141 = 262
 
+>2000 a9 08 20 b4 ff a9 6f 20 96 ff a2 00 20 a5 ff ca d0 fa 60
+break 2000
+break 2012
+g
+sys8192
+g
+
+# inc $d020
+>2000 a9 08 20 b4 ff a9 6f 20 96 ff a2 00 20 a5 ff ee 20 d0 ca d0 f7 60
+
+# jsr $ffd2
+>2000 a9 08 20 b4 ff a9 6f 20 96 ff a2 00 20 a5 ff 20 d2 ff ca d0 f7 60
+
+IEEE cart
+>2000 a9 08 20 d7 cb a9 6f 20 27 cc a2 00 20 b4 cc ca d0 fa 60
+
+
+* VIC-20/1540     2614 -> 0.38
+* VIC-20/1541     3030 -> 0.33
+* VIC-20/1581     2767 -> 0.36
+* C64/1541:       2674 -> 0.37
+* C64/1581:       2627 -> 0.38
+* C64/J1541:      2300 -> 0.43
+* C64J/1541:       498 -> 2.0
+* C128/1571:       810 -> 1.2
+* Plus/4, 1551:   2893 -> 0.35
+* Plus/4, 1541:   5163 -> 0.2
+* iEEE-488:               1.4 (according to Data Becker)
+
 -->
 
-# Part 1a: IEEE-488 (IEC)
+# Part 1: IEEE-488 (IEC)
+
+This article covers the IEEE-488 bus
+
+It is the first article in the series about the variants of the Commodore Peripheral Bus.
+
+
+For their first personal computer, the PET from 1977, Commodore chose an existing design for their 
 
 * HP-IB, standardized as IEEE-488, "IEC Bus" (name used in Europe)
 * electrical
@@ -655,6 +692,9 @@ Sa=10: Reset the printer
 	* no strict separation of layers 2 and 2
 		* codes $81 and $82 have knowledge of type of command byte (main or supplementary command byte)
 		* they should only signal ATN yes/no
+	* with two 1551 and one 1541, all three can communicate at the same time
+		* with multiple 1541, formatting one disk blocks the bus
+		* with two 1551 and one 1541, all three can format at the same time
 
 ![](tcbm.gif =601x577)
 
