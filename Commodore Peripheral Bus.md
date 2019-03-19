@@ -2,30 +2,31 @@
 
 The well-known Serial Bus (aka Serial "IEC" Bus) of the Commodore 64 that connects to disk drives such as the 1541 is just one variant of a whole family of busses and protocols used by the line of 8 bit Commodore machines from the PET to the C65. This is the first article of a **multi-part series** on the **Commodore Peripheral Bus family**.
 
-The family of protocols is heavily based on the IEEE-488 standard, with the Commodore PET's peripheral bus actually being IEEE-488. Later variants use different connectors and byte transfer protocols, but they retain the same bus arbitration and device layers.
+The following figure compares the different protocol stacks. There are three different connectors with their unique byte transfer protocols: IEEE-488, Serial, and TCBM. Fast Serial and JiffyDOS are optimized, but backwards-compatible protocols for existing cables, and CBDOS integrates the drive directly into the computer. The higher level protocols are the same across all Commodore 8 bit machines, including the "KERNAL" operating system APIs.
 
-The following figure shows the different protocol stacks. There are three different connectors with their unique byte transfer protocols: IEEE-488, Serial, and TCBM. Fast Serial and JiffyDOS are optimized, but backwards-compatible protocols for existing cables, and CBDOS integrates the drive directory into the computer. The protocols above all the same across all Commodore 8 bit machines, including the "KERNAL" operating system APIs.
+![](cbmbus.png =601x241)
 
-![](cbmbus.png =600x320)
+These are the properties and tradeoffs of the different variants of the protocol stack[^1]:
 
-Most variants share the same basic architecture:
+|                         | IEEE-488 | Serial        | Fast Serial   | JiffyDOS    | TCBM                   | CBDOS       |
+|-------------------------|----------|---------------|---------------|-------------|------------------------|-------------|
+| Data Wires              | 13       | 3             | 4             | 3           | 12                     | -           |
+| Speed (KB/sec)          | 2.1      | 0.4           | 2.1           | 2.1         | 2.4                    | &infin;     |
+| Controller Code (bytes) | 334      | 434           | 708           | 739         | 262                    | 0           |
+| Comments                | compatible with industry standard | very slow | requires decidated bit shifting hardware | | point-to-point |drive integrated into computer |
+
+All variants are based on the IEEE-488 standard and therefore share (mostly) the same basic architecture:
 * All participants are **daisy-chained**.
 * **One dedicated controller** (the computer) does bus arbitration of **up to 31 devices**.
 * **One-to-many**: Any participant can send data to any set of participants.
 * A device has **multiple channels** for different functions.
 * Data transmission is **byte stream** based.
 
-The different variants of the connector and the byte transfer protocol have different tradeoffs. Here is an overview[^1]:
+The different variants and layers will be described in multiple articles.
 
-|                         | IEEE-488 | Serial        | Fast Serial   | JiffyDOS    | TCBM                   | CBDOS       |
-|-------------------------|----------|---------------|---------------|-------------|------------------------|-------------|
-| Data Wires              | 13       | 3             | 4             | 3           | 12                     | -           |
-| Speed (KB/sec)          | 2.1      | 0.4           | 1.2           | 2.0         | 1.3                    | &infin;     |
-| Controller Code (bytes) | 334      | 434           | 708           | 739         | 262                    | 0           |
-| Comments                | compatible with industry standard | very slow | | | point-to-point |drive integrated into computer |
+> **_NOTE:_**  I am going to release one part every week from now, at which time links will be added to the bullet points below. The articles will also be announced on my Twitter account <a href="https://twitter.com/pagetable">@pagetable</a> and my Mastodon account <a href="https://mastodon.social/@pagetable">@pagetable@mastodon.social</a>.
 
 
-The different variants and layers are described in the following articles:
 * **Part 0: Overview and Introduction**
 *That's this part.*
 * **Part 1: IEEE-488 [PET/CBM Series; 1977]**
@@ -45,7 +46,9 @@ The C128 introduced Fast Serial, which replaces layer 2 byte transmission of Sta
 * **Part 8: CBDOS [C65; 1991]**
 The unreleased C65 added CBDOS ("computer-based DOS") by integrating one or more drive controllers into the computer. There are no layers 1 and 2, and layer 3 sits directly on top of function calls that call into the DOS code running on the same CPU.
 
-[^1]: The speeds have been measured by repeatedly reading the status channel of a disk drive: IEEE-488, Serial and JiffyDOS on a 1 MHz C64 and Fast Serial on a C128, which executes all (Fast) Serial code in 1 MHz mode. TCBM was measured on a Plus/4, which runs about 75% faster than a C64, and transfer speed would scale linearly with the computer's CPU speed up to 2 MHz. Clocked at 1 MHz, a Plus/4 would reach about 1.3 KB/sec. This is the code: a9 00 20 bd ff a9 01 a2 08 a0 0f 20 ba ff 20 c0 ff a9 08 20 b4 ff a9 6f 20 96 ff a2 00 20 a5 ff 9d 00 04 e8 d0 f7 60
+
+
+[^1]: The speeds have been measured by repeatedly reading the status channel of a disk drive. IEEE-488, Serial and JiffyDOS were measured on a 1 MHz C64 and Fast Serial on a C128, which executes all (Fast) Serial code in 1 MHz mode. TCBM was measured on a 1.77 MHz Plus/4 with the screen on, which makes the effective CPU speed similar to the C64. This is the code: a9 00 20 bd ff a9 01 a2 08 a0 0f 20 ba ff 20 c0 ff a9 08 20 b4 ff a9 6f 20 96 ff a2 00 20 a5 ff 9d 00 04 e8 d0 f7 60. Both Fast Serial and JiffyDOS can reach higher speeds in the special case of loading files using custom protocols. Controller code size was measured on CBM2 for IEEE-488, on C64 for Serial and JiffyDOS, and on C128 for Fast Serial. Code sizes are approximate and do not include the LOAD and SAVE code.
 
 <!---
 
