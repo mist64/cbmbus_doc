@@ -1,4 +1,4 @@
-# Commodore Peripheral Bus: Part 4: Standard Serial IEC
+# Commodore Peripheral Bus: Part 4: Standard Serial
 
 * Commodore calls it the serial bus
 * literature calls it serial IEC or IEC, but it's not an IEC standard

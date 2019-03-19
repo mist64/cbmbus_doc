@@ -1,4 +1,4 @@
-# Commodore Peripheral Bus: Part 6: CBDOS
+# Commodore Peripheral Bus: Part 8: CBDOS
 
 * history
 	* Commodore C65, 1991, canceled
