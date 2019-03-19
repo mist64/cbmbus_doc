@@ -1,8 +1,10 @@
 # Commodore Peripheral Bus: Overview
 
-The well-known Serial ("IEC") Bus of the Commodore 64 that connects to disk drives such as the 1541 is just one variant of a whole family of busses and protocols used by the line of 8 bit Commodore machines from the PET to the C65. This is the first article of a **multi-part series** on the **Commodore Peripheral Bus family**.
+The well-known Serial Bus (aka Serial "IEC" Bus) of the Commodore 64 that connects to disk drives such as the 1541 is just one variant of a whole family of busses and protocols used by the line of 8 bit Commodore machines from the PET to the C65. This is the first article of a **multi-part series** on the **Commodore Peripheral Bus family**.
 
-The peripheral bus of the PET (1977) is a minor variation of the existing IEEE-488 standard. Later variants use different connectors and byte transfer protocols, but they retain the same bus arbitration and device layers.
+The family of protocols is heavily based on the IEEE-488 standard, with the Commodore PET's peripheral bus actually being IEEE-488. Later variants use different connectors and byte transfer protocols, but they retain the same bus arbitration and device layers.
+
+The following figure shows the different protocol stacks. There are three different connectors with their unique byte transfer protocols: IEEE-488, Serial, and TCBM. Fast Serial and JiffyDOS are optimized, but backwards-compatible protocols for existing cables, and CBDOS integrates the drive directory into the computer. The protocols above all the same across all Commodore 8 bit machines, including the "KERNAL" operating system APIs.
 
 ![](cbmbus.png =600x320)
 
@@ -12,6 +14,16 @@ Most variants share the same basic architecture:
 * **One-to-many**: Any participant can send data to any set of participants.
 * A device has **multiple channels** for different functions.
 * Data transmission is **byte stream** based.
+
+The different variants of the connector and the byte transfer protocol have different tradeoffs. Here is an overview[^1]:
+
+|                         | IEEE-488 | Serial        | Fast Serial   | JiffyDOS    | TCBM                   | CBDOS       |
+|-------------------------|----------|---------------|---------------|-------------|------------------------|-------------|
+| Data Wires              | 13       | 3             | 4             | 3           | 12                     | -           |
+| Speed (KB/sec)          | 2.1      | 0.4           | 1.2           | 2.0         | 1.3                    | &infin;     |
+| Controller Code (bytes) | 334      | 434           | 708           | 739         | 262                    | 0           |
+| Comments                | compatible with industry standard | very slow | | | point-to-point |drive integrated into computer |
+
 
 The different variants and layers are described in the following articles:
 * **Part 0: Overview and Introduction**
@@ -33,15 +45,18 @@ The C128 introduced Fast Serial, which replaces layer 2 byte transmission of Sta
 * **Part 8: CBDOS [C65; 1991]**
 The unreleased C65 added CBDOS ("computer-based DOS") by integrating one or more drive controllers into the computer. There are no layers 1 and 2, and layer 3 sits directly on top of function calls that call into the DOS code running on the same CPU.
 
+[^1]: The speeds have been measured by repeatedly reading the status channel of a disk drive: IEEE-488, Serial and JiffyDOS on a 1 MHz C64 and Fast Serial on a C128, which executes all (Fast) Serial code in 1 MHz mode. TCBM was measured on a Plus/4, which runs about 75% faster than a C64, and transfer speed would scale linearly with the computer's CPU speed up to 2 MHz. Clocked at 1 MHz, a Plus/4 would reach about 1.3 KB/sec. This is the code: a9 00 20 bd ff a9 01 a2 08 a0 0f 20 ba ff 20 c0 ff a9 08 20 b4 ff a9 6f 20 96 ff a2 00 20 a5 ff 9d 00 04 e8 d0 f7 60
+
 <!---
 
-Here is an overview of some of the properties of the different variants:
+f0ed-f0f4 (7)
+f8ea-f911 (39)
+fb97-fc9a (259)
+----
++305
 
-|                         | IEEE-488 | Serial        | Fast Serial   | JiffyDOS    | TCBM                   | CBDOS       |
-|-------------------------|----------|---------------|---------------|-------------|------------------------|-------------|
-| wires                   | 13       | 3             | 4             | 3           | 12                     | -           |
-| speed (KB/sec)          |          | 0.4           | 1.2           | 2.0         | 0.35??                 | inf         |
-| controller code (bytes) | 334      | 434           | 708           |             | 262                    | 0           |
+
+
 
 * size
 	* controller!
@@ -54,6 +69,7 @@ Here is an overview of some of the properties of the different variants:
 >2000 a9 08 20 b4 ff a9 6f 20 96 ff a2 00 20 a5 ff ca d0 fa 60
 break 2000
 break 2012
+break 2015
 g
 sys8192
 g
@@ -64,21 +80,56 @@ g
 # jsr $ffd2
 >2000 a9 08 20 b4 ff a9 6f 20 96 ff a2 00 20 a5 ff 20 d2 ff ca d0 f7 60
 
-IEEE cart
+# sta $0400,x (C64)
+>2000 a9 00 20 bd ff a9 01 a2 08 a0 0f 20 ba ff 20 c0 ff a9 08 20 b4 ff a9 6f 20 96 ff a2 00 20 a5 ff 9d 00 04 e8 d0 f7 60
+
+# sta $0400,x (C128; 16 bytes only)
+>2000 a9 00 20 bd ff a9 01 a2 08 a0 0f 20 ba ff 20 c0 ff a9 08 20 b4 ff a9 6f 20 96 ff a2 f0 20 a5 ff 9d 00 04 e8 d0 f7 60
+
+# sta $0c00,x (Plus/4)
+>2000 a9 00 20 bd ff a9 01 a2 08 a0 0f 20 ba ff 20 c0 ff a9 08 20 b4 ff a9 6f 20 96 ff a2 00 20 a5 ff 9d 00 0c e8 d0 f7 60
+
+# sta $1e00,x (VIC-20)
+>1000 a9 00 20 bd ff a9 01 a2 08 a0 0f 20 ba ff 20 c0 ff a9 08 20 b4 ff a9 6f 20 96 ff a2 00 20 a5 ff 9d 00 1e e8 d0 f7 60
+break 1000
+break 1026
+
+# two loops (C64)
+>2000 a9 00 20 bd ff a9 01 a2 08 a0 0f 20 ba ff 20 c0 ff a9 08 20 b4 ff a9 6f 20 96 ff a2 00 20 a5 ff 9d 00 04 e8 d0 f7 20 a5 ff 9d 00 04 e8 d0 f7 60
+break 2027
+break 2031
+
+# IEEE cart
 >2000 a9 08 20 d7 cb a9 6f 20 27 cc a2 00 20 b4 cc ca d0 fa 60
 
+# IEEE cart; sta $0400,x
 
-* VIC-20/1540     2614 -> 0.38
-* VIC-20/1541     3030 -> 0.33
-* VIC-20/1581     2767 -> 0.36
-* C64/1541:       2674 -> 0.37
-* C64/1581:       2627 -> 0.38
-* C64/J1541:      2300 -> 0.43
-* C64J/1541:       498 -> 2.0
-* C128/1571:       810 -> 1.2
-* Plus/4, 1551:   2893 -> 0.35
-* Plus/4, 1541:   5163 -> 0.2
-* iEEE-488:               1.4 (according to Data Becker)
+>2000 a9 08 20 d7 cb a9 6f 20 27 cc a2 00 20 b4 cc 9d 00 04 e8 d0 f7 60
+
+* VIC-20 Serial
+	* VIC-20/1540     2614 -> 0.38
+* C64 Serial
+	* VIC-20/1541     2941 -> 0.34
+	* VIC-20/1581     2767 -> 0.36
+	* C64/1541:       2616 -> 0.38
+	* C64/1581:       2426 -> 0.41
+	* C64/J1541:      2274 -> 0.44
+	* Plus/4, 1541:   5163 -> 0.34
+* JiffyDOS
+	* C64J/1541:       472 -> 2.1
+* Fast Serial
+	* C128/1571:       487 -> 2.1
+* TCBM
+	* Plus/4, 1551:    746 -> 2.4(1.3)
+* IEEE-488
+	* IEEE-488 cart:   479 -> 2.1
+
+
+12567 cycles
+199 lines
+$ec -> $7b
+236 -> 123
+235 -> 312 -> 123
 
 -->
 
