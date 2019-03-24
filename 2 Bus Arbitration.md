@@ -58,8 +58,9 @@
 	* channels represent different open files that can be read from or written to
 	* TODO open error
 
-* unsupported features
-	* TODO
+* unsupported features in KERNAL/BASIC
+	* SRQ enumeration
+	* 00xxxxx commands
 
 .
 
