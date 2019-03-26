@@ -49,6 +49,12 @@ The C128 introduced Fast Serial, which replaces layer 2 byte transmission of Sta
 * **Part 8: CBDOS [C65; 1991]**
 The unreleased C65 added CBDOS ("computer-based DOS") by integrating one or more drive controllers into the computer. There are no layers 1 and 2, and layer 3 sits directly on top of function calls that call into the DOS code running on the same CPU.
 
+<hr/>
+
+> This article series is an Open Source project. Corrections, clarifications and additions are **highly** appreciated. I will regularly update the articles from the repository at [https://github.com/mist64/cbmbus_doc](https://github.com/mist64/cbmbus_doc).
+
+<hr/>
+
 [^1]: The speeds have been measured by repeatedly reading the status channel of a disk drive. IEEE-488, Serial and JiffyDOS were measured on a 1 MHz C64 and Fast Serial on a C128, which executes all (Fast) Serial code in 1 MHz mode. TCBM was measured on a 1.77 MHz Plus/4 with the screen on, which makes the effective CPU speed similar to the C64. This is the code: a9 00 20 bd ff a9 01 a2 08 a0 0f 20 ba ff 20 c0 ff a9 08 20 b4 ff a9 6f 20 96 ff a2 00 20 a5 ff 9d 00 04 e8 d0 f7 60. Both Fast Serial and JiffyDOS can reach higher speeds in the special case of loading files using custom protocols. Controller code size was measured on CBM2 for IEEE-488, on C64 for Serial and JiffyDOS, and on C128 for Fast Serial. Code sizes are approximate and do not include the LOAD and SAVE code.
 
 <!---

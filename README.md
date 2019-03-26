@@ -19,7 +19,7 @@ This repository maintains the history of the article series "[Commodore Peripher
 
 ## Contributing
 
-Contributions and corrections are **highly** appreciated. I will regularly update the articles on [pagetable.com](https://www.pagetable.com/).
+Corrections, clarifications and additions are **highly** appreciated. I will regularly update the articles on [pagetable.com](https://www.pagetable.com/).
 
 ## Credits
 
