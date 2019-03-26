@@ -24,8 +24,11 @@ All variants are based on the IEEE-488 standard and therefore share (mostly) the
 
 The different variants and layers will be described in multiple articles.
 
-> **_NOTE:_**  I am going to release one part every week from now, at which time links will be added to the bullet points below. The articles will also be announced on my Twitter account <a href="https://twitter.com/pagetable">@pagetable</a> and my Mastodon account <a href="https://mastodon.social/@pagetable">@pagetable@mastodon.social</a>.
+<hr/>
 
+> **_NOTE:_**  I am releasing one part every week, at which time links will be added to the bullet points below. The articles will also be announced on my Twitter account <a href="https://twitter.com/pagetable">@pagetable</a> and my Mastodon account <a href="https://mastodon.social/@pagetable">@pagetable&#64;mastodon.social</a>.
+
+<hr/>
 
 * **Part 0: Overview and Introduction**
 *That's this part.*

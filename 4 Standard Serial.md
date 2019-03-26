@@ -1,6 +1,7 @@
 # Commodore Peripheral Bus: Part 4: Standard Serial
 
 * Commodore calls it the serial bus
+* source calls it "serial4.0" (C64)
 * literature calls it serial IEC or IEC, but it's not an IEC standard
 
 * overview, idea, motivation, features
