@@ -32,21 +32,21 @@ The different variants and layers will be described in multiple articles.
 
 * **Part 0: Overview and Introduction**
 *That's this part.*
-* **Part 1: IEEE-488 [PET/CBM Series; 1977]**
+* **[Part 1: IEEE-488 [PET/CBM Series; 1977]](https://www.pagetable.com/?p=1023)**
 This part covers layers 1 (electrical) and 2 (byte transfer) of IEEE-488, an 8-bit parallel bus with three handshake lines, an ATN line for bus arbitration and very relaxed timing requirements. 
-* **Part 2: The TALK/LISTEN Layer**
+* **Part 2: The TALK/LISTEN Layer** *(coming soon)*
 This part talks about layer 3 (TALK/LISTEN), which is shared between all bus variants.
-* **Part 3: The Commodore DOS Layer**
+* **Part 3: The Commodore DOS Layer** *(coming soon)*
 This part describes layer 4 (Commodore DOS), which is shared between all bus variants.
-* **Part 4: Standard Serial (IEC) [VIC-20, C64; 1981]**
+* **Part 4: Standard Serial (IEC) [VIC-20, C64; 1981]** *(coming soon)*
 The VIC-20 introduced a serial version of layers 1 and 2 with one clock and one data line for serial data transmission, and an ATN line for bus arbitration. It has some strict timing requirements. This bus is supported by all members of the home computer line: VIC-20, C64, Plus/4 Series, C128 and C65.
-* **Part 5: TCBM [C16, C116, Plus/4; 1984]**
+* **Part 5: TCBM [C16, C116, Plus/4; 1984]** *(coming soon)*
 The Plus/4 Series introduced a 1-to-1 bus between the computer and one drive, with 8 bit parallel data, two handshake lines, and two status lines from the drive to the computer. It was the short-lived planned successor of the Standard Serial bus, but was then replaced by Fast Serial.
-* **Part 6: JiffyDOS [1985]**
+* **Part 6: JiffyDOS [1985]** *(coming soon)*
 JiffyDOS, a 3rd party ROM patch for computers and drives, replaces layer 2 byte transmission of Standard Serial by using the clock and data lines in a more efficient way. Bus arbitration is unchanged. The controller detects a device's JiffyDOS support and can fall back to the Standard Serial protocol.
-* **Part 7: Fast Serial [C128; 1986]**
+* **Part 7: Fast Serial [C128; 1986]** *(coming soon)*
 The C128 introduced Fast Serial, which replaces layer 2 byte transmission of Standard Serial by using a previously unused wire in the Serial connector as a third line for data transmission. Bus arbitration is unchanged. The controller detects a device's Fast Serial support and can fall back to the Standard Serial protocol.
-* **Part 8: CBDOS [C65; 1991]**
+* **Part 8: CBDOS [C65; 1991]** *(coming soon)*
 The unreleased C65 added CBDOS ("computer-based DOS") by integrating one or more drive controllers into the computer. There are no layers 1 and 2, and layer 3 sits directly on top of function calls that call into the DOS code running on the same CPU.
 
 <hr/>
