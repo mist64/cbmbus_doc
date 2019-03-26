@@ -3,7 +3,7 @@
 This repository maintains the history of the article series "[Commodore Peripheral Bus](https://www.pagetable.com/?p=1018)" at [pagetable.com](https://www.pagetable.com/).
 
 * [Part 0: Overview and Introduction](https://www.pagetable.com/?p=1018)
-* Part 1: IEEE-488 [PET/CBM Series; 1977] (coming soon)
+* [Part 1: IEEE-488 [PET/CBM Series; 1977]](https://www.pagetable.com/?p=1023)
 * Part 2: The TALK/LISTEN Layer (coming soon)
 * Part 3: The Commodore DOS Layer (coming soon)
 * Part 4: Standard Serial (IEC) [VIC-20, C64; 1981] (coming soon)
