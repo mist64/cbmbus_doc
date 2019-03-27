@@ -35,3 +35,4 @@ Sa=10: Reset the printer
 	* listen 4, secondary 7, "Hello", unlisten
 	* TODO: bus turnaround
 
+* UNLISTEN on 15 is the same as the CR code, i.e. it will accept the pervious characters as the command

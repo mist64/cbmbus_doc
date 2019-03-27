@@ -104,27 +104,88 @@ Devices can also ignore the secondary address or only honor certain bits of it. 
 
 ## Examples
 
-The following command byte stream will instruct devices 9 and 10 to listen and device 8 to talk. At the end of the command, device 8 will send whatever data it has to devices 4 and 5.
+Here are some examples.
+
+### Receiving Data from a Device
+
+If the controller wants to read a byte stream from device 8, channel 2, it sends this:
+
+| command | description |
+|---------|-------------|
+| `0x48`  | `TALK` 8    |
+| `0x62`  | `SECOND` 2  |
+
+The controller then becomes a listener and reads bytes from the bus. If the controller has had enough data, it can send this:
+
+| command | description |
+|---------|-------------|
+| `0x5F`  | `UNTALK`    |
+
+The current talker will then release the bus. The controller can resume the transmission of data from the channel by sending the same `TALK`/`SECOND` commands again.
+
+The controller has to stop receiving bytes onces it encounters the end of the stream (`EOI`). There is no need to send `UNTALK` in this case, since the talker will automatically release the bus.
+
+### Sending Data to a Device
+
+Here is the equivalent example that sends a byte stream to device 4, channel 7:
+
+| command | description |
+|---------|-------------|
+| `0x24`  | `LISTEN` 4  |
+| `0x67`  | `SECOND` 7  |
+
+The controller then sends the byte stream. Like in the case of receiving data, the controller can pause transmission like this:
+
+| command | description |
+|---------|-------------|
+| `0x3F`  | `UNLISTEN`  |
+
+and resume it using the same `LISTEN`/`SECOND` combination. If the controller has reached the end of its byte stream, it signals `EOI`. Again, there is no need to send `UNLISTEN` in this case.
+
+(Somewhat breaking conventions, some devices interpret `UNLISTEN` as a record delimiter, e.g. Commodore disk drives will execute commands to channel 15 on the `UNLISTEN` event. See layer 4.)
+
+### Copying Data Between Devices
+
+The following example has the controller manually copy a byte stream from device 8, channel 2 (a disk drive) to device 4 (a printer). First, it tells device 8, channel 2 to talk:
+
+| command | description |
+|---------|-------------|
+| `0x48`  | `TALK` 8    |
+| `0x62`  | `SECOND` 2  |
+
+Now the controller reads one byte from the bus. It then instructs the talker to stop talking and tells device 4 to listen:
+
+| command | description |
+|---------|-------------|
+| `0x5F`  | `UNTALK`    |
+| `0x24`  | `LISTEN` 4  |
+
+In this case, there is no secondary address for device 4, so the device picks its default channel. The controller then sends the byte it just read back onto the bus and tells device 4 to stop listening.
+
+| command | description |
+|---------|-------------|
+| `0x3F`  | `UNLISTEN`  |
+
+Now it can repeat the whole procedure from the start, until the read operation signaled the end of the stream.
+
+Obviously this is slow, because it transmits 7 bytes for every byte of payload. A more optimized version would read and write something like 256 bytes at a time.
+
+### Having Devices Talk to Each Other
+
+But devices can also talk directly to each other, without the controller's involvement. This way, data only travels over the bus once.
+
+This command byte stream will instruct devices 4 and 5 to listen and device 8, channel 2 to talk. After the transmission of the command, device 8 will send whatever data it can provide from channel 2 to devices 4 and 5.
 
 | command | description |
 |---------|-------------|
 | `0x24`  | `LISTEN` 4  |
 | `0x25`  | `LISTEN` 5  |
 | `0x48`  | `TALK` 8    |
+| `0x62`  | `SECOND` 2  |
 
-If the controller wants to read a byte stream from device 8, it only sends this:
+Device 8 now starts sending bytes, and devices 4 and 5 will receive them. The layer 2 protocol makes sure that the listeners will adapt to the talker's speed and wait patiently when it stalls (e.g. the disk drive has to read a new sector), and the talker will adapt to the speed of the slowest listener and wait patiently when one of them stalls (e.g. when the printer has to move the paper).
 
-| command | description |
-|---------|-------------|
-| `0x48`  | `TALK` 8    |
-
-The controller then becomes a listener and reads bytes from the bus, until it encounters the end of the stream (`EOI`). It then sends this:
-
-| command | description |
-|---------|-------------|
-| `0x48`  | `TALK` 8    |
-
-
+The controller can interrupt the transmission at any time by sending new commands. If it wants to know when the transmission is finished though, it will have to be a listener as well and detect the end of the stream (`EOI`).
 
 ## named channels (OPEN/CLOSE)
 * instead of having fixed functions behind secondary addresses
