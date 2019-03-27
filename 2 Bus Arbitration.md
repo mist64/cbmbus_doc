@@ -89,20 +89,20 @@ A role change of the controller itself is not communicated through commands, sin
 
 The designer of IEEE-488 felt that a device should have multiple functions or contexts, or that multiple _actual_ devices could be sitting behind a single primary address. Each of these **channels** can be addressed using a **secondary address** from 0 to 31.
 
+A command specifying the secondary address can _optionally_ be sent after a `TALK` or `UNTALK` command.
 
-* 32 secondary addresses per device (0-31) [C64PRG agrees to IEEE spec]
-	* OPEN/CLOSE only support 16!
-	* all drives only support 16 (ignore bit #4)
-	* C64 will send all bits though
-* after talk/untalk, an extra command has to be sent to select channel
-* 60 + secondary address
-* image showing "interface" != "device" (c't)
-* in practice, this could be
-	* different devices behind the same interface
-	* different functions of the same device
-	* options/flags (printer 0 vs. 7)
-	* contexts (disk drive)
+| command       | description   | effect                                     |
+|---------------|---------------|--------------------------------------------|
+| `0x60` + _sa_ | `SECOND`      | last addressed device selects channel _sa_ |
 
+The interpretation of the secondary address is up to the device and specified on layer 4. In practice, they are interpreted as:
+
+* options or flags, e.g. for printers
+* different file contexts, e.g. for disk drives
+
+Devices can also ignore the secondary address or only honor certain bits of it. Commodore disk drives, for example, ignore bit #4, so channels 16-31 are the same as channels 0-15.
+
+## Examples
 
 The following command byte stream will instruct devices 9 and 10 to listen and device 8 to talk. At the end of the command, device 8 will send whatever data it has to devices 4 and 5.
 
