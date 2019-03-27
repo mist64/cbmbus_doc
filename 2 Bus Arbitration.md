@@ -1,6 +1,6 @@
 # Commodore Peripheral Bus: Part 2: Bus Arbitration, TALK/LISTEN
 
-In the [series about the variants of the Commodore Peripheral Bus family](https://www.pagetable.com/?p=1018), this article covers the common layer 3: the Bus Arbitration Layer with the TALK/LISTEN protocol, based on the IEEE-488 standard.
+In the [series about the variants of the Commodore Peripheral Bus family](https://www.pagetable.com/?p=1018), this article covers the common layer 3: the bus arbitration layer with the TALK/LISTEN protocol, based on the IEEE-488 standard.
 
 ![](docs/cbmbus/layer3.png =601x251)
 
@@ -223,7 +223,15 @@ Dissociating a channel from a name is done using the sequence `LISTEN`/`CLOSE`/`
 | `0xE2`  | `CLOSE` 2   |
 | `0x3F`  | `UNLISTEN`  |
 
-Commodore added the `OPEN`/`CLOSE` protocol extension in a clever way that doesn't clash with any features of the IEEE-488 specification. All command codes have the same bit layout: 
+## Compatibility with IEEE-488
+
+The bus arbitration layer of the Commodore Peripheral Bus is based on and mostly compatible with the IEEE-488 specification, but with additions and some missing features.
+
+### Added Features
+
+As mentioned earlier, `OPEN` and `CLOSE` are a Commodore extension. Commodore added it in a clever way that didn't clash with any features of the IEEE-488 specification.
+
+All command codes have the same bit layout:
 
 | bit       | description                  |
 |-----------|------------------------------|
@@ -235,43 +243,58 @@ This allows for 4 command codes, 30 primary addresses and 31 secondary addresses
 
 | command       | binary     | description      |
 |---------------|------------|------------------|
-| `0x00` + _cmd_| `000xxxxx` | (global command) |
-| `0x20` + _pa_ | `001xxxxx` | `LISTEN`         |
-| `0x40` + _pa_ | `010xxxxx` | `TALK`           |
-| `0x60` + _sa_ | `011xxxxx` | `SECOND`         |
-| `0xE0` + _sa_ | `1110xxxx` | `CLOSE`          |
-| `0xF0` + _sa_ | `1111xxxx` | `OPEN`           |
+| `0x00` + _cmd_| `000nnnnn` | (global command) |
+| `0x20` + _pa_ | `001nnnnn` | `LISTEN`         |
+| `0x40` + _pa_ | `010nnnnn` | `TALK`           |
+| `0x60` + _sa_ | `011nnnnn` | `SECOND`         |
+| `0xE0` + _sa_ | `1110nnnn` | `CLOSE`          |
+| `0xF0` + _sa_ | `1111nnnn` | `OPEN`           |
 
-(`0x00` is the prefix for a set of global commands that will be covered later in this article.)
+The codes for `CLOSE` (`0xE0`) and `OPEN` (`0xF0`) reuse the code for `SECOND` (`0x60`), but with bit #7 set. To devices that don't understand the Commodore `OPEN`/`CLOSE` protocol, these commands look like `SECOND` and will be ignored, since they are sent after a `LISTEN` command that targets a different device.
 
-The codes for `CLOSE` (`0xE0`) and `OPEN` (`0xF0`) reuse the code for `SECOND` (`0x60`), but with bit #7 set. To devices that don't understand the Commodore `OPEN`/`CLOSE` protocol, these commands look like `SECOND` and will be ignored, since they are sent in the context of a Commodore device being a listener.
+Bit 4 of the command, the most significant bit of the secondary address, is used to distinguish between `OPEN` and `CLOSE`, which is why it is only possible to associate 16 secondary addresses with a name.
 
-An extra bit is required to distinguish between `OPEN` and `CLOSE`: Bit 4, the highest address of the secondary address is used to indicate the difference, which is why it is only possible to associate 16 secondary addresses with a name.
+### Missing Features
 
-## Unsupported IEEE-488 Features
-
-* based on layer 3 of IEEE-488
-* not all features supported by the library
-* but they could be implemented in software
-* 00xxxxx commands
+There is one unsupported entry in the table above: The command code of '`000`' has a sub-code in bits 0-4, specifying a global command to all devices. They control features like the handling of `SRQ` Service Requests and multiple controller support. Commodore computers do not support any of these features, but on a PET/CBM with IEEE-488 layers 1 and 2, support could be added in software.
 
 ## KERNAL API
-* on the VIC-20 and all later machines (C64, C128, C65, Plus4, CBM-II)
+
+The KERNAL operating system of all Commodore 8 bit computers since the VIC-20 (i.e. also the C64/C128/C65, the Plus/4 Series and the CBM-II) supports two sets of APIs to talk to devices on the Commodore Peripheral Bus.
 
 ### IEEE API
-.
 
-	$FFB4: TALK – send TALK command
-	$FFB1: LISTEN – send LISTEN command
-	$FFAE: UNLSN – send UNLISTEN command
-	$FFAB: UNTLK – send UNTALK command
-	$FF96: TKSA – send TALK secondary address
-	$FF93: SECOND – send LISTEN secondary address (same as above, but with bus turnaround)
-	$FFA8: IECOUT – send byte to serial bus
-	$FFA5: IECIN – read byte from serial bus
-	$FFA2: SETTMO – set timeout [no effect on non-IEEE-488]
-		this is layer 2 while everything else is layer 3
+The "IEEE" API is a set of low-level calls 
+
+| address | name     | description                     | arguments                 |
+|---------|----------|---------------------------------|---------------------------|
+| `$FFB1` | `LISTEN` | Send `LISTEN` command           | `A` = _pa_                |
+| `$FFAE` | `UNLSN`  | Send `UNLISTEN` command         |                           |
+| `$FF93` | `SECOND` | Send `LISTEN` secondary address | `A` = `0x60` + _sa_       |
+| `$FFB4` | `TALK`   | Send `TALK` command             | `A` = _pa_                |
+| `$FFAB` | `UNTLK`  | Send `UNTALK` command           |                           |
+| `$FF96` | `TKSA`   | Send `TALK` secondary address   | `A` = `0x60` + _sa_       |
+| `$FFA5` | `ACPTR`  | Read byte from serial bus       | _byte_ → `A`              |
+| `$FFA8` | `CIOUT`  | Send byte to serial bus         | `A` = _byte_              |
+| `$FFA2` | `SETTMO` | Set timeout                     | `A` = { `0x00` | `0x80` } |
+
+* send LISTEN secondary address (same as above, but with bus turnaround) |
+* SETTMO: this is layer 2 while everything else is layer 3
 
 ### OPEN/CLOSE API
+
+| address | name     | description                             | arguments                         |
+|---------|----------|-----------------------------------------|-----------------------------------|
+| `$FFB7` | `READST` | Read I/O status word                    | _st_ → `A`                        |
+| `$FFBA` | `SETLFS` | Set logical, first, and second addresses| `A` = _l_, `X` = _pa_, `Y` = _sa_ |
+| `$FFBD` | `SETNAM` | Set file name                           | `A` = _len_, `X/Y` = _name_       |
+| `$FFC0` | `OPEN`   | Open a logical file                     |                                   |
+| `$FFC3` | `CLOSE`  | Close a specified logical file          | `A` = _l_                         |
+| `$FFC6` | `CHKIN`  | Open channel for input                  | `X` = _l_                         |
+| `$FFC9` | `CHKOUT` | Open channel for output                 | `X` = _l_                         |
+| `$FFCC` | `CLRCHN` | Close input and output channels         |                                   |
+| `$FFCF` | `CHRIN`  | Input character from channel            | _byte_ → `A`                      |
+| `$FFD2` | `CHROUT` | Output character to channel             | `A` = _byte_                      |
+| `$FFE7` | `CLALL`  | Close all channels and files            |                                   |
 
 ### BASIC Commands

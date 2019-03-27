@@ -3,6 +3,9 @@
 * history
 	* Commodore 1984
 	* only used in the 264 series (C16, C116, Plus/4)
+* TCBM might stand for TED-CBM
+	* lots of things around the Plus/4 had Ts in them
+	* e.g. T-numbers of cartridges: https://www.c64-wiki.de/wiki/Plus/4
 * 17 pin header
 	*  1  GND
 	*  2  DEV
