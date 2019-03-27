@@ -264,7 +264,7 @@ The KERNAL operating system of all Commodore 8 bit computers since the VIC-20 (i
 
 ### IEEE API
 
-The "IEEE" API is a set of low-level calls 
+The "IEEE" API is a set of low-level calls. It allows using primary addresses 0-3, which are not available through the high-level API.
 
 | address | name     | description                     | arguments                 |
 |---------|----------|---------------------------------|---------------------------|
@@ -281,7 +281,21 @@ The "IEEE" API is a set of low-level calls
 * send LISTEN secondary address (same as above, but with bus turnaround) |
 * SETTMO: this is layer 2 while everything else is layer 3
 
+XXX TODO
+
 ### OPEN/CLOSE API
+
+The KERNAL's channel I/O API is higher-level and not specific to the Commodore Peripheral Bus. Devices 0-3 will target the keyboard, tape, RS-232 (PET: tape #2) and the screen.
+
+The API allows up to 10 logical files open at the same time. A logical file is addressed by a user-selected logical file number (0-127). To open a logical file, the logical file number and devices primary and secondary addresses have to be set using `SETLFS`, the name has to be set using `SETNAM`, and `OPEN` hast to be called.
+
+`OPEN` with a filename will send the `LISTEN`/`OPEN`/_filename_/`UNLISTEN` sequence, associating the name with the secondary address. `OPEN` without a filename will not send anything on the bus, but will remember the secondary address for later operations.
+
+Similary, `CLOSE` on a file with a filename will send the `LISTEN`/`CLOSE`/`UNLISTEN` sequence, and otherwise, `CLOSE` will not send anything on the bus.
+
+The character input and output calls do not take the logical file number as an argument, instead the current input and/or output has to be globally selected using `CHKIN`/`CHKOUT`. `CHRIN` will then send `TALK`/`SECOND`, get a character, and send `UNTALK`. `CHROUT` will send `LISTEN`/`SECOND`, the character, and `UNLISTEN`.
+
+While it is convenient to use this API to associate names with channels, it is more efficient to use the low-level API for data transfer, because that way allows transfering more than one byte per `TALK`/`LISTEN` session.
 
 | address | name     | description                             | arguments                         |
 |---------|----------|-----------------------------------------|-----------------------------------|
@@ -298,3 +312,7 @@ The "IEEE" API is a set of low-level calls
 | `$FFE7` | `CLALL`  | Close all channels and files            |                                   |
 
 ### BASIC Commands
+
+The complete channel I/O API is directly accessible through BASIC commands.
+
+XXX TODO
