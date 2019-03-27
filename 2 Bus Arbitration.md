@@ -85,16 +85,13 @@ A command specifying the secondary address can _optionally_ be sent after a `TAL
 |---------------|---------------|--------------------------------------------|
 | `0x60` + _sa_ | `SECOND`      | last addressed device selects channel _sa_ |
 
-The interpretation of the secondary address is up to the device and specified on layer 4. In practice, they are interpreted as:
-
-* options or flags, e.g. for printers
-* different file contexts, e.g. for disk drives
+The interpretation of the secondary address is up to the device and specified on layer 4. In practice, they are interpreted as options or flags (e.g. for printers) or different file contexts (e.g. for disk drives).
 
 Devices can also ignore the secondary address or only honor certain bits of it. Commodore disk drives, for example, ignore bit #4, so channels 16-31 are the same as channels 0-15.
 
 ## Examples
 
-Here are some examples.
+Here are some examples for receiving, sending, copying, as well as for a controller-less connection.
 
 ### Receiving Data from a Device
 
@@ -117,7 +114,7 @@ The controller has to stop receiving bytes onces it encounters the end of the st
 
 ### Sending Data to a Device
 
-Here is the equivalent example that sends a byte stream to device 4, channel 7:
+Here is an example that sends a byte stream to device 4, channel 7:
 
 | command | description |
 |---------|-------------|
@@ -132,9 +129,9 @@ The controller then sends the byte stream. Like in the case of receiving data, t
 
 and resume it using the same `LISTEN`/`SECOND` combination. If the controller has reached the end of its byte stream, it signals `EOI`. Again, there is no need to send `UNLISTEN` in this case.
 
-(Somewhat breaking conventions, some devices interpret `UNLISTEN` as a record delimiter, e.g. Commodore disk drives will execute commands to channel 15 on the `UNLISTEN` event. See layer 4.)
+(Somewhat breaking conventions, some devices interpret `UNLISTEN` as a delimiter, e.g. Commodore disk drives will execute disk command strings sent to channel 15 on the `UNLISTEN` event. See layer 4.)
 
-### Copying Data Between Devices
+### Manually Copying Data Between Devices
 
 The following example has the controller manually copy a byte stream from device 8, channel 2 (a disk drive) to device 4 (a printer). First, it tells device 8, channel 2 to talk:
 
@@ -156,7 +153,7 @@ In this case, there is no secondary address for device 4, so the device picks it
 |---------|-------------|
 | `0x3F`  | `UNLISTEN`  |
 
-Now it can repeat the whole procedure from the start, until the read operation signaled the end of the stream.
+Now it can repeat the whole procedure from the start, until the read operation signals the end of the stream.
 
 Obviously this is slow, because it transmits 7 bytes for every byte of payload. A more optimized version would read and write something like 256 bytes at a time.
 
@@ -164,7 +161,7 @@ Obviously this is slow, because it transmits 7 bytes for every byte of payload. 
 
 But devices can also talk directly to each other, without the controller's involvement. This way, data only travels over the bus once.
 
-This command byte stream will instruct devices 4 and 5 to listen and device 8, channel 2 to talk. After the transmission of the command, device 8 will send whatever data it can provide from channel 2 to devices 4 and 5.
+This command byte stream will instruct devices 4 and 5 (two printers) to listen and device 8, channel 2 (a disk drive) to talk. After the transmission of the command, device 8 will automonously send whatever data it can provide from channel 2 to devices 4 and 5.
 
 | command | description |
 |---------|-------------|
@@ -173,7 +170,7 @@ This command byte stream will instruct devices 4 and 5 to listen and device 8, c
 | `0x48`  | `TALK` 8    |
 | `0x62`  | `SECOND` 2  |
 
-Device 8 now starts sending bytes, and devices 4 and 5 will receive them. The layer 2 protocol makes sure that the listeners will adapt to the talker's speed and wait patiently when it stalls (e.g. the disk drive has to read a new sector), and the talker will adapt to the speed of the slowest listener and wait patiently when one of them stalls (e.g. when the printer has to move the paper).
+Device 8 now starts sending bytes, and devices 4 and 5 will receive them. The layer 2 protocol makes sure that the listeners will adapt to the talker's speed and wait patiently when it stalls (e.g. the disk drive has to read a new sector), and the talker will adapt to the speed of the slowest listener and wait patiently when one of them stalls (e.g. when the printer has to feed the paper).
 
 The controller can interrupt the transmission at any time by sending new commands. If it wants to know when the transmission is finished though, it will have to be a listener as well and detect the end of the stream (`EOI`).
 
@@ -181,12 +178,12 @@ The controller can interrupt the transmission at any time by sending new command
 
 When Commodore chose IEEE-488 as the protocol stack for the PET, they felt that a numeric secondary address from 0 to 31 was not expressive enough for the different context of e.g. a disk drive, so they added **named channels**.
 
-The controller can associate (and dissociate) a secondary address with a name. A name is a byte stream of arbitrary length, usually the PETSCII encoding is implied. Note that for named channels, secondary addresses must be in the range of 0-15.
+The controller can associate (and dissociate) a secondary address with a name. A name is a byte stream of arbitrary length, usually the PETSCII encoding is implied. For named channels, secondary addresses must be in the range of 0-15.
 
-| command       | description   | effect                          |
-|---------------|---------------|---------------------------------|
-| `0xE0` + _sa_ | `CLOSE`       | dissociate _sa_ from its name   |
-| `0xF0` + _sa_ | `OPEN`        | associate _sa_ with with a name |
+| command       | description   | effect                        |
+|---------------|---------------|-------------------------------|
+| `0xE0` + _sa_ | `CLOSE`       | dissociate _sa_ from its name |
+| `0xF0` + _sa_ | `OPEN`        | associate _sa_ with a name    |
 
 Both commands have to be prefixed with a `LISTEN` command to address the correct device. An `OPEN` command sequence that associates a name with channel 2 on device 8 looks like this:
 
@@ -221,7 +218,7 @@ The bus arbitration layer of the Commodore Peripheral Bus is based on and mostly
 
 As mentioned earlier, `OPEN` and `CLOSE` are a Commodore extension. Commodore added it in a clever way that didn't clash with any features of the IEEE-488 specification.
 
-All command codes have the same bit layout:
+In IEEE-488, all command codes have the same bit layout:
 
 | bit       | description                  |
 |-----------|------------------------------|
@@ -246,11 +243,11 @@ Bit 4 of the command, the most significant bit of the secondary address, is used
 
 ### Missing Features
 
-There is one unsupported entry in the table above: The command code of '`000`' has a sub-code in bits 0-4, specifying a global command to all devices. They control features like the handling of `SRQ` Service Requests and multiple controller support. Commodore computers do not support any of these features, but on a PET/CBM with IEEE-488 layers 1 and 2, support could be added in software.
+There is one unsupported entry in the table above: The command code of '`000`' has a sub-code in bits 0-4, specifying a global command to all devices. These control features like the handling of "`SRQ`" Service Requests and multiple controller support. Commodore computers do not support any of these features, but on a PET/CBM with a physical IEEE-488 port, support could be added in software.
 
 ## KERNAL API
 
-The KERNAL operating system of all Commodore 8 bit computers since the VIC-20 (i.e. also the C64/C128/C65, the Plus/4 Series and the CBM-II) supports two sets of APIs to talk to devices on the Commodore Peripheral Bus.
+The KERNAL operating system of all Commodore 8 bit computers since the VIC-20 (i.e. also the C64/C128/C65, the Plus/4 Series and the CBM-II) supports two sets of APIs to talk to devices on the Commodore Peripheral Bus. The built-in BASIC interpreter also has instructions to handle the bus.
 
 ### IEEE API
 
@@ -268,15 +265,15 @@ The "IEEE" API is a set of low-level calls. It allows using primary addresses 0-
 | `$FFA8` | `CIOUT`  | Send byte to serial bus         | `A` = _byte_              |
 | `$FFA2` | `SETTMO` | Set timeout                     | `A` = { `0x00` | `0x80` } |
 
-Note the difference between `SECOND` to send a secondary address after `LISTEN`, and `TKSA` to send a secondary address after `TALK`. XXX TODO bus turnaround
+Note the difference between `SECOND` to send a secondary address after `LISTEN`, and `TKSA` to send a secondary address after `TALK`. Layer 2 generally needs this distinction to get the bus into the correct state afterwards.
 
-All calls deal with layer 3 functionality, except for `SETTMO`, which controls a layer 2 setting. The IEEE-488 layer 2 on the PET/CBM has an option to enable (`A` = `0x00`, default) or disable (`A` = `0x80`) timeouts. Timeouts are required to allow the talker to communicate an error when opening a named channel, but they can break IEEE-488 not designed for the PET. The call also exists on all other Commodore 8 bit computers, but has no effect, with the exception of a C64 with an added IEEE-488 cartridge.
+All calls deal with layer 3 functionality, except for `SETTMO`, which controls a layer 2 setting. The IEEE-488 layer 2 on the PET/CBM has an option to enable (`A` = `0x00`, default) or disable (`A` = `0x80`) timeouts. Timeouts are required to allow the talker to communicate an error when opening a named channel, but they can break IEEE-488 devices not designed for the PET. The call also exists on all other Commodore 8 bit computers, but has no effect, with the exception of a C64 with an added IEEE-488 cartridge.
 
 ### Channel I/O API
 
-The KERNAL's Channel I/O API is higher-level and not specific to the Commodore Peripheral Bus. Devices 0-3 will target the keyboard, tape, RS-232 (PET: tape #2) and the screen.
+The KERNAL's Channel I/O API is higher-level and not specific to the Commodore Peripheral Bus. Devices 0-3 will target the keyboard, tape, RS-232 (PET: tape #2) and the screen. This API does not support multiple listeners or controller-less transmissions.
 
-The API allows up to 10 logical files open at the same time. A logical file is addressed by a user-selected logical file number (0-127). To open a logical file, the logical file number and devices primary and secondary addresses (255 = none) have to be set using `SETLFS`, the name has to be set using `SETNAM`, and `OPEN` hast to be called.
+Channel I/O allows up to 10 logical files open at the same time, across all devices. A logical file is addressed by a user-selected logical file number (0-127). To open a logical file, the logical file number and device's primary and secondary addresses (255 = none) have to be set using `SETLFS`, the name has to be set using `SETNAM`, and `OPEN` hast to be called.
 
 `OPEN` with a filename will send the `LISTEN`/`OPEN`/_filename_/`UNLISTEN` sequence, associating the name with the secondary address. `OPEN` without a filename will not send anything on the bus, but will remember the secondary address for later operations.
 
@@ -286,32 +283,32 @@ The current input and/or output has to be globally selected using `CHKIN`, which
 
 With `CHKIN`/`CHKOUT` set up to talk on the Commodore Peripheral Bus, `CHRIN` and `CHROUT` will just be forwarded to the low-level calls `ACPTR` and `CIOUT`.
 
-| address | name     | description                             | arguments                         |
-|---------|----------|-----------------------------------------|-----------------------------------|
-| `$FFB7` | `READST` | Read I/O status word                    | _st_ → `A`                        |
-| `$FFBA` | `SETLFS` | Set logical, first, and second addresses| `A` = _l_, `X` = _pa_, `Y` = _sa_ |
-| `$FFBD` | `SETNAM` | Set file name                           | `A` = _len_, `X/Y` = _name_       |
-| `$FFC0` | `OPEN`   | Open a logical file                     |                                   |
-| `$FFC3` | `CLOSE`  | Close a specified logical file          | `A` = _l_                         |
-| `$FFC6` | `CHKIN`  | Open channel for input                  | `X` = _l_                         |
-| `$FFC9` | `CHKOUT` | Open channel for output                 | `X` = _l_                         |
-| `$FFCC` | `CLRCHN` | Close input and output channels         |                                   |
-| `$FFCF` | `CHRIN`  | Input character from channel            | _byte_ → `A`                      |
-| `$FFD2` | `CHROUT` | Output character to channel             | `A` = _byte_                      |
-| `$FFE7` | `CLALL`  | Close all channels and files            |                                   |
+| address | name     | description                             | arguments                           |
+|---------|----------|-----------------------------------------|-------------------------------------|
+| `$FFB7` | `READST` | Read I/O status word                    | _st_ → `A`                          |
+| `$FFBA` | `SETLFS` | Set logical, first, and second addresses| `A` = _lfn_, `X` = _pa_, `Y` = _sa_ |
+| `$FFBD` | `SETNAM` | Set file name                           | `A` = _len_, `X/Y` = _name_         |
+| `$FFC0` | `OPEN`   | Open a logical file                     |                                     |
+| `$FFC3` | `CLOSE`  | Close a specified logical file          | `A` = _lfn_                         |
+| `$FFC6` | `CHKIN`  | Open channel for input                  | `X` = _lfn_                         |
+| `$FFC9` | `CHKOUT` | Open channel for output                 | `X` = _lfn_                         |
+| `$FFCC` | `CLRCHN` | Close input and output channels         |                                     |
+| `$FFCF` | `CHRIN`  | Input character from channel            | _byte_ → `A`                        |
+| `$FFD2` | `CHROUT` | Output character to channel             | `A` = _byte_                        |
+| `$FFE7` | `CLALL`  | Close all channels and files            |                                     |
 
 ### BASIC Commands
 
 The complete channel I/O API is directly accessible through BASIC instructions:
 
-| command                              | description            | 
-|--------------------------------------|------------------------|
-| `OPEN` _l_, _pa_ [, _sa_ [, _name_]] | open logical file      |
-| `CLOSE` _l_                          | close logical file     |
-| `GET#` _l_, _var_                    | read character         |
-| `INPUT#` _l_, _var_                  | read string/int/float  |
-| `PRINT#` _l_, _var_ [, ...]          | write string/int/float |
-| `CMD` _l_                            | redirect standard out  |
+| command                              | description              | 
+|--------------------------------------|--------------------------|
+| `OPEN` _lfn_, _pa_ [, _sa_ [, _name_]] | open logical file      |
+| `CLOSE` _lfn_                          | close logical file     |
+| `GET#` _lfn_, _var_                    | read character         |
+| `INPUT#` _lfn_, _var_                  | read string/int/float  |
+| `PRINT#` _lfn_, _var_ [, ...]          | write string/int/float |
+| `CMD` _lfn_                            | redirect standard out  |
 
 Note that every `GET#`, `INPUT#` and `PRINT#` instruction will go through a `TALK`/`UNTALK` or `LISTEN`/`UNLISTEN` sequence.
 
