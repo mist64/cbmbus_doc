@@ -11,6 +11,8 @@ All layer 2 variants provide:
 * the transmission of byte streams from any bus participant to any set of bus participants
 * the transmission of "command" byte streams from the designated "contoller" (the computer) to all other bus participants
 
+<!--
+
 Layer 2 does not designate who may send or receive at a given time, nor does it define the meaning of contents of command byte streams. That's the job of layer 3.
 
 Layer 3 uses the features of layer 2 to provide the following features:
@@ -19,17 +21,19 @@ Layer 3 uses the features of layer 2 to provide the following features:
 * a device has channels (0-31) that can be associated with names
 * controller initiates transmissions from one device/channel (or the controller) to any other devices/channels (and/or the controller)
 
+-->
+
 ## Controller 
 
-Layer 2 allows everyone on the bus to talk to everyone else – but there is no mechanism in place who is sending or receiving data at what time. The primary feature of layer 3 is controlling exactly this.
+Layer 2 allows everyone on the bus to talk to everyone else – but there is no mechanism in place for who is sending or receiving data at what time. The primary feature of layer 3 is controlling exactly this.
 
-For this, we need one bus participant that is the designated "controller" - this is always the computer. It sends command byte streams to all other bus participants, the "devices".
+For this, we need one bus participant to be the designated **controller** – this is always the computer. It sends command byte streams to all other bus participants, the **devices**.
 
-## Primary Addresses 
+## Primary Address
 
-The controller needs to be able to address an individual device. Every device on the bus has a "primary addresses" from 0 to 30. The controller itself does not have an address.
+The controller needs to be able to address an individual device. Every device on the bus has a **primary addresses** from 0 to 30. The controller itself does not have an address.
 
-Device numbers are usually assigned through [DIP switches](https://en.wikipedia.org/wiki/DIP_switch) (e.g. Commodore 1541-II: 8-11) or by cutting a trace (e.g. original Commodore 1541: 8 or 9).
+Primary addresses (aka device numbers) are usually assigned through [DIP switches](https://en.wikipedia.org/wiki/DIP_switch) (e.g. Commodore 1541-II: 8-11) or by cutting a trace (e.g. original Commodore 1541: 8 or 9).
 
 Commodore's convention for device numbers:
 
@@ -62,25 +66,30 @@ In order to tell devices that they are now supposed to send or receive data, the
 
 Any device can be either a talker, a listener, or passive. There can only be one talker at a time, and there has to be at least one listener.
 
-The controller itself can also be the talker or a listener. In fact, in the most common case, the controller is either the talker, with a disk drive as the single listener (e.g. writing a file), or the controller is the single listener, with a disk drive as the talker (e.g. reading a file).
+The controller itself can also be the talker or a listener. In fact, in the most common cases, the controller is either the talker, with a disk drive as the single listener (e.g. writing a file), or the controller is the single listener, with a disk drive as the talker (e.g. reading a file).
 
 ## TALK and LISTEN commands
 
-In order to hand out and to withdraw the talker and listener roles, the controller sends command byte streams containing one of the following codes:
+In order to hand out the talker and listener roles to devices and to withdraw them, the controller sends a command byte stream containing one of the following codes:
 
-| command       | description   | effect |
-|---------------|---------------|--------|
+| command       | description   | effect                                                      |
+|---------------|---------------|-------------------------------------------------------------|
 | `0x20` + _pa_ | `LISTEN`      | device _pa_ becomes listener; code ignored by other devices |
-| `0x3F`        | `UNLISTEN`    | all devices stop listening  |
-| `0x40` + _pa_ | `TALK`        | device _pa_ becomes talker; all other devices stop talking |
-| `0x5F`        | `UNTALK`      | all devices stop talking |
+| `0x3F`        | `UNLISTEN`    | all devices stop listening                                  |
+| `0x40` + _pa_ | `TALK`        | device _pa_ becomes talker; all other devices stop talking  |
+| `0x5F`        | `UNTALK`      | all devices stop talking                                    |
 
 For the `LISTEN` and `TALK` commands, the primary address of the device gets added to the code. The `UNLISTEN` and `UNTALK` commands correspond to the `LISTEN` and `TALK` with a primary address of 31.  This restricts primary addresses to the range of 0 - 30.
 
 All devices receive and interpret command bytes, so for example, a `TALK` command for device 8 will implicitly cause device 9 to stop talking, it case it currently was a talker.
 
-## secondary addresses
-* multiplexing functions/contexts of a device would be nice
+A role change of the controller itself is not communicated through commands, since the controller already knows this (after all, it is the one making the decision), and the devices don't need to know.
+
+## Secondary Address
+
+The designer of IEEE-488 felt that a device should have multiple functions or contexts, or that multiple _actual_ devices could be sitting behind a single primary address. Each of these **channels** can be addressed using a **secondary address** from 0 to 31.
+
+
 * 32 secondary addresses per device (0-31) [C64PRG agrees to IEEE spec]
 	* OPEN/CLOSE only support 16!
 	* all drives only support 16 (ignore bit #4)
@@ -93,6 +102,29 @@ All devices receive and interpret command bytes, so for example, a `TALK` comman
 	* different functions of the same device
 	* options/flags (printer 0 vs. 7)
 	* contexts (disk drive)
+
+
+The following command byte stream will instruct devices 9 and 10 to listen and device 8 to talk. At the end of the command, device 8 will send whatever data it has to devices 4 and 5.
+
+| command | description |
+|---------|-------------|
+| `0x24`  | `LISTEN` 4  |
+| `0x25`  | `LISTEN` 5  |
+| `0x48`  | `TALK` 8    |
+
+If the controller wants to read a byte stream from device 8, it only sends this:
+
+| command | description |
+|---------|-------------|
+| `0x48`  | `TALK` 8    |
+
+The controller then becomes a listener and reads bytes from the bus, until it encounters the end of the stream (`EOI`). It then sends this:
+
+| command | description |
+|---------|-------------|
+| `0x48`  | `TALK` 8    |
+
+
 
 ## named channels (OPEN/CLOSE)
 * instead of having fixed functions behind secondary addresses
