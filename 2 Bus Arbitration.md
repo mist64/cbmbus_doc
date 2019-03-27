@@ -1,6 +1,6 @@
 # Commodore Peripheral Bus: Part 2: Bus Arbitration, TALK/LISTEN
 
-In the [series about the variants of the Commodore Peripheral Bus family](https://www.pagetable.com/?p=1018), this article covers the common layer 3: the bus arbitration layer with the TALK/LISTEN protocol, which is based on the IEEE-488 standard.
+In the [series about the variants of the Commodore Peripheral Bus family](https://www.pagetable.com/?p=1018), this article covers the common layer 3: the bus arbitration layer with the TALK/LISTEN protocol.
 
 ![](docs/cbmbus/layer3.png =601x251)
 
@@ -10,6 +10,8 @@ All layer 2 variants provide:
 
 * the transmission of byte streams from any bus participant to any set of bus participants
 * the transmission of "command" byte streams from the designated "contoller" (the computer) to all other bus participants
+
+Layer 3, which is based on the IEEE-488 standard, provides interruptable communication between channels of different devices.
 
 ## Controller 
 
@@ -23,14 +25,18 @@ The controller needs to be able to address an individual device. Every device on
 
 Primary addresses (aka device numbers) are usually assigned through [DIP switches](https://en.wikipedia.org/wiki/DIP_switch) (e.g. Commodore 1541-II: 8-11) or by cutting a trace (e.g. original Commodore 1541: 8 or 9).
 
-Commodore's convention for device numbers:
+On Commodore systems, there is a convention for device numbers:
 
-|#        | type                    |
-|---------|-------------------------|
-| 4, 5    | printers                |
-| 6, 7    | plotters                |
-| 8 - 11  | disk drives, hard disks |
-| 12 - 30 | third party drives      |
+|#        | type                           |
+|---------|--------------------------------|
+| 4, 5    | printers                       |
+| 6, 7    | plotters                       |
+| 8 - 11  | disk drives, hard disks        |
+| 12 - 30 | some third party drives, misc. |
+
+Devices 0-3 are reserved for devices outside the Commodore Peripheral Bus, which share the same primary address space in the KERNAL's Channel I/O API as well as in BASIC.
+
+Neither computers nor devices care about this convention, but default addresses and the range of selectable addresses abide by it.
 
 <!--
 1541 can be device #30:
@@ -40,10 +46,6 @@ or #4:
 	o=8:n=4:oP15,o,15:pR15,"m-w";cH(119);cH(0);cH(2);cH(n+32)+cH(n+64):clO15
 	load"$",4
 -->
-
-Devices 0-3 are reserved for devices outside the Commodore Peripheral Bus. 
-
-XXX TODO
 
 ## Talkers and Listeners
 
@@ -58,20 +60,20 @@ The controller itself can also be the talker or a listener. In fact, in the most
 
 ## TALK and LISTEN commands
 
-In order to hand out the talker and listener roles to devices and to withdraw them, the controller sends a command byte stream containing one of the following codes:
+In order to hand out the talker and listener roles to devices as well as to withdraw them, the controller sends a command byte stream containing one of the following codes:
 
 | command       | description   | effect                                                      |
 |---------------|---------------|-------------------------------------------------------------|
-| `0x20` + _pa_ | `LISTEN`      | device _pa_ becomes listener; code ignored by other devices |
+| `0x20` + _pa_ | `LISTEN`      | device _pa_ becomes listener; ignored by other devices      |
 | `0x3F`        | `UNLISTEN`    | all devices stop listening                                  |
 | `0x40` + _pa_ | `TALK`        | device _pa_ becomes talker; all other devices stop talking  |
 | `0x5F`        | `UNTALK`      | all devices stop talking                                    |
 
 For the `LISTEN` and `TALK` commands, the primary address of the device gets added to the code. The `UNLISTEN` and `UNTALK` commands correspond to the `LISTEN` and `TALK` with a primary address of 31.  This restricts primary addresses to the range of 0 - 30.
 
-All devices receive and interpret command bytes, so for example, a `TALK` command for device 8 will implicitly cause device 9 to stop talking, it case it currently was a talker.
+All devices receive and interpret command bytes, so for example, a `TALK` command for device 8 will implicitly cause device 9 to stop talking, in case it currently was a talker.
 
-A role change of the controller itself is not communicated through commands, since the controller already knows this (after all, it is the one making the decision), and the devices don't need to know.
+A role change of the controller itself is not communicated through commands, since the controller already knows this (after all, it is the one making the decision), and the devices do not need to know.
 
 ## Secondary Address
 
@@ -270,17 +272,17 @@ Note the difference between `SECOND` to send a secondary address after `LISTEN`,
 
 All calls deal with layer 3 functionality, except for `SETTMO`, which controls a layer 2 setting. The IEEE-488 layer 2 on the PET/CBM has an option to enable (`A` = `0x00`, default) or disable (`A` = `0x80`) timeouts. Timeouts are required to allow the talker to communicate an error when opening a named channel, but they can break IEEE-488 not designed for the PET. The call also exists on all other Commodore 8 bit computers, but has no effect, with the exception of a C64 with an added IEEE-488 cartridge.
 
-### OPEN/CLOSE API
+### Channel I/O API
 
-The KERNAL's channel I/O API is higher-level and not specific to the Commodore Peripheral Bus. Devices 0-3 will target the keyboard, tape, RS-232 (PET: tape #2) and the screen.
+The KERNAL's Channel I/O API is higher-level and not specific to the Commodore Peripheral Bus. Devices 0-3 will target the keyboard, tape, RS-232 (PET: tape #2) and the screen.
 
-The API allows up to 10 logical files open at the same time. A logical file is addressed by a user-selected logical file number (0-127). To open a logical file, the logical file number and devices primary and secondary addresses have to be set using `SETLFS`, the name has to be set using `SETNAM`, and `OPEN` hast to be called.
+The API allows up to 10 logical files open at the same time. A logical file is addressed by a user-selected logical file number (0-127). To open a logical file, the logical file number and devices primary and secondary addresses (255 = none) have to be set using `SETLFS`, the name has to be set using `SETNAM`, and `OPEN` hast to be called.
 
 `OPEN` with a filename will send the `LISTEN`/`OPEN`/_filename_/`UNLISTEN` sequence, associating the name with the secondary address. `OPEN` without a filename will not send anything on the bus, but will remember the secondary address for later operations.
 
 Similary, `CLOSE` on a file with a filename will send the `LISTEN`/`CLOSE`/`UNLISTEN` sequence, and otherwise, `CLOSE` will not send anything on the bus.
 
-The character input and output calls do not take the logical file number as an argument, instead the current input and/or output has to be globally selected using `CHKIN`, which will send `TALK`/`SECOND`, and `CHKOUT`, which will send `LISTEN`/`SECOND`. `CLRCHN` resets the current input and output channels and sends `UNTALK` or `UNLISTEN`.
+The current input and/or output has to be globally selected using `CHKIN`, which will send `TALK`, and `CHKOUT`, which will send `LISTEN`. Both are followed by `SECOND`, if a secondary address was set. `CLRCHN` resets the current input and output channels and sends `UNTALK` or `UNLISTEN`.
 
 With `CHKIN`/`CHKOUT` set up to talk on the Commodore Peripheral Bus, `CHRIN` and `CHROUT` will just be forwarded to the low-level calls `ACPTR` and `CIOUT`.
 
