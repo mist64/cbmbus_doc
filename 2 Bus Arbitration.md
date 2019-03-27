@@ -293,9 +293,9 @@ The API allows up to 10 logical files open at the same time. A logical file is a
 
 Similary, `CLOSE` on a file with a filename will send the `LISTEN`/`CLOSE`/`UNLISTEN` sequence, and otherwise, `CLOSE` will not send anything on the bus.
 
-The character input and output calls do not take the logical file number as an argument, instead the current input and/or output has to be globally selected using `CHKIN`/`CHKOUT`. `CHRIN` will then send `TALK`/`SECOND`, get a character, and send `UNTALK`. `CHROUT` will send `LISTEN`/`SECOND`, the character, and `UNLISTEN`.
+The character input and output calls do not take the logical file number as an argument, instead the current input and/or output has to be globally selected using `CHKIN`, which will send `TALK`/`SECOND`, and `CHKOUT`, which will send `LISTEN`/`SECOND`. `CLRCHN` resets the current input and output channels and sends `UNTALK` or `UNLISTEN`.
 
-While it is convenient to use this API to associate names with channels, it is more efficient to use the low-level API for data transfer, because that way allows transfering more than one byte per `TALK`/`LISTEN` session.
+With `CHKIN`/`CHKOUT` set up to talk on the Commodore Peripheral Bus, `CHRIN` and `CHROUT` will just be forwarded to the low-level calls `ACPTR` and `CIOUT`.
 
 | address | name     | description                             | arguments                         |
 |---------|----------|-----------------------------------------|-----------------------------------|
@@ -313,6 +313,31 @@ While it is convenient to use this API to associate names with channels, it is m
 
 ### BASIC Commands
 
-The complete channel I/O API is directly accessible through BASIC commands.
+The complete channel I/O API is directly accessible through BASIC instructions:
 
-XXX TODO
+| command                              | description            | 
+|--------------------------------------|------------------------|
+| `OPEN` _l_, _pa_ [, _sa_ [, _name_]] | open logical file      |
+| `CLOSE` _l_                          | close logical file     |
+| `GET#` _l_, _var_                    | read character         |
+| `INPUT#` _l_, _var_                  | read string/int/float  |
+| `PRINT#` _l_, _var_ [, ...]          | write string/int/float |
+| `CMD` _l_                            | redirect standard out  |
+
+Note that every `GET#`, `INPUT#` and `PRINT#` instruction will go through a `TALK`/`UNTALK` or `LISTEN`/`UNLISTEN` sequence.
+
+## Next Up
+
+Part 3 of the series of articles on the Commodore Peripheral Bus family will cover Layer 4: Commodore DOS.
+
+> This article series is an Open Source project. Corrections, clarifications and additions are **highly** appreciated. I will regularly update the articles from the repository at [https://github.com/mist64/cbmbus_doc](https://github.com/mist64/cbmbus_doc).
+
+### References
+
+* Fisher, E. R., & Jensen, C. W.: [PET and the IEEE 488 Bus (GPIB)](https://archive.org/details/PET_and_the_IEEE488_Bus_1980_McGraw-Hill). Berkeley, Calif: OSBORNE/McGraw-Hill, 1982. ISBN 0-931988-31-4.
+* Keller, R. & Hurling H.: IEC-Bus - im Labor bewährt. in: c't Magazin für Computer und Technik, 9/87, p. 187-192. ISSN 0724-8679.
+* Derogee, J. & Butterfield, J.: [IEC disected](http://www.zimmers.net/anonftp/pub/cbm/programming/serial-bus.pdf). 2008.
+* [Commodore 64 Programmer's Reference Guide](http://www.zimmers.net/cbmpics/cbm/c64/c64prg.txt). [S.l.]: Commodore Business Machines, 1987. ISBN: 0672220563
+* [cbmsrc](https://github.com/mist64/cbmsrc) - Original source code of various Commodore computers and peripherals
+
+
