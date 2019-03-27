@@ -44,6 +44,9 @@ Commodore's convention for device numbers:
 1541 can be device #30:
 	o=8:n=30:oP15,o,15:pR15,"m-w";cH(119);cH(0);cH(2);cH(n+32)+cH(n+64):clO15
 	load"$",30
+or #4:
+	o=8:n=4:oP15,o,15:pR15,"m-w";cH(119);cH(0);cH(2);cH(n+32)+cH(n+64):clO15
+	load"$",4
 -->
 
 Devices 0-3 are reserved for devices outside the Commodore Peripheral Bus. 
@@ -52,31 +55,29 @@ XXX TODO
 
 ## Talkers and Listeners
 
-In order to tell devices that they are now supposed to send or reseive data, the controller hands out two roles: "talker" and "listener".
+In order to tell devices that they are now supposed to send or receive data, the controller hands out two roles: "talker" and "listener".
 
 * A **talker** is sending a byte stream.
 * A **listener** is receiving a byte stream.
 
 Any device can be either a talker, a listener, or passive. There can only be one talker at a time, and there has to be at least one listener.
 
-The controller itself can also be the talker or a listener. In the most common case, the controller is either the talker, with a disk drive as the single listener (e.g. writing a file), or the controller is the single listener, with a disk drive as the talker (e.g. reading a file).
+The controller itself can also be the talker or a listener. In fact, in the most common case, the controller is either the talker, with a disk drive as the single listener (e.g. writing a file), or the controller is the single listener, with a disk drive as the talker (e.g. reading a file).
 
-## Talk and Listen Commands
+## TALK and LISTEN commands
 
+In order to hand out and to withdraw the talker and listener roles, the controller sends command byte streams containing one of the following codes:
 
+| command       | description   | effect |
+|---------------|---------------|--------|
+| `0x20` + _pa_ | `LISTEN`      | device _pa_ becomes listener; code ignored by other devices |
+| `0x3F`        | `UNLISTEN`    | all devices stop listening  |
+| `0x40` + _pa_ | `TALK`        | device _pa_ becomes talker; all other devices stop talking |
+| `0x5F`        | `UNTALK`      | all devices stop talking |
 
-* sends one byte to start/stop takling/listening
+For the `LISTEN` and `TALK` commands, the primary address of the device gets added to the code. The `UNLISTEN` and `UNTALK` commands correspond to the `LISTEN` and `TALK` with a primary address of 31.  This restricts primary addresses to the range of 0 - 30.
 
-.
-
-	20 + address LISTEN
-	40 + address TALK
-
-	3F UNLISTEN
-	5F UNTALK
-
-
-
+All devices receive and interpret command bytes, so for example, a `TALK` command for device 8 will implicitly cause device 9 to stop talking, it case it currently was a talker.
 
 ## secondary addresses
 * multiplexing functions/contexts of a device would be nice
