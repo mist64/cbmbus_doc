@@ -15,22 +15,55 @@ Layer 2 does not designate who may send or receive at a given time, nor does it 
 
 Layer 3 uses the features of layer 2 to provide the following features:
 
-* devices are numbered
-* devices have numbered channels
-* devices have named channels
-* controller instructs channels to send a byte stream or receive a byte stream
+* devices are numbered (0-30)
+* a device has channels (0-31) that can be associated with names
+* controller initiates transmissions from one device/channel (or the controller) to any other devices/channels (and/or the controller)
+
+## Controller 
+
+Layer 2 allows everyone on the bus to talk to everyone else – but there is no mechanism in place who is sending or receiving data at what time. The primary feature of layer 3 is controlling exactly this.
+
+For this, we need one bus participant that is the designated "controller" - this is always the computer. It sends command byte streams to all other bus participants, the "devices".
+
+## Primary Addresses 
+
+The controller needs to be able to address an individual device. Every device on the bus has a "primary addresses" from 0 to 30. The controller itself does not have an address.
+
+Device numbers are usually assigned through [DIP switches](https://en.wikipedia.org/wiki/DIP_switch) (e.g. Commodore 1541-II: 8-11) or by cutting a trace (e.g. original Commodore 1541: 8 or 9).
+
+Commodore's convention for device numbers:
+
+|#        | type                    |
+|---------|-------------------------|
+| 4, 5    | printers                |
+| 6, 7    | plotters                |
+| 8 - 11  | disk drives, hard disks |
+| 12 - 30 | third party drives      |
+
+<!--
+1541 can be device #30:
+	o=8:n=30:oP15,o,15:pR15,"m-w";cH(119);cH(0);cH(2);cH(n+32)+cH(n+64):clO15
+	load"$",30
+-->
+
+Devices 0-3 are reserved for devices outside the Commodore Peripheral Bus. 
+
+XXX TODO
+
+## Talkers and Listeners
+
+In order to tell devices that they are now supposed to send or reseive data, the controller hands out two roles: "talker" and "listener".
+
+* A **talker** is sending a byte stream.
+* A **listener** is receiving a byte stream.
+
+Any device can be either a talker, a listener, or passive. There can only be one talker at a time, and there has to be at least one listener.
+
+The controller itself can also be the talker or a listener. In the most common case, the controller is either the talker, with a disk drive as the single listener (e.g. writing a file), or the controller is the single listener, with a disk drive as the talker (e.g. reading a file).
+
+## Talk and Listen Commands
 
 
-* interface vs. device
-
-## primary addresses and TALK/LISTEN
-* anyone can talk to anyone - just not at the same time
-* time division: at any time, there can only be one sender and its receivers, but controller redefines the current sender and receivers
-* a device that is currently a sender is a "talker"
-* a device that is currently a receiver is a "listener"
-* every *other* device has a predefined (think: dip-switches) "primary" address, 0 to 30
-* the controller tells devices to become talkers or listeners
-	* and can decide to become a talker or listener
 
 * sends one byte to start/stop takling/listening
 
@@ -43,11 +76,7 @@ Layer 3 uses the features of layer 2 to provide the following features:
 	5F UNTALK
 
 
-## device numbers, convention
-* 4, 5 printer
-* 6, 7 plotter
-* 8-11 (hard) disk drives
-* third party drives support 12+
+
 
 ## secondary addresses
 * multiplexing functions/contexts of a device would be nice
