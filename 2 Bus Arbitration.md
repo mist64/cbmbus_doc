@@ -1,6 +1,8 @@
 # Commodore Peripheral Bus: Part 2: Bus Arbitration, TALK/LISTEN
 
-* family of Commodore Peripheral Bus protocols
+* introduction sentence
+
+* series about family of Commodore Peripheral Bus protocols
 * different layers 1 and 2
 * they all share layers 3 and 4
 * image
@@ -18,6 +20,7 @@
 	* numbered channels
 	* named channels
 
+* interface vs. device
 
 ## primary addresses and TALK/LISTEN
 * time division: at any time, there can only be one sender and its receivers, but controller redefines the current sender and receivers
