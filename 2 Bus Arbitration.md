@@ -87,7 +87,7 @@ A role change of the controller itself is not communicated through commands, sin
 
 ## Secondary Address
 
-The designer of IEEE-488 felt that a device should have multiple functions or contexts, or that multiple _actual_ devices could be sitting behind a single primary address. Each of these **channels** can be addressed using a **secondary address** from 0 to 31.
+The designers of IEEE-488 felt that a device should have multiple functions or contexts, or that multiple _actual_ devices could be sitting behind a single primary address. Each of these **channels** can be addressed using a **secondary address** from 0 to 31.
 
 A command specifying the secondary address can _optionally_ be sent after a `TALK` or `UNTALK` command.
 
@@ -187,13 +187,59 @@ Device 8 now starts sending bytes, and devices 4 and 5 will receive them. The la
 
 The controller can interrupt the transmission at any time by sending new commands. If it wants to know when the transmission is finished though, it will have to be a listener as well and detect the end of the stream (`EOI`).
 
-## named channels (OPEN/CLOSE)
-* instead of having fixed functions behind secondary addresses
-* a device can use names for channels
-* only 16 channels available (bit #4 used for open/close)
-* there are commands to open and close named channels
-* E0 CLOSE
-* F0 OPEN (create channel with filename)
+## Named Channels (OPEN/CLOSE)
+
+When Commodore chose IEEE-488 as the protocol stack for the PET, they felt that a numeric secondary address from 0 to 31 was not expressive enough for the different context of e.g. a disk drive, so they added **named channels**.
+
+The controller can associate (and dissociate) a secondary address with a name. A name is a byte stream of arbitrary length, usually the PETSCII encoding is implied. Note that for named channels, secondary addresses must be in the range of 0-15.
+
+| command       | description   | effect                          |
+|---------------|---------------|---------------------------------|
+| `0xE0` + _sa_ | `CLOSE`       | dissociate _sa_ from its name   |
+| `0xF0` + _sa_ | `OPEN`        | associate _sa_ with with a name |
+
+Both commands have to be prefixed with a `LISTEN` command to address the correct device. An `OPEN` command sequence looks like this:
+
+| command | description |
+|---------|-------------|
+| `0x28`  | `LISTEN` 8  |
+| `0xF2`  | `OPEN` 2    |
+
+The controller now sends the name of the channel, followed by `UNLISTEN`:
+
+| command | description |
+|---------|-------------|
+| `0x3F`  | `UNLISTEN`  |
+
+This is a shorthand version of this example:
+
+`/28 /F2 'N' 'A' 'M' 'E' /3F`
+
+Numbers are hex, characters are PETSCII. Numbers prefixed with "/" indicate commands, all others indicate data.
+
+Unlike regular data transmissions, where the controller can pause and resume the stream using `UNLISTEN`/`LISTEN`, the name of the channel has to be sent in one go. The end of the name is indicated by the `UNLISTEN` command, not by `EOI`.
+
+Dissociating a channel from a name is done using the sequence `LISTEN`/`CLOSE`/`UNLISTEN`, like in this example:
+
+| command | description |
+|---------|-------------|
+| `0x28`  | `LISTEN` 8  |
+| `0xE2`  | `CLOSE` 2   |
+| `0x3F`  | `UNLISTEN`  |
+
+In shorthand:
+
+`/28 /E2 /3F`
+
+
+| command       | binary     | description |
+|---------------|------------|-------------|
+| `0x20` + _pa_ | `001xxxxx` | `LISTEN`    |
+| `0x40` + _pa_ | `010xxxxx` |`TALK`       |
+| `0x60` + _sa_ | `0110xxxx` | `SECOND`    |
+| `0xE0` + _sa_ | `1110xxxx` | `CLOSE`     |
+| `0xF0` + _sa_ | `1111xxxx` | `OPEN`      |
+
 * Commodore calls these commands "secondary address open"/"secondary address close"!
 * they have to be sent with LISTEN/UNLISTEN so the correct device gets it
 * 28, E1, 3F
@@ -204,6 +250,8 @@ The controller can interrupt the transmission at any time by sending new command
 * disk drives use the secondary address for channels
 * channels represent different open files that can be read from or written to
 * TODO open error
+
+## errors
 
 ## unsupported features in KERNAL/BASIC
 * SRQ enumeration
