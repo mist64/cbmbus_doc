@@ -1,6 +1,6 @@
 # Commodore Peripheral Bus: Part 2: Bus Arbitration, TALK/LISTEN
 
-In the [series about the variants of the Commodore Peripheral Bus family](https://www.pagetable.com/?p=1018), this article covers the common layer 3: the Bus Arbitration Layer with the TALK/LISTEN protocol.
+In the [series about the variants of the Commodore Peripheral Bus family](https://www.pagetable.com/?p=1018), this article covers the common layer 3: the Bus Arbitration Layer with the TALK/LISTEN protocol, based on the IEEE-488 standard.
 
 ![](docs/cbmbus/layer3.png =601x251)
 
@@ -198,7 +198,7 @@ The controller can associate (and dissociate) a secondary address with a name. A
 | `0xE0` + _sa_ | `CLOSE`       | dissociate _sa_ from its name   |
 | `0xF0` + _sa_ | `OPEN`        | associate _sa_ with with a name |
 
-Both commands have to be prefixed with a `LISTEN` command to address the correct device. An `OPEN` command sequence looks like this:
+Both commands have to be prefixed with a `LISTEN` command to address the correct device. An `OPEN` command sequence that associates a name with channel 2 on device 8 looks like this:
 
 | command | description |
 |---------|-------------|
@@ -211,13 +211,9 @@ The controller now sends the name of the channel, followed by `UNLISTEN`:
 |---------|-------------|
 | `0x3F`  | `UNLISTEN`  |
 
-This is a shorthand version of this example:
-
-`/28 /F2 'N' 'A' 'M' 'E' /3F`
-
-Numbers are hex, characters are PETSCII. Numbers prefixed with "/" indicate commands, all others indicate data.
-
 Unlike regular data transmissions, where the controller can pause and resume the stream using `UNLISTEN`/`LISTEN`, the name of the channel has to be sent in one go. The end of the name is indicated by the `UNLISTEN` command, not by `EOI`.
+
+The device can indicate an error associating the channel with the name using an error condition on layer 2.
 
 Dissociating a channel from a name is done using the sequence `LISTEN`/`CLOSE`/`UNLISTEN`, like in this example:
 
@@ -227,47 +223,36 @@ Dissociating a channel from a name is done using the sequence `LISTEN`/`CLOSE`/`
 | `0xE2`  | `CLOSE` 2   |
 | `0x3F`  | `UNLISTEN`  |
 
-In shorthand:
+Commodore added the `OPEN`/`CLOSE` protocol extension in a clever way that doesn't clash with any features of the IEEE-488 specification. All command codes have the same bit layout: 
 
-`/28 /E2 /3F`
+| bit       | description                  |
+|-----------|------------------------------|
+| 7         | ignored                      |
+| 6 - 5     | command code                 |
+| 4 - 0     | primary or secondary address |
 
+This allows for 4 command codes, 30 primary addresses and 31 secondary addresses. This is the complete command table on Commodore devices:
 
-| command       | binary     | description |
-|---------------|------------|-------------|
-| `0x20` + _pa_ | `001xxxxx` | `LISTEN`    |
-| `0x40` + _pa_ | `010xxxxx` |`TALK`       |
-| `0x60` + _sa_ | `0110xxxx` | `SECOND`    |
-| `0xE0` + _sa_ | `1110xxxx` | `CLOSE`     |
-| `0xF0` + _sa_ | `1111xxxx` | `OPEN`      |
+| command       | binary     | description      |
+|---------------|------------|------------------|
+| `0x00` + _cmd_| `000xxxxx` | (global command) |
+| `0x20` + _pa_ | `001xxxxx` | `LISTEN`         |
+| `0x40` + _pa_ | `010xxxxx` | `TALK`           |
+| `0x60` + _sa_ | `011xxxxx` | `SECOND`         |
+| `0xE0` + _sa_ | `1110xxxx` | `CLOSE`          |
+| `0xF0` + _sa_ | `1111xxxx` | `OPEN`           |
 
-* Commodore calls these commands "secondary address open"/"secondary address close"!
-* they have to be sent with LISTEN/UNLISTEN so the correct device gets it
-* 28, E1, 3F
-* LISTEN 8, CLOSE 1, UNLISTEN
-* open has an argument, sent with ATN off
-* 28, F1, "FOO", 3F
-* LISTEN 8, OPEN 1, "FOO", UNLISTEN
-* disk drives use the secondary address for channels
-* channels represent different open files that can be read from or written to
-* TODO open error
+(`0x00` is the prefix for a set of global commands that will be covered later in this article.)
 
-## errors
+The codes for `CLOSE` (`0xE0`) and `OPEN` (`0xF0`) reuse the code for `SECOND` (`0x60`), but with bit #7 set. To devices that don't understand the Commodore `OPEN`/`CLOSE` protocol, these commands look like `SECOND` and will be ignored, since they are sent in the context of a Commodore device being a listener.
+
+An extra bit is required to distinguish between `OPEN` and `CLOSE`: Bit 4, the highest address of the secondary address is used to indicate the difference, which is why it is only possible to associate 16 secondary addresses with a name.
 
 ## unsupported features in KERNAL/BASIC
-* SRQ enumeration
 * 00xxxxx commands
 
-.
-
-	?? 000xxxxx unsupported
-	20 001xxxxx listen
-	40 010xxxxx talk
-	60 0110xxxx secondary
-	E0 1110xxxx close (extension)
-	F0 1111xxxx open (extension)
-
 ## KERNAL API
-	* on the VIC-20 and all later machines (C64, C128, C65, Plus4, CBM-II)
+* on the VIC-20 and all later machines (C64, C128, C65, Plus4, CBM-II)
 
 ### IEEE API
 .
