@@ -1,28 +1,30 @@
 # Commodore Peripheral Bus: Part 2: Bus Arbitration, TALK/LISTEN
 
-* introduction sentence
+In the [series about the variants of the Commodore Peripheral Bus family](https://www.pagetable.com/?p=1018), this article covers the common layer 3: the Bus Arbitration Layer with the TALK/LISTEN protocol.
 
-* series about family of Commodore Peripheral Bus protocols
-* different layers 1 and 2
-* they all share layers 3 and 4
-* image
-* this article is valid for
-	* IEEE-488
-	* Serial family
-	* TCBM
-	* CBDOS
-* each layer 2 variant provides
-	* any sender to transmit byte stream to any set of receivers; any number of passive participants
-	* dedicated controller (computer) to transmit command byte stream to all devices
-* layer 3 uses these features to provide the following features
-	* controller can connect talker with listeners
-	* numbered devices
-	* numbered channels
-	* named channels
+![](docs/cbmbus/layer3.png =601x251)
+
+The variants of the Commodore Peripheral Bus family have some very different connectors and byte transfer protocols, but they all share layers 3 and 4 of the protocol stack. This article on layer 3 is therefore valid for all Commodore 8 bit computers, no matter whether they use IEEE-488, Serial, TCBM or CBDOS on the underlying layers.
+
+All layer 2 variants provide:
+
+* the transmission of byte streams from any bus participant to any set of bus participants
+* the transmission of "command" byte streams from the designated "contoller" (the computer) to all other bus participants
+
+Layer 2 does not designate who may send or receive at a given time, nor does it define the meaning of contents of command byte streams. That's the job of layer 3.
+
+Layer 3 uses the features of layer 2 to provide the following features:
+
+* devices are numbered
+* devices have numbered channels
+* devices have named channels
+* controller instructs channels to send a byte stream or receive a byte stream
+
 
 * interface vs. device
 
 ## primary addresses and TALK/LISTEN
+* anyone can talk to anyone - just not at the same time
 * time division: at any time, there can only be one sender and its receivers, but controller redefines the current sender and receivers
 * a device that is currently a sender is a "talker"
 * a device that is currently a receiver is a "listener"
@@ -111,3 +113,5 @@
 		this is layer 2 while everything else is layer 3
 
 ### OPEN/CLOSE API
+
+### BASIC Commands

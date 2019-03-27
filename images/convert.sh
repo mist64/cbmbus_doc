@@ -10,3 +10,5 @@ for i in 01 02 03 04 05 06 07 08 09 10 11 12 13; do
 	convert -crop 1200x522+0+84\! -bordercolor black -border 1 /tmp/IEEE-488/IEEE-488.0$i.png ../docs/cbmbus/ieee-488-$i.png
 done
 
+# Part 2
+convert -bordercolor black -border 1 /tmp/Layer\ 3/Layer\ 3.001.png ../docs/cbmbus/layer3.png
