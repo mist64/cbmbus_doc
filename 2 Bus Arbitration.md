@@ -248,7 +248,11 @@ The codes for `CLOSE` (`0xE0`) and `OPEN` (`0xF0`) reuse the code for `SECOND` (
 
 An extra bit is required to distinguish between `OPEN` and `CLOSE`: Bit 4, the highest address of the secondary address is used to indicate the difference, which is why it is only possible to associate 16 secondary addresses with a name.
 
-## unsupported features in KERNAL/BASIC
+## Unsupported IEEE-488 Features
+
+* based on layer 3 of IEEE-488
+* not all features supported by the library
+* but they could be implemented in software
 * 00xxxxx commands
 
 ## KERNAL API
