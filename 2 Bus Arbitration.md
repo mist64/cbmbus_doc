@@ -1,6 +1,6 @@
 # Commodore Peripheral Bus: Part 2: Bus Arbitration, TALK/LISTEN
 
-In the [series about the variants of the Commodore Peripheral Bus family](https://www.pagetable.com/?p=1018), this article covers the common layer 3: the bus arbitration layer with the TALK/LISTEN protocol, based on the IEEE-488 standard.
+In the [series about the variants of the Commodore Peripheral Bus family](https://www.pagetable.com/?p=1018), this article covers the common layer 3: the bus arbitration layer with the TALK/LISTEN protocol, which is based on the IEEE-488 standard.
 
 ![](docs/cbmbus/layer3.png =601x251)
 
@@ -10,18 +10,6 @@ All layer 2 variants provide:
 
 * the transmission of byte streams from any bus participant to any set of bus participants
 * the transmission of "command" byte streams from the designated "contoller" (the computer) to all other bus participants
-
-<!--
-
-Layer 2 does not designate who may send or receive at a given time, nor does it define the meaning of contents of command byte streams. That's the job of layer 3.
-
-Layer 3 uses the features of layer 2 to provide the following features:
-
-* devices are numbered (0-30)
-* a device has channels (0-31) that can be associated with names
-* controller initiates transmissions from one device/channel (or the controller) to any other devices/channels (and/or the controller)
-
--->
 
 ## Controller 
 
@@ -278,10 +266,9 @@ The "IEEE" API is a set of low-level calls. It allows using primary addresses 0-
 | `$FFA8` | `CIOUT`  | Send byte to serial bus         | `A` = _byte_              |
 | `$FFA2` | `SETTMO` | Set timeout                     | `A` = { `0x00` | `0x80` } |
 
-* send LISTEN secondary address (same as above, but with bus turnaround) |
-* SETTMO: this is layer 2 while everything else is layer 3
+Note the difference between `SECOND` to send a secondary address after `LISTEN`, and `TKSA` to send a secondary address after `TALK`. XXX TODO bus turnaround
 
-XXX TODO
+All calls deal with layer 3 functionality, except for `SETTMO`, which controls a layer 2 setting. The IEEE-488 layer 2 on the PET/CBM has an option to enable (`A` = `0x00`, default) or disable (`A` = `0x80`) timeouts. Timeouts are required to allow the talker to communicate an error when opening a named channel, but they can break IEEE-488 not designed for the PET. The call also exists on all other Commodore 8 bit computers, but has no effect, with the exception of a C64 with an added IEEE-488 cartridge.
 
 ### OPEN/CLOSE API
 
