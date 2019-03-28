@@ -13,6 +13,22 @@ All layer 2 variants provide:
 
 Layer 3, which is based on the IEEE-488 standard, provides interruptable communication between channels of different devices.
 
+<hr/>
+
+> **_NOTE:_**  I am releasing one part every week, at which time links will be added to the bullet points below. The articles will also be announced on my Twitter account <a href="https://twitter.com/pagetable">@pagetable</a> and my Mastodon account <a href="https://mastodon.social/@pagetable">@pagetable&#64;mastodon.social</a>.
+
+<hr/>
+
+* [Part 0: Overview and Introduction](https://www.pagetable.com/?p=1018)
+* [Part 1: IEEE-488](https://www.pagetable.com/?p=1023) [PET/CBM Series; 1977]
+* Part 2: The TALK/LISTEN Layer ← *this article*
+* Part 3: The Commodore DOS Layer *(coming soon)*
+* Part 4: Standard Serial (IEC) [VIC-20, C64; 1981] *(coming soon)*
+* Part 5: TCBM [C16, C116, Plus/4; 1984] *(coming soon)*
+* Part 6: JiffyDOS [1985] *(coming soon)*
+* Part 7: Fast Serial [C128; 1986] *(coming soon)*
+* Part 8: CBDOS [C65; 1991] *(coming soon)*
+
 ## Controller 
 
 Layer 2 allows everyone on the bus to talk to everyone else – but there is no mechanism in place for who is sending or receiving data at what time. The primary feature of layer 3 is controlling exactly this.
