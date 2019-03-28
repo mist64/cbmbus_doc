@@ -1,6 +1,8 @@
 # "Commodore Peripheral Bus" Article Series
 
-This repository maintains the history of the article series "[Commodore Peripheral Bus](https://www.pagetable.com/?p=1018)" at [pagetable.com](https://www.pagetable.com/).
+This repository maintains the history of the "Commodore Peripheral Bus" article series at [pagetable.com](https://www.pagetable.com/).
+
+I am releasing one part every week, at which time links will be added to the bullet points below. The articles will also be announced on my Twitter account <a href="https://twitter.com/pagetable">@pagetable</a> and my Mastodon account <a href="https://mastodon.social/@pagetable">@pagetable&#64;mastodon.social</a>.
 
 * [Part 0: Overview and Introduction](https://www.pagetable.com/?p=1018)
 * [Part 1: IEEE-488](https://www.pagetable.com/?p=1023) [PET/CBM Series; 1977]

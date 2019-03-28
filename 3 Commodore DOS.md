@@ -3,12 +3,13 @@
 ## disk drive overview
 
 * one or more drives
+	* one device, drives 0 and 1
 * file types:
 	* PRG/SEQ/USR: sequential, only linear access, no random access (seeking)
 	* REL: relative
 * some drives:
-	* partitions
 	* subdirectories
+	* partitions
 	* burst commands
 
 ## channel number overview
@@ -91,3 +92,13 @@ run
 * Schramm, K.: [Die Floppy 1541](https://spiro.trikaliotis.net/Book#vic1541). Haar bei München: Markt-und-Technik-Verlag, 1985. ISBN 3-89090-098-4
 * Inside Commodore DOS
 * ftp://www.zimmers.net/pub/cbm/manuals/printers/MPS-801_Printer_Users_Manual.pdf
+
+
+### Notes
+
+* Data model first
+* Then file names
+* copy merge
+* Wildcards
+* Dup files diff types?
+* S/R needs type?

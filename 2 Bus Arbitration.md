@@ -143,9 +143,7 @@ The controller then sends the byte stream. Like in the case of receiving data, t
 |---------|-------------|
 | `0x3F`  | `UNLISTEN`  |
 
-and resume it using the same `LISTEN`/`SECOND` combination. If the controller has reached the end of its byte stream, it signals `EOI`. Again, there is no need to send `UNLISTEN` in this case.
-
-(Somewhat breaking conventions, some devices interpret `UNLISTEN` as a delimiter, e.g. Commodore disk drives will execute disk command strings sent to channel 15 on the `UNLISTEN` event. See layer 4.)
+and resume it using the same `LISTEN`/`SECOND` combination[^1]. If the controller has reached the end of its byte stream, it signals `EOI`. Again, there is no need to send `UNLISTEN` in this case.
 
 ### Manually Copying Data Between Devices
 
@@ -342,4 +340,4 @@ Part 3 of the series of articles on the Commodore Peripheral Bus family will cov
 * [Commodore 64 Programmer's Reference Guide](http://www.zimmers.net/cbmpics/cbm/c64/c64prg.txt). [S.l.]: Commodore Business Machines, 1987. ISBN: 0672220563
 * [cbmsrc](https://github.com/mist64/cbmsrc) - Original source code of various Commodore computers and peripherals
 
-
+[^1]: Somewhat breaking conventions, some devices interpret `UNLISTEN` as a delimiter, e.g. Commodore disk drives will execute disk command strings sent to channel 15 on the `UNLISTEN` event. See layer 4.
