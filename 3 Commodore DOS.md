@@ -1,38 +1,87 @@
 # Commodore Peripheral Bus: Part 3: Commodore DOS
 
-* disk drives
-	* channel = 0 is reserved for a reading a PRG file.
-	* channel = 1 is reserved for a writing a PRG file.
-	* channel = 2-14 need the filetype and the read/write flag in the filename as ",P,W" for example.
-	* channel = 15 for DOS commands or device status info.
+## disk drive overview
 
-* Printers
-	* printers use the secondary address to pre-select a character set
+* one or more drives
+* file types:
+	* PRG/SEQ/USR: sequential, only linear access, no seeking
+	* REL: relative
+* some drives:
+	* partitions
+	* subdirectories
+	* burst commands
 
-0 graphic
-7 business
+## channel number overview
 
-	ftp://www.zimmers.net/pub/cbm/manuals/printers/MPS-801_Printer_Users_Manual.pdf
-Sa= 0: Print data exactly as received
-Sa= 6: Setting spacing between lines
-Sa= 7: Select business mode
-Sa= S: Select graphic mode
-Sa=10: Reset the printer
+* channel = 0 is reserved for a reading a PRG file.
+* channel = 1 is reserved for a writing a PRG file.
+* channel = 2-14 need the filetype and the read/write flag in the filename as ",P,W" for example.
+* channel = 15 for DOS commands or device status info.
 
-	https://www.mocagh.org/forsale/mps1000-manual.pdf
-0 Print data exactly as received in Uppercase/Graphics mode
-1 Print data according to a previously-defined format
-2 Store the formatting data
-3 Set the number of lines per page to be printed
-4 Enable the printer format diagnostic messages
-5 Define a programmable character
-6 Set spacing between lines
-7 Print data excactly as received in Upper/lowercase
-9 Suppress diagnostic message printing
-10 Reset printer
+## command channel
 
-* practice:
-	* listen 4, secondary 7, "Hello", unlisten
-	* TODO: bus turnaround
+* write: command
+	* terminated by CR or UNLISTEN :(
+* read: status
+	* terminated by CR, will keep repeating
+	* aa,sssss,bb,cc,d
+	* with d:
+		* 1001, 8050, 8250
+	* without d:
+		* 2031
 
-* UNLISTEN on 15 is the same as the CR code, i.e. it will accept the pervious characters as the command
+	
+<!--
+
+10 open 1,8,15:rem,"ui"
+20 get#1,a$:?a$;:ifa$<>chr$(13)goto20
+rem25 goto20
+30 close 1
+run
+
+-->
+
+## files
+
+### regular files
+
+* filenames don't contain
+	* 0xA0
+	* ","
+* don't start with
+	* "$"
+	* "#"
+	* "&"
+* filename length not specified (usually 16)
+
+* file access string:
+	* ,P/S/U/L
+	* ,P/S/U/L,R/W/A
+	* 0/1: (drive select)
+	* @: (overwrite)
+		* ,W fails if file exists
+
+### special files:
+* "$"
+	* $n for drive 0/1
+	* $:abc*
+	* link to post
+* "#"
+* "&"
+
+## direct channels
+	* fn "#" or "#n", where n is the buffer number (0-4 on 1541)
+	* command channel will return buffer number
+
+* limitations
+	* 0 byte files don't exist
+
+## Extra: Printers
+* printers use the secondary address to pre-select a character set
+* 0 Print data in Uppercase/Graphics mode
+* 7 Print data in Upper/lowercase
+
+## References
+* http://www.softwolves.pp.se/idoc/alternative/vc1541_de/
+* Schramm, K.: [Die Floppy 1541](https://spiro.trikaliotis.net/Book#vic1541). Haar bei München: Markt-und-Technik-Verlag, 1985. ISBN 3-89090-098-4
+* ftp://www.zimmers.net/pub/cbm/manuals/printers/MPS-801_Printer_Users_Manual.pdf
