@@ -7,20 +7,34 @@
 * device can send byte streams from channels
 * device can receive byte streams into channels
 
+-> description of common feature set of Commodore DOS; extensions at the end of the article
+
+* in contrast to other articles of the series, this one is just an overview of the design
+* respective manuals are good references
+* *conceptual* 
+
 ## disk drive overview
 
 * one or more drives
-	* one "unit", drives 0 and 1
+	* one "unit", one or more drives: 0, 1...
+* disks
+	* have a name
+	* have an ID
+	* support files
 * file types
-	* SEQ/PRG/USR: sequential, only linear access, no random access (seeking)
-	* REL: relative
-
-<!--
-* some drives:
-	* subdirectories
-	* partitions
-	* burst commands
--->
+	* sequential
+		* SEQ/PRG/USR
+		* only linear access, no random access (seeking)
+		* PRG is meant for executable files
+		* USR is meant as an extension
+		* both treated the same by DOS
+		* at least 1 byte!
+	* relative
+		* REL
+		* fixed record size
+		* random access
+	* not part of filename
+		* can't have X,S and X,P on the same disk
 
 ## channel number overview
 
@@ -46,7 +60,7 @@
 ### regular files
 
 * filenames don't contain
-	* 0xA0
+	* 0xA0 (PETSCII shifted Space)
 	* ","
 * don't start with
 	* "$"
@@ -80,26 +94,27 @@
 	* uppercase ASCII commands (= PETSCII)
 	* terminated by CR or UNLISTEN :(
 
-| Name           | Syntax                                                   | Description                     |
-|----------------|----------------------------------------------------------|---------------------------------|
-| NEW            | `N`[_drv_]`:`_name_[,_id_]                               | Low-level or quick format       |
-| VALIDATE       | `V`[_drv_]                                               | Re-build block availability map |
-| INITIALIZE     | `I`[_drv_]                                               | Force reading disk metadata     |
-| RENAME         | `R`[_drv_]`:`_new_name_`=`_old_name_                     | Rename file                     |
-| COPY           | `C`[_drv_a_]`:`_target_name_`=`[_drv_b_]`:`_source_name_ | Copy file                       |
-| SCRATCH        | `S`[_drv_]`:`_name_                                      | Delete file                     |
-| DUPICATE       | `D:`[_drv_a_]``=``[_drv_b_]                              | Duplicate disk                  |
-| POSITION       | `P`, _channel_ _position_                                | XXX                             |
-| BLOCK-READ     | `B-R` _channel_ _track_ _sector_                         | Read sector                     |
-| BLOCK-WRITE    | `B-W` _channel_ _track_ _sector_                         | Write sector                    |
-| MEMORY-WRITE   | `M-W` _addr_lo_ _addr_hi_ _count_ _data_                 | Write RAM                       |
-| MEMORY-READ    | `M-R` _addr_lo_ _addr_hi_ _count_                        | Read RAM                        |
-| MEMORY-EXECUTE | `M-E` _addr_lo_ _addr_hi_                                | Execute code                    |
-| U1/UA          | `U1` _channel_ _track_ _sector_                          | Read sector                     |
-| U2/UB          | `U2` _channel_ _track_ _sector_                          | Write sector                    |
-| U3-U8/UC-UH    | `U3-U7`                                                  | Execute code                    |
-| U9/UI          | `U9`                                                     | Soft RESET                      |
-| U:/UJ          | `U9`                                                     | RESET                           |
+| Name           | Syntax                                                | Description                     |
+|----------------|-------------------------------------------------------|---------------------------------|
+| NEW            | `N`[_drv_]`:`_name_[,_id_]                            | Low-level or quick format       |
+| VALIDATE       | `V`[_drv_]                                            | Re-build block availability map |
+| INITIALIZE     | `I`[_drv_]                                            | Force reading disk metadata     |
+| RENAME         | `R`[_drv_]`:`_new_name_`=`_old_name_                  | Rename file                     |
+| COPY           | `C`[_drv_a_]`:`_target_name_`=`[_drv_b_]`:`_source_name_[,...] | Copy/concatenate files |
+| SCRATCH        | `S`[_drv_]`:`_name_[`,`...]                           | Delete files                    |
+| DUPICATE       | `D:`[_drv_a_]``=``[_drv_b_]                           | Duplicate disk                  |
+| POSITION       | `P` _channel_ _pos_lo_ _pos_hi_ _offset_              | Set record index in REL file    |
+| BLOCK-READ     | `B-R` _channel_ _track_ _sector_                      | Read sector                     |
+| BLOCK-WRITE    | `B-W` _channel_ _track_ _sector_                      | Write sector                    |
+| MEMORY-WRITE   | `M-W` _addr_lo_ _addr_hi_ _count_ _data_              | Write RAM                       |
+| MEMORY-READ    | `M-R` _addr_lo_ _addr_hi_ _count_                     | Read RAM                        |
+| MEMORY-EXECUTE | `M-E` _addr_lo_ _addr_hi_                             | Execute code                    |
+| U1/UA          | `U1` _channel_ _track_ _sector_                       | Synonym of B-R                  |
+| U2/UB          | `U2` _channel_ _track_ _sector_                       | Synonym of B-W                  |
+| U3-U8/UC-UH    | `U3-U7`                                               | Execute code                    |
+| U9/UI          | `U9`                                                  | Soft RESET                      |
+| U:/UJ          | `U9`                                                  | Hard RESET                      |
+
 
 * read: status
 	* terminated by CR, will keep repeating
@@ -109,9 +124,6 @@
 	* without d:
 		* 2031, all serial devices
 
-
-
-	
 <!--
 
 10 open 1,8,15,"ui"
@@ -124,6 +136,53 @@ run
 ### limitations
 
 * 0 byte files don't exist
+* all Commodore drives:
+	* 0 and 1 byte files buggy
+	* read back as 13 0 2 13
+* CMD drives
+	* 0 byte files will have single 13
+
+<--
+10 open 1,8,15,"ui"
+20 get#1,a$:?a$;:ifa$<>chr$(13)goto20
+30 close 1
+40 open 1,8,15,"s:test"
+50 get#1,a$:?a$;:ifa$<>chr$(13)goto50
+60 close 1
+70 open2,8,2,"test,p,w"
+75 print#2,"ab";
+80 close2
+90 open2,8,2,"test,p,r"
+100 fori=1to10
+110 get#2,a$:?asc(a$+chr$(0)),st
+120 next
+run
+-->
+
+### optional features
+
+* consistent feature set on
+	* all IEEE-488 drives (e.g. 2040 [1978], D9060/D9090 HD, SFD 1001 [1985])
+	* 1540, 1541(-C, -II), 1551; 1541 clones
+* later "Fast Serial" devices had additions
+
+#### 1571
+
+* burst commands
+
+#### 1581
+
+* partitions (`CBM`)
+
+| Name           | Syntax                                                | Description                     |
+|----------------|-------------------------------------------------------|---------------------------------|
+| PARTITION      | `/`[_drv_][`:`_name_[`,`_track_ _sector_ _count_lo_ _count_hi_ `,C`]] | Select/create partition |
+
+#### CMD
+* CMD-style partitions
+* subdirectories (`DIR`), CMD
+* real-time clock
+* lots of commands
 
 ## Extra: Printers
 
@@ -136,14 +195,16 @@ run
 * http://www.softwolves.pp.se/idoc/alternative/vc1541_de/
 * Schramm, K.: [Die Floppy 1541](https://spiro.trikaliotis.net/Book#vic1541). Haar bei München: Markt-und-Technik-Verlag, 1985. ISBN 3-89090-098-4
 * Inside Commodore DOS
+* https://www.lyonlabs.org/commodore/onrequest/cmd/CMD_Hard_Drive_Users_Manual.pdf
 * ftp://www.zimmers.net/pub/cbm/manuals/printers/MPS-801_Printer_Users_Manual.pdf
 
+<!---
 
 ### Notes
 
-* Data model first
-* Then file names
-* copy merge
-* Wildcards
-* Dup files diff types?
-* S/R needs type?
+* Scratch needs type? no, gets ignored
+
+
+/Users/mist/Library/Mobile\ Documents/com~apple~CloudDocs/Applications/x64.app/Contents/MacOS/x64 -dos4000 /Users/mist/Libry/Mobile\ Documents/com~apple~CloudDocs/JiffyDOS/JiffyDOS_Complete_Manual_PDF/CMD\ FD-2000\ DOS\ V1.40\ CS\ 33CC6F.bin -drive8type 4000
+
+--->
