@@ -195,6 +195,8 @@ The filesystem commands deal with creating, fixing and modifying the filesystem.
 
 On multi-drive units, the copy command can also copy files between drives, while on single-drive units, it can only duplicate files. In either case, it can concatenate several files into one.
 
+All arguments for these commands are text. Execpt for the duplicate command, all drive numbers are optional and default to 0.
+
 | Name           | Syntax                                                | Description                     |
 |----------------|-------------------------------------------------------|---------------------------------|
 | INITIALIZE     | `I`[_drv_]                                            | Force reading disk metadata     |
@@ -202,10 +204,10 @@ On multi-drive units, the copy command can also copy files between drives, while
 | NEW            | `N`[_drv_]`:`_name_[,_id_]                            | Low-level or quick format       |
 | RENAME         | `R`[_drv_]`:`_new_name_`=`_old_name_                  | Rename file                     |
 | COPY           | `C`[_drv_a_]`:`_target_name_`=`[_drv_b_]`:`_source_name_[,...] | Copy/concatenate files |
-| SCRATCH        | `S`[_drv_]`:`_name_[`,`...]                           | Delete files                    |
-| DUPLICATE      | `D:`[_drv_a_]``=``[_drv_b_]                           | Duplicate disk                  |
+| SCRATCH        | `S`[_drv_]`:`_pattern_[`,`...]                        | Delete files                    |
+| DUPLICATE      | `D:`_drv_a_``=``_drv_b_                               | Duplicate disk                  |
 
-### Relative Files
+### Command for Relative Files
 
 While a relative file is open, a command on the command channel is used to position the read/write pointer to a particular record. The arguments are four binary-encoded bytes.
 
@@ -213,42 +215,58 @@ While a relative file is open, a command on the command channel is used to posit
 |----------------|-------------------------------------------------------|---------------------------------|
 | POSITION       | `P` _channel_ _record_lo_ _record_hi_ _offset_        | Set record index in REL file    |
 
-### Direct Access
+### Direct Access Commands
 
-The direct access commands require a buffer to be allocated ("`#`"). The buffer pointer XXX
+The direct access commands require a direct access buffer to be allocated ("`#`"). The `U1` and `U2` commands allows reading a block into the buffer and writing the buffer into a block. Reading from the channel will read from the buffer and writing to the channel will write to it. Both operations will advance the buffer pointer, which can be set to an explicit offset using the "`B-P`" command.
 
-The `B-R` and `B-W` commands 
+The `B-R` and `B-W` commands are deceptive: The names suggest they are general-purpose block read/write commands, but they assume a certain data format of the blocks: The first byte is the block's buffer pointer. When writing a block, the current buffer pointer will be put into it, signaling how many valid bytes are contained in the block. When reading, it marks the end of the buffer that cannot be read past[^8].
+
+All arguments are decimal ASCII values and can be separated by a space, a comma or a code `0x1d` (ASCII "Group Separator", PETSCII "Cursor Right"). The command name and the first argument have to be separated by any of the above or a colon.
 
 | Name           | Syntax                                                | Description                     |
 |----------------|-------------------------------------------------------|---------------------------------|
-| BUFFER-POINTER | `B-P` XXX                                             | XXX                             |
-| BLOCK-READ     | `B-R` _channel_ _track_ _sector_                      | Read sector                     |
-| BLOCK-WRITE    | `B-W` _channel_ _track_ _sector_                      | Write sector                    |
 | U1/UA          | `U1` _channel_ _track_ _sector_                       | Raw read of a block             |
 | U2/UB          | `U2` _channel_ _track_ _sector_                       | Raw write of a block            |
+| BUFFER-POINTER | `B-P` _channel_ _index_                               | Set r/w pointer within block    |
+| BLOCK-READ     | `B-R` _channel_ _track_ _sector_                      | Read sector                     |
+| BLOCK-WRITE    | `B-W` _channel_ _track_ _sector_                      | Write sector                    |
 
-### BAM
+### Block Avariability Map Commands
+
+The "`B-A`" and "`B-F`" commands allow marking a block as allocated or free in the "block availability map" (BAM). Allocating a block makes sure the filesystem won't use it. The `V` (validate) command will re-build the BAM from the filesystems metadata and undo any "`B-A`" commands.
+
+The argument encoding is the same as for direct access.
 
 | Name           | Syntax                                                | Description                     |
 |----------------|-------------------------------------------------------|---------------------------------|
-| BLOCK-ALLOCATE | `B-A` XXX                                             | XXX                             |
-| BLOCK-FREE     | `B-F` XXX                                             | XXX                             |
+| BLOCK-ALLOCATE | `B-A` _drive_ _track_ _sector_                        | XXX                             |
+| BLOCK-FREE     | `B-F` _drive_ _track_ _sector_                        | XXX                             |
 
-### Memory
+### Memory Commands
+
+The memory commands allow reading and writing device memory as well as executing code in the context of the interface CPU. The `U` commands execute device-specific vectors in a designated buffer or in expansion ROM, if available.
+
+The arguments are binary-encoded bytes.
 
 | Name           | Syntax                                                | Description                     |
 |----------------|-------------------------------------------------------|---------------------------------|
 | MEMORY-WRITE   | `M-W` _addr_lo_ _addr_hi_ _count_ _data_              | Write RAM                       |
 | MEMORY-READ    | `M-R` _addr_lo_ _addr_hi_ _count_                     | Read RAM                        |
 | MEMORY-EXECUTE | `M-E` _addr_lo_ _addr_hi_                             | Execute code                    |
-| U3-U8/UC-UH    | `U3-U8`                                               | Execute code                    |
+| U3-U8/UC-UH    | `U3`-`U8`                                             | Execute code through jump table |
 
-### RESET
+### RESET Commands
+
+There is a soft and a hard reset command. In both cases, the status will read back code 73.
 
 | Name           | Syntax                                                | Description                     |
 |----------------|-------------------------------------------------------|---------------------------------|
-| U9/UI          | `U9`                                                  | Soft RESET                      |
-| U:/UJ          | `U9`                                                  | Hard RESET                      |
+| U9/UI          | `UI`                                                  | Soft RESET (NMI)                |
+| U:/UJ          | `UJ`                                                  | Hard RESET                      |
+
+A variation of `UI` that all _Serial_ devices except the Commodore 1540 support is:
+	* `UI-`: Change Serial bus timings to the faster VIC-20 specification.
+	* `UI+`: Change Serial bus timings to the slower C64 specification.
 
 ## Wildcards
 
@@ -374,3 +392,4 @@ run
 
 [^7]: Commodore DOS breaks the layer 3 convention in this case. An `UNLISTEN` event does not signal the termination of a byte stream, it should merely pause it.
 
+[^8]: Many [sources](https://spiro.trikaliotis.net/Book#vic1541) describe the "`B-R`" and "`B-W`" commands as buggy because their behavior didn't seem to make sense and the explanation seemed to have been missing from common forms of documentation.
