@@ -6,12 +6,12 @@ In the [series about the variants of the Commodore Peripheral Bus family](https:
 
 The variants of the Commodore Peripheral Bus family have some very different connectors and byte transfer protocols, but they all share layers 3 and 4 of the protocol stack. This article on layer 3 is therefore valid for all Commodore 8 bit computers, no matter whether they use IEEE-488, Serial, TCBM or CBDOS on the underlying layers.
 
-All layer 2 variants provide:
+All variants of layer 2, the layer below, provide:
 
 * the transmission of byte streams from any bus participant to any set of bus participants
 * the transmission of "command" byte streams from the designated "contoller" (the computer) to all other bus participants
 
-Layer 3, which is based on the IEEE-488 standard, provides interruptable communication between channels of different devices.
+Layer 3, which is based on the IEEE-488 standard, provides interruptable communication between "channels" of different devices.
 
 <hr/>
 
@@ -52,16 +52,7 @@ On Commodore systems, there is a convention for device numbers:
 
 Devices 0-3 are reserved for devices outside the Commodore Peripheral Bus, which share the same primary address space in the KERNAL's Channel I/O API as well as in BASIC.
 
-Neither computers nor devices care about this convention, but default addresses and the range of selectable addresses abide by it.
-
-<!--
-1541 can be device #30:
-	o=8:n=30:oP15,o,15:pR15,"m-w";cH(119);cH(0);cH(2);cH(n+32)+cH(n+64):clO15
-	load"$",30
-or #4:
-	o=8:n=4:oP15,o,15:pR15,"m-w";cH(119);cH(0);cH(2);cH(n+32)+cH(n+64):clO15
-	load"$",4
--->
+Note that this is just a convention and hints towards what protocol is used on layer 4, the layer above. On layer 3, neither computers nor devices care about this convention[^1].
 
 ## Talkers and Listeners
 
@@ -76,7 +67,7 @@ The controller itself can also be the talker or a listener. In fact, in the most
 
 ## TALK and LISTEN commands
 
-In order to hand out the talker and listener roles to devices as well as to withdraw them, the controller sends a command byte stream containing one of the following codes:
+To hand out the talker and listener roles to devices and to withdraw them, the controller sends a command byte stream containing one of the following codes:
 
 | command       | description   | effect                                                      |
 |---------------|---------------|-------------------------------------------------------------|
@@ -85,7 +76,7 @@ In order to hand out the talker and listener roles to devices as well as to with
 | `0x40` + _pa_ | `TALK`        | device _pa_ becomes talker; all other devices stop talking  |
 | `0x5F`        | `UNTALK`      | all devices stop talking                                    |
 
-For the `LISTEN` and `TALK` commands, the primary address of the device gets added to the code. The `UNLISTEN` and `UNTALK` commands correspond to the `LISTEN` and `TALK` with a primary address of 31.  This restricts primary addresses to the range of 0 - 30.
+For the `LISTEN` and `TALK` commands, the primary address of the device gets added to the code. The `UNLISTEN` and `UNTALK` commands correspond to the `LISTEN` and `TALK` with a primary address of 31.  This is what restricts primary addresses to the range of 0-30.
 
 All devices receive and interpret command bytes, so for example, a `TALK` command for device 8 will implicitly cause device 9 to stop talking, in case it currently was a talker.
 
@@ -103,11 +94,11 @@ A command specifying the secondary address can _optionally_ be sent after a `TAL
 
 The interpretation of the secondary address is up to the device and specified on layer 4. In practice, they are interpreted as options or flags (e.g. for printers) or different file contexts (e.g. for disk drives).
 
-Devices can also ignore the secondary address or only honor certain bits of it. Commodore disk drives, for example, ignore bit #4, so channels 16-31 are the same as channels 0-15.
+Devices are free to ignore the secondary address or only honor certain bits of it. Commodore disk drives, for example, ignore bit #4, so channels 16-31 are the same as channels 0-15.
 
 ## Examples
 
-Here are some examples for receiving, sending, copying, as well as for a controller-less connection.
+Here are some examples for receiving, sending and copying, as well as for a controller-less connection.
 
 ### Receiving Data from a Device
 
@@ -143,7 +134,7 @@ The controller then sends the byte stream. Like in the case of receiving data, t
 |---------|-------------|
 | `0x3F`  | `UNLISTEN`  |
 
-and resume it using the same `LISTEN`/`SECOND` combination[^1]. If the controller has reached the end of its byte stream, it signals `EOI`. Again, there is no need to send `UNLISTEN` in this case.
+and resume it using the same `LISTEN`/`SECOND` combination[^2]. If the controller has reached the end of its byte stream, it signals `EOI`. Again, there is no need to send `UNLISTEN` in this case.
 
 ### Manually Copying Data Between Devices
 
@@ -154,7 +145,7 @@ The following example has the controller manually copy a byte stream from device
 | `0x48`  | `TALK` 8    |
 | `0x62`  | `SECOND` 2  |
 
-Now the controller reads one byte from the bus. It then instructs the talker to stop talking and tells device 4 to listen:
+Now the controller reads a byte from the bus. It then instructs the talker to stop talking and tells device 4 to listen:
 
 | command | description |
 |---------|-------------|
@@ -184,15 +175,17 @@ This command byte stream will instruct devices 4 and 5 (two printers) to listen 
 | `0x48`  | `TALK` 8    |
 | `0x62`  | `SECOND` 2  |
 
-Device 8 now starts sending bytes, and devices 4 and 5 will receive them. The layer 2 protocol makes sure that the listeners will adapt to the talker's speed and wait patiently when it stalls (e.g. the disk drive has to read a new sector), and the talker will adapt to the speed of the slowest listener and wait patiently when one of them stalls (e.g. when the printer has to feed the paper).
+Device 8 now starts sending bytes, and devices 4 and 5 will receive them. The layer 2 protocol makes sure that the listeners will adapt to the talker's speed and wait patiently when it stalls (e.g. the disk drive has to read a new sector), and the talker will adapt to the speed of the slowest listener and wait patiently when any of them stalls (e.g. when the printer has to feed the paper).
 
-The controller can interrupt the transmission at any time by sending new commands. If it wants to know when the transmission is finished though, it will have to be a listener as well and detect the end of the stream (`EOI`).
+The controller can interrupt the transmission at any time by sending new commands. In can, for example, read from a different channel of the disk drive, and then resume the print job by sending the above command sequence again.
+
+If the controller wants to know when the transmission is finished, it will have to be a listener as well and detect the end of the stream (`EOI`).
 
 ## Named Channels (OPEN/CLOSE)
 
 When Commodore chose IEEE-488 as the protocol stack for the PET, they felt that a numeric secondary address from 0 to 31 was not expressive enough for the different context of e.g. a disk drive, so they added **named channels**.
 
-The controller can associate (and dissociate) a secondary address with a name. A name is a byte stream of arbitrary length, usually the PETSCII encoding is implied. For named channels, secondary addresses must be in the range of 0-15.
+The controller can associate a secondary address with a name, and later dissociate it again. A name is a byte stream of arbitrary length (including zero bytes) and usually the PETSCII encoding is implied. Only secondary addresses in the range of 0-15 can be associated with a name, 16-31 cannot.
 
 | command       | description   | effect                        |
 |---------------|---------------|-------------------------------|
@@ -257,15 +250,15 @@ Bit 4 of the command, the most significant bit of the secondary address, is used
 
 ### Missing Features
 
-There is one unsupported entry in the table above: The command code of '`000`' has a sub-code in bits 0-4, specifying a global command to all devices. These control features like the handling of "`SRQ`" Service Requests and multiple controller support. Commodore computers do not support any of these features, but on a PET/CBM with a physical IEEE-488 port, support could be added in software.
+There is one unsupported entry in the table above: The command code of '`000`' has a sub-code in bits 0-4, specifying a global command to all devices. These control features like the handling of "`SRQ`" Service Requests and multiple controller support. The system software of Commodore computers does not support any of these features, but on a PET/CBM with a physical IEEE-488 port, support could be added by user software.
 
-## KERNAL API
+## APIs
 
 The KERNAL operating system of all Commodore 8 bit computers since the VIC-20 (i.e. also the C64/C128/C65, the Plus/4 Series and the CBM-II) supports two sets of APIs to talk to devices on the Commodore Peripheral Bus. The built-in BASIC interpreter also has instructions to handle the bus.
 
-### IEEE API
+### KERNAL IEEE API
 
-The "IEEE" API is a set of low-level calls. It allows using primary addresses 0-3, which are not available through the high-level API.
+The "IEEE" API is a set of low-level calls. It allows using primary addresses 0-3, which are not available through the high-level APIs.
 
 | address | name     | description                     | arguments                 |
 |---------|----------|---------------------------------|---------------------------|
@@ -283,7 +276,7 @@ Note the difference between `SECOND` to send a secondary address after `LISTEN`,
 
 All calls deal with layer 3 functionality, except for `SETTMO`, which controls a layer 2 setting. The IEEE-488 layer 2 on the PET/CBM has an option to enable (`A` = `0x00`, default) or disable (`A` = `0x80`) timeouts. Timeouts are required to allow the talker to communicate an error when opening a named channel, but they can break IEEE-488 devices not designed for the PET. The call also exists on all other Commodore 8 bit computers, but has no effect, with the exception of a C64 with an added IEEE-488 cartridge.
 
-### Channel I/O API
+### KERNAL Channel I/O API
 
 The KERNAL's Channel I/O API is higher-level and not specific to the Commodore Peripheral Bus. Devices 0-3 will target the keyboard, tape, RS-232 (PET: tape #2) and the screen. This API does not support multiple listeners or controller-less transmissions.
 
@@ -311,7 +304,7 @@ With `CHKIN`/`CHKOUT` set up to talk on the Commodore Peripheral Bus, `CHRIN` an
 | `$FFD2` | `CHROUT` | Output character to channel             | `A` = _byte_                        |
 | `$FFE7` | `CLALL`  | Close all channels and files            |                                     |
 
-### BASIC Commands
+### BASIC API
 
 The complete channel I/O API is directly accessible through BASIC instructions:
 
@@ -340,4 +333,6 @@ Part 3 of the series of articles on the Commodore Peripheral Bus family will cov
 * [Commodore 64 Programmer's Reference Guide](http://www.zimmers.net/cbmpics/cbm/c64/c64prg.txt). [S.l.]: Commodore Business Machines, 1987. ISBN: 0672220563
 * [cbmsrc](https://github.com/mist64/cbmsrc) - Original source code of various Commodore computers and peripherals
 
-[^1]: Somewhat breaking conventions, some devices interpret `UNLISTEN` as a delimiter, e.g. Commodore disk drives will execute disk command strings sent to channel 15 on the `UNLISTEN` event. See layer 4.
+[^1]: It is possible to change the primary address of a Commodore 1541 using a Commodore DOS (layer 4) command, with `o` as the old and `n` as the new address:<br/>`o=8:n=4:oP15,o,15:pR15,"m-w";cH(119);cH(0);cH(2);cH(n+32)+cH(n+64):clO15`<br/>It is no problem to change the primary address to 4, the default address of the printer, and still interact with it using BASIC commands for disk access: `load"$",4`
+
+[^2]: Somewhat breaking conventions, some devices interpret `UNLISTEN` as a delimiter, e.g. Commodore disk drives will execute disk command strings sent to channel 15 on the `UNLISTEN` event. See layer 4.

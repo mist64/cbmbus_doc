@@ -56,6 +56,7 @@
 ## named channels
 
 * channels 0-14 need to be associated with names
+* empty names are illegal
 
 ### regular files
 
