@@ -78,7 +78,7 @@ There are optional prefixes and suffixes.
 
 * The modifier flag "`@`" specifies that the file is supposed to be overwritten, if it is opened for writing and it already exists[^3] - the default is to return an error. The use of "`@`", a drive number, or both, requires to add a colon character as a delimiter between the prefix and the filename.
 
-* By using the drive prefix (or just using a "`:`" prefix, it is possible to use filenames that start with "`$`", "`#`" or "`&`". These letters would otherwise indicate special named channels (see next sections).
+* By using the drive prefix (or just using a "`:`" prefix, it is possible to use filenames that start with "`$`" or "`#`". These letters would otherwise indicate special named channels (see next sections).
 
 * The file type is one of "`S`" (`SEQ`), "`P`" (`PRG`),  "`U`" (`USR`), or "`L`" (`REL`). If the type is omitted, `PRG` is assumed.
 
@@ -117,10 +117,6 @@ run
 -->
 
 The buffer stays allocated as long as the named channel is open. The "`B-R`", "`B-W`", "`B-P`", "`U1`" and "`U2`" commands on the command channel take the channel number of the buffer as an argument.
-
-### "&"
-
-XXX TODO
 
 ## Command Channel
 
@@ -209,9 +205,10 @@ All arguments for these commands are text. Except for the duplicate command, all
 | VALIDATE       | `V`[_drv_]                                            | Re-build block availability map |
 | NEW            | `N`[_drv_]`:`_name_[,_id_]                            | Low-level or quick format       |
 | RENAME         | `R`[_drv_]`:`_new_name_`=`_old_name_                  | Rename file                     |
-| COPY           | `C`[_drv_a_]`:`_target_name_`=`[_drv_b_]`:`_source_name_[,...] | Copy/concatenate files |
 | SCRATCH        | `S`[_drv_]`:`_pattern_[`,`...]                        | Delete files                    |
-| DUPLICATE      | `D:`_drv_a_``=``_drv_b_                               | Duplicate disk                  |
+| COPY           | `C`[_drv_a_]`:`_target_name_`=`[_drv_b_]`:`_source_name_[,...] | Copy/concatenate files |
+| COPY           | `C`_dst_drv_`=`_src_drv_                              | Copy all files between disk     |
+| DUPLICATE      | `D:`_dst_drv_``=``_src_drv_                           | Duplicate disk                  |
 
 ### Command for Relative Files
 
@@ -234,8 +231,9 @@ All arguments are decimal ASCII values and can be separated by a space, a comma 
 | U1/UA          | `U1` _channel_ _track_ _sector_                       | Raw read of a block             |
 | U2/UB          | `U2` _channel_ _track_ _sector_                       | Raw write of a block            |
 | BUFFER-POINTER | `B-P` _channel_ _index_                               | Set r/w pointer within block    |
-| BLOCK-READ     | `B-R` _channel_ _track_ _sector_                      | Read sector                     |
-| BLOCK-WRITE    | `B-W` _channel_ _track_ _sector_                      | Write sector                    |
+| BLOCK-READ     | `B-R` _channel_ _track_ _sector_                      | Read block                      |
+| BLOCK-WRITE    | `B-W` _channel_ _track_ _sector_                      | Write block                     |
+| BLOCK-EXECUTE  | `B-E` _channel_ _track_ _sector_                      | Load and execute a block        |
 
 ### Block Avariability Map Commands
 
@@ -252,6 +250,8 @@ The argument encoding is the same as for direct access.
 
 The memory commands allow reading and writing device memory as well as executing code in the context of the interface CPU. The `U` commands execute device-specific vectors in a designated buffer or in expansion ROM, if available.
 
+The resulting bytes from the "`M-R`" command will be delivered through channel 15 in place of the status string.
+
 The arguments are binary-encoded bytes.
 
 | Name           | Syntax                                                | Description                     |
@@ -261,6 +261,8 @@ The arguments are binary-encoded bytes.
 | MEMORY-EXECUTE | `M-E` _addr_lo_ _addr_hi_                             | Execute code                    |
 | U3-U8/UC-UH    | `U3`-`U8`                                             | Execute code through jump table |
 
+XXX "&" ("UTILITY LOADER")
+
 ### RESET Commands
 
 There is a soft and a hard reset command. In both cases, the status will read back code 73.
@@ -269,10 +271,6 @@ There is a soft and a hard reset command. In both cases, the status will read ba
 |----------------|-------------------------------------------------------|---------------------------------|
 | U9/UI          | `UI`                                                  | Soft RESET (NMI)                |
 | U:/UJ          | `UJ`                                                  | Hard RESET                      |
-
-A variation of `UI` that all _Serial_ devices except the Commodore 1540 support is:
-	* `UI-`: Change Serial bus timings to the faster VIC-20 specification.
-	* `UI+`: Change Serial bus timings to the slower C64 specification.
 
 ## limitations
 
@@ -336,14 +334,16 @@ run
 * http://www.softwolves.pp.se/idoc/alternative/vc1541_de/
 * Schramm, K.: [Die Floppy 1541](https://spiro.trikaliotis.net/Book#vic1541). Haar bei München: Markt-und-Technik-Verlag, 1985. ISBN 3-89090-098-4
 * Inside Commodore DOS
+* 8061UsersManual.pdf
+* cbm4031.pdf
+* CBM\ 2040-3040-4040-8050\ Disk\ Drive\ Manual.pdf
+* commodore_vic_1541_floppy_drive_users_manual.pdf
 * https://www.lyonlabs.org/commodore/onrequest/cmd/CMD_Hard_Drive_Users_Manual.pdf
 * ftp://www.zimmers.net/pub/cbm/manuals/printers/MPS-801_Printer_Users_Manual.pdf
 
 <!---
 
 ### Notes
-
-/Users/mist/Library/Mobile\ Documents/com~apple~CloudDocs/Applications/x64.app/Contents/MacOS/x64 -dos4000 /Users/mist/Library/Mobile\ Documents/com~apple~CloudDocs/JiffyDOS/JiffyDOS_Complete_Manual_PDF/CMD\ FD-2000\ DOS\ V1.40\ CS\ 33CC6F.bin -drive8type 4000
 
 10 open 1,8,15,"ui"
 20 get#1,a$:?a$;:ifa$<>chr$(13)goto20
@@ -387,7 +387,7 @@ run
 
 [^4]: The two arguments always have to be at least two digits, and on most Commodore drives, they are always two digits. CMD drives support larger track and sector numbers, so while arguments less than 100 will be two digits wide, they can also return three-digit arguments.
 
-[^5]: The SFD-1001 is the exception to this: It is single-drive device that shares most of its ROM with the dual-drive CBM 8250.
+[^5]: The SFD-1001 is the exception to this: It is single-drive device that shares its firmware with the dual-drive CBM 8250.
 
 [^6]: The version is sometimes more of a compatibility level though and hints at the supported features. These strings are too inconsistent between devices for parsing, so in practice, the whole string has to be compared in order to detect a particular device.
 
