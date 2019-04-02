@@ -13,7 +13,7 @@ From a device's point of view, the layer below, layer 3 ("TALK/LISTEN") provides
 * A device can send byte streams from channels.
 * A device can receive byte streams into channels.
 
-The Commodore DOS API defines the meaning of channel numbers, channel names in the context of disk drives. This article covers the common feature set of Commodore DOS, extensions will be described at the end of the article.
+The Commodore DOS API defines the meaning of channel numbers, channel names in the context of disk drives. This article covers the common feature set of Commodore DOS since version 2.0, extensions will be described at the end of the article.
 
 In contrast to all other articles of the series, this one is only meant as a conceptual overview of the design and not as a complete reference. The respective user manuals of Commodore and CMD disk drives are already very good references.
 
@@ -25,14 +25,14 @@ Every drive has its own independent filesystem. A filesystem has a name, a two-c
 
 DOS does not specify a maximum size for disk or file names, but the limit for all Commodore devices is 16 characters. There is also no specified character encoding: Names consist of 8 bit characters, and DOS does not interpret them. Names have very few limitations:
 
-* The comma and colon characters are illegal in disk or file names (because of the encoding of channel names and commands).
+* The comma, colon and `CR` (carriage return) characters are illegal in disk or file names (because of the encoding of channel names and commands).
 * The code `0xa0` (SPACE with with bit 7 set; PETSCII shifted SPACE) is illegal in file names (it is used as the terminating character on disk).
 
 There are four file types (`SEQ`, `PRG`, `USR` and `REL`) that fall into two categories: sequential and relative.
 
 **Sequential files** only allow linear access, i.e. it is impossible to position the read or write pointer. They can be appended to though. There are three types of sequential files: `SEQ`, `PRG` and `USR`. They are treated the same by DOS, but the user convention is to store executable programs in PRG files and data into SEQ files.
 
-**Relative files** (`REL`) have a fixed record size of 1-254 bytes and allow positioning the read or write pointer to any record and thus allow random access.
+**Relative files** (`REL`) have a fixed record size of 1-254 bytes and allow positioning the read/write pointer to any record and thus allow random access.
 
 While the interface to DOS often requres to specify the file type, it is not part of a file's identifier, i.e. there can not be two files with the same name but just a different type.
 
@@ -128,7 +128,7 @@ _code_`,`_string_`,`_a_`,`_b_[`,`_c_]
 
 * _code_ is a two-digit decimal error code.
 * _string_ is a short English-language version of the error code.
-* _a_ and _b_ are two additional two-digit decimal numbers that depend on the type of error ("`00`" if unused).
+* _a_ and _b_ are two additional at least two-digit decimal numbers[^4] that depend on the type of error ("`00`" if unused).
 * _c_ is the single-digit decimal number drive that caused the status message. Devices with only a single drive don't usually return this[^5].
 
 A status code of 0 will return the string "`00, OK,00,00`" (or "`00, OK,00,00,0`" on dual-drive devices, assuming the last command was performed on drive 0).
@@ -145,31 +145,32 @@ The first decimal digit encodes the category of the error.
 | 6           | File error                   |
 | 7           | Generic disk or device error |
 
-The English-language versions of status messages that are not errors (codes below 20) are additionally prefixed with a SPACE.
+The English-language versions of status messages that are not errors (codes below 20) are additionally prefixed with a SPACE. Note that a program cannot rely on any of these strings, just on the codes.
 
 The full list of error messages can be found in practically every disk drive users manual, here are just some examples:
 
-* `00, OK,00,00`: There was no error, or the status has already been cleared since.
+* `00, OK,00,00`: There was no error.
 * `01, FILES SCRATCHED,03,00`: Informational: 3 files have been deleted ("scratched").
 * `23,READ ERROR,18,00`: There was a checksum error when trying to read track 18, sector 0.
 * `31,SYNTAX ERROR,00,00`: The command sent was not understood.
 * `51,OVERFLOW IN RECORD,00,00`: More data was written into a REL file record that fits.
 * `65,NO BLOCK,17,01`: When trying to allocate a block using the `B-A` command, the given block was already allocated. Track 17, sector 1 is the next free block.
-* `66,ILLEGAL TRACK OR SECTOR,34,55`
-* `73,CBM DOS V2.6 1541,00,00`
-
+* `66,ILLEGAL TRACK OR SECTOR,99,00`: A user command or data structures on disk referenced track 99, sector 00, which does not exist.
+* `73,CBM DOS V2.6 1541,00,00`: This status is returned after the RESET of a device (and after the command "`UI`"). The actual message is specific to the device and can be used to detect the type and sometimes the ROM version[^6].
 
 Reading the status will clear it. Keeping on reading will keep returning status messages.
 
 The following BASIC program will read a single status message:
 
-	10 open 1,8,15,"ui"
-	20 get#1,a$:?a$;:ifa$<>chr$(13)goto20
-	30 close 1
+	10 OPEN 1,8,15
+	20 GET#1,A$: PRINT A$;: IF A$<>CHR$(13) GOTO 20
+	30 CLOSE 1
 
 ## Commands
 
-All commands are byte streams that are mostly ASCII/PETSCII, but with some binary arguments in some cases. They are terminated an `EOI` or `UNLISTEN` event[^4]. The follwing BASIC code send the command "`I`" to drive 8:
+All commands are byte streams that are mostly ASCII/PETSCII, but with some binary arguments in some cases. There are two different ways to send them:
+
+They can be sent as a byte stream to channel 15, terminated an `EOI` or `UNLISTEN` event[^7]. The follwing BASIC code send the command "`I`" to drive 8 this way:
 
     OPEN 1,8,15
     PRINT#1, "I";
@@ -177,42 +178,54 @@ All commands are byte streams that are mostly ASCII/PETSCII, but with some binar
 
 (On layer 3, this will send `LISTEN 8`/`SECOND 15`/"`I`"/`UNLISTEN`.)
 
-Alternatively, a command can be sent as opening channel 15 with the command as the associated name. This does not in fact perform any association though (and dissociation would be a no-op), it just allows shorter code, e.g. in BASIC:
+Alternatively, channel 15 can be opened as a named channel with the command as the name. This does not actually perform an open operation, and a closing would be a no-op. It just allows shorter code, e.g. in BASIC:
 
 	OPEN 1,8,15,"I"
 	CLOSE 1
 
 (On layer 3, this will send `LISTEN 8`/`OPEN 15`/"`I`"/`UNLISTEN`/`LISTEN 8`/`CLOSE 15`/`UNLISTEN`.)
 
-There are several categories for commands. XXX
+In both cases, commands that don't contain binary arguments can also be terminated by the `CR` character.
 
-### Global
+The following sections will give an overview of the different command categories.
+
+### Filesystem Commands
+
+The filesystem commands deal with creating, fixing and modifying the filesystem. There is also a command that does a block-for-block disk copy for units with more than one drive.
+
+On multi-drive units, the copy command can also copy files between drives, while on single-drive units, it can only duplicate files. In either case, it can concatenate several files into one.
 
 | Name           | Syntax                                                | Description                     |
 |----------------|-------------------------------------------------------|---------------------------------|
 | INITIALIZE     | `I`[_drv_]                                            | Force reading disk metadata     |
-| NEW            | `N`[_drv_]`:`_name_[,_id_]                            | Low-level or quick format       |
 | VALIDATE       | `V`[_drv_]                                            | Re-build block availability map |
+| NEW            | `N`[_drv_]`:`_name_[,_id_]                            | Low-level or quick format       |
 | RENAME         | `R`[_drv_]`:`_new_name_`=`_old_name_                  | Rename file                     |
 | COPY           | `C`[_drv_a_]`:`_target_name_`=`[_drv_b_]`:`_source_name_[,...] | Copy/concatenate files |
 | SCRATCH        | `S`[_drv_]`:`_name_[`,`...]                           | Delete files                    |
-| DUPICATE       | `D:`[_drv_a_]``=``[_drv_b_]                           | Duplicate disk                  |
+| DUPLICATE      | `D:`[_drv_a_]``=``[_drv_b_]                           | Duplicate disk                  |
 
 ### Relative Files
 
+While a relative file is open, a command on the command channel is used to position the read/write pointer to a particular record. The arguments are four binary-encoded bytes.
+
 | Name           | Syntax                                                | Description                     |
 |----------------|-------------------------------------------------------|---------------------------------|
-| POSITION       | `P` _channel_ _pos_lo_ _pos_hi_ _offset_              | Set record index in REL file    |
+| POSITION       | `P` _channel_ _record_lo_ _record_hi_ _offset_        | Set record index in REL file    |
 
 ### Direct Access
 
+The direct access commands require a buffer to be allocated ("`#`"). The buffer pointer XXX
+
+The `B-R` and `B-W` commands 
+
 | Name           | Syntax                                                | Description                     |
 |----------------|-------------------------------------------------------|---------------------------------|
+| BUFFER-POINTER | `B-P` XXX                                             | XXX                             |
 | BLOCK-READ     | `B-R` _channel_ _track_ _sector_                      | Read sector                     |
 | BLOCK-WRITE    | `B-W` _channel_ _track_ _sector_                      | Write sector                    |
-| U1/UA          | `U1` _channel_ _track_ _sector_                       | XXX Synonym of B-R              |
-| U2/UB          | `U2` _channel_ _track_ _sector_                       | XXX Synonym of B-W              |
-| BUFFER-POINTER | `B-P` XXX                                             | XXX                             |
+| U1/UA          | `U1` _channel_ _track_ _sector_                       | Raw read of a block             |
+| U2/UB          | `U2` _channel_ _track_ _sector_                       | Raw write of a block            |
 
 ### BAM
 
@@ -335,6 +348,15 @@ run
 120 next
 run
 
+10 open15,8,15
+20 open2,8,2,"#"
+30 print#15, "b-r 2 0 123 0"
+40 dos
+50 close 2
+60 close 10
+run
+
+
 
 --->
 
@@ -344,6 +366,11 @@ run
 
 [^3]: All single-drive Commodore devices except the 1571 (revision 5 ROM only), 1541-C, 1541-II and 1581 have a [bug](https://groups.google.com/forum/#!topic/comp.sys.cbm/TKKl8a-3EPA) that can currupt the filesystem when using the overwrite feature.
 
-[^4]: Commodore DOS breaks the layer 3 convention in this case. An `UNLISTEN` event does not signal the termination of a byte stream, it should merely pause it.
+[^4]: The two arguments always have to be at least two digits, and on most Commodore drives, they are always two digits. CMD drives support larger track and sector numbers, so while arguments less than 100 will be two digits wide, they can also return three-digit arguments.
 
 [^5]: The SFD-1001 is the exception to this: It is single-drive device that shares most of its ROM with the dual-drive CBM 8250.
+
+[^6]: The version is sometimes more of a compatibility level though and hints at the supported features. These strings are too inconsistent between devices for parsing, so in practice, the whole string has to be compared in order to detect a particular device.
+
+[^7]: Commodore DOS breaks the layer 3 convention in this case. An `UNLISTEN` event does not signal the termination of a byte stream, it should merely pause it.
+
