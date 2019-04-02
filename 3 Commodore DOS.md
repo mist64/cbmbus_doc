@@ -21,7 +21,7 @@ What is usually called a disk drive and is associated with a primary address is 
 
 Every drive has its own independent filesystem. A filesystem has a name, a two-character ID, and contains an unsorted set of files. All files have a unique **name** and a file **type**, and have to be at least one byte in size[^1].
 
-DOS does not specify a maximum size for disk or file names, but the limit for all Commodore devices is 16 characters. There is also no specified character encoding: Names consist of 8 bit characters, and DOS does not interpret them. (The syntax of some commands will make certain characters impossible for disk or file names though, see below.)
+DOS does not specify a maximum size for disk or file names, but the limit for all Commodore devices is 16 characters. There is also no specified character encoding: Names consist of 8 bit characters, and DOS does not interpret them. Because of the encoding of channel names and commands, the comma character is valid in disk or file names. File names can also not contain the character `0xa0` (SPACE with with bit 7 set, PETSCII shifted SPACE - it is used as the terminating character on disk) or start with "`$`", "`#`" or "`&"` because these are special channel names.
 
 There are four file types (`SEQ`, `PRG`, `USR` and `REL`) that fall into two categories: sequential and relative.
 
@@ -49,6 +49,13 @@ While the underlying layers of the bus specifies channel numbers (secondary addr
 
 Channels 0 to 14 need to be associated with names. Names are used to create channels for reading or writing a file, reading the directory listing and reading/writing sectors directly. Empty names are illegal.
 
+XXX channel syntax is global!!
+
+Channels 0 and 1 are special. They both force XXX
+
+
+
+
 ### Files
 
 A named channel can be used to open a file for reading or writing. The syntax for the channel's name is as follows:
@@ -67,28 +74,8 @@ There are optional prefixes and suffixes.
 
 * The _access_ byte depends on the file type: For `SEQ`, `PRG` and `USR`, a file can be opened for reading, by specifying "`R`", for writing using "`W`" and for appending using "`A`". The default is for reading. For relative files, the access byte is the binary-encoded record size. For creating a relative file, it must be specified, for opening an existing one, it can be omitted. Relative files are always open for reading _and_ writing.
 
-* 
 
 
-XXX
-
-* file access string:
-	* ,P/S/U/L
-	* ,P/S/U/L,R/W/A
-	* 0/1: (drive select)
-	* @: (overwrite)
-		* ,W fails if file exists
-	* wildcards
-		* ?
-		* `*`
-* filenames don't contain
-	* 0xA0 (PETSCII shifted Space)
-	* ","
-* don't start with
-	* "$"
-	* "#"
-	* "&"
-* filename length not specified (usually 16)
 
 
 ### Directory Listing
