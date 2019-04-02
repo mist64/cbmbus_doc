@@ -21,7 +21,10 @@ What is usually called a disk drive and is associated with a primary address is 
 
 Every drive has its own independent filesystem. A filesystem has a name, a two-character ID, and contains an unsorted set of files. All files have a unique **name** and a file **type**, and have to be at least one byte in size[^1].
 
-DOS does not specify a maximum size for disk or file names, but the limit for all Commodore devices is 16 characters. There is also no specified character encoding: Names consist of 8 bit characters, and DOS does not interpret them. Because of the encoding of channel names and commands, the comma character is valid in disk or file names. File names can also not contain the character `0xa0` (SPACE with with bit 7 set, PETSCII shifted SPACE - it is used as the terminating character on disk) or start with "`$`", "`#`" or "`&"` because these are special channel names.
+DOS does not specify a maximum size for disk or file names, but the limit for all Commodore devices is 16 characters. There is also no specified character encoding: Names consist of 8 bit characters, and DOS does not interpret them. Names have very few limitations:
+
+* The comma and colon characters are illegal in disk or file names (because of the encoding of channel names and commands).
+* The code `0xa0` (SPACE with with bit 7 set; PETSCII shifted SPACE) is illegal in file names (it is used as the terminating character on disk).
 
 There are four file types (`SEQ`, `PRG`, `USR` and `REL`) that fall into two categories: sequential and relative.
 
@@ -49,12 +52,7 @@ While the underlying layers of the bus specifies channel numbers (secondary addr
 
 Channels 0 to 14 need to be associated with names. Names are used to create channels for reading or writing a file, reading the directory listing and reading/writing sectors directly. Empty names are illegal.
 
-XXX channel syntax is global!!
-
 Channels 0 and 1 are special. They both force XXX
-
-
-
 
 ### Files
 
@@ -70,19 +68,23 @@ There are optional prefixes and suffixes.
 
 * The modifier flag "`@`" specifies that the file is supposed to be overwritten, if it is opened for writing and it already exists[^3] - the default is to return an error. The use of "`@`", a drive number, or both, requires to add a colon character as a delimiter between the prefix and the filename.
 
+* By using the drive prefix (or just using a "`:`" prefix, it is possible to use filenames that start with "`$`", "`#`" or "`&`". These letters would otherwise indicate special named channels (see next sections).
+
 * The file type is one of "`S`" (`SEQ`), "`P`" (`PRG`),  "`U`" (`USR`), or "`L`" (`REL`). If the type is omitted, `PRG` is assumed.
 
 * The _access_ byte depends on the file type: For `SEQ`, `PRG` and `USR`, a file can be opened for reading, by specifying "`R`", for writing using "`W`" and for appending using "`A`". The default is for reading. For relative files, the access byte is the binary-encoded record size. For creating a relative file, it must be specified, for opening an existing one, it can be omitted. Relative files are always open for reading _and_ writing.
 
-
-
-
+Sequential files can then be read from or written to, depending on the access type. Files opened for writing need to be closed again for all data structures on disk to be valid. Relative files allow reading and writing and do not have to be closed for the data on disk to be consistent. In order to position the read/write pointer to a particular record, the command channel is used (see below).
 
 ### Directory Listing
-* "$"
-	* $n for drive 0/1
-	* $:abc*
-	* link to post
+
+The "`$`" name is used to read the directory listing. This is the syntax:
+
+`$`[[_drive_]`:`][_pattern_]
+
+Just using "`$`" as the name will return the complete directory contents of drive 0. Specifying the drive number, followed by a colon, will override this. Additionally, a file name pattern can be appended to filter which directory entries are returned.
+
+The [format of the data returned is tokenized Microsoft BASIC](https://www.pagetable.com/?p=273).
 
 ### Direct-Access Buffer I/O
 * "#"
