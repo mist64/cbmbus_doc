@@ -19,11 +19,11 @@ In contrast to all other articles of the series, this one is only meant as a con
 
 What is usually called a disk drive and is associated with a primary address is actually a **unit**, because a unit can have more than one drive in its enclosure, like two mechanisms for two diskettes. Drives are numbered starting with 0, and there is no upper limit to the number of drives.
 
-Every drive has its own filesystem. The encoding of all text is ASCII/PETSCII: While all Commodore computers use the PETSCII variant, the difference is irrelevant for all commands and names, XXX
+Every drive has its own independent filesystem. A filesystem has a name, a two-character ID, and contains an unsorted set of files. All files have a unique **name** and a file **type**, and have to be at least one byte in size[^1].
 
-A filesystem has a name of an unspecified maximum size (but 16 characters Commodore devices) and a two-character ID.
+DOS does not specify a maximum size for disk or file names, but the limit for all Commodore devices is 16 characters. There is also no specified character encoding: Names consist of 8 bit characters, and DOS does not interpret them. (The syntax of some commands will make certain characters impossible for disk or file names though, see below.)
 
-A filesystem contains an unsorted set of files. All files have a unique **name** and a file **type**, and have to be at least one byte in size[^1]. There are four file types (`SEQ`, `PRG`, `USR` and `REL`) that fall into two categories: sequential and relative.
+There are four file types (`SEQ`, `PRG`, `USR` and `REL`) that fall into two categories: sequential and relative.
 
 **Sequential files** only allow linear access, i.e. it is impossible to position the read or write pointer. They can be appended to though. There are three types of sequential files: `SEQ`, `PRG` and `USR`. They are treated the same by DOS, but the user convention is to store executable programs in PRG files and data into SEQ files.
 
@@ -31,38 +31,27 @@ A filesystem contains an unsorted set of files. All files have a unique **name**
 
 While the interface to DOS often requres to specify the file type, it is not part of a file's identifier, i.e. there can not be two files with the same name but just a different type.
 
-## channel number overview
+## Channel Numbers
 
-* channels 0-14 need to be associated with names
-	* filenames
-	* special names
-* channel 15 is status
-* channels 16-31 illegal
+| Channel | Description       |
+|---------|-------------------|
+| 0       | named (PRG read)  |
+| 1       | named (PRG write) |
+| 2-14    | named             |
+| 15      | commands/status   |
+| 16-31   | illegal           |
 
-<!--
-|      |                 |
-|------|-----------------|
-| 0    | implicit ,P,R   |
-| 1    | implicit ,P,W   |
-| 2-14 | files           |
-| 15   | commands/status |
--->
+Channels 0 to 14 need to be associated with a name. 0 and 1 only support special kinds of names and will be discussed later. Channel 15 is used to send either global commands, or commands that deal with named channels, and to read the result code or general status of the unit.
 
-## named channels
+While the underlying layers of the bus specifies channel numbers (secondary addressed) from 0 to 31, Commodore DOS does not support numbers 16-31.
 
-* channels 0-14 need to be associated with names
+## Named Channels
+
+Channels 0 to 14 need to be associated with names. Names are used to create channels for reading or writing a file, reading the directory listing, 
+
 * empty names are illegal
 
-### regular files
-
-* filenames don't contain
-	* 0xA0 (PETSCII shifted Space)
-	* ","
-* don't start with
-	* "$"
-	* "#"
-	* "&"
-* filename length not specified (usually 16)
+### files
 
 * file access string:
 	* ,P/S/U/L
@@ -73,15 +62,28 @@ While the interface to DOS often requres to specify the file type, it is not par
 	* wildcards
 		* ?
 		* `*`
+* filenames don't contain
+	* 0xA0 (PETSCII shifted Space)
+	* ","
+* don't start with
+	* "$"
+	* "#"
+	* "&"
+* filename length not specified (usually 16)
 
-### special files:
+
+### Directory Listing
 * "$"
 	* $n for drive 0/1
 	* $:abc*
 	* link to post
+
+### Buffer I/O
 * "#"
 	* fn "#" or "#n", where n is the buffer number (0-4 on 1541)
 	* command channel will return buffer number
+
+### "&"
 * "&"
 
 ## command channel
