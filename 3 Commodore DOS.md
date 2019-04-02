@@ -261,7 +261,13 @@ The arguments are binary-encoded bytes.
 | MEMORY-EXECUTE | `M-E` _addr_lo_ _addr_hi_                             | Execute code                    |
 | U3-U8/UC-UH    | `U3`-`U8`                                             | Execute code through jump table |
 
-XXX "&" ("UTILITY LOADER")
+### Utility Loader Command
+
+XXX
+
+| Name           | Syntax                                                | Description                     |
+|----------------|-------------------------------------------------------|---------------------------------|
+| UTILITY LOADER | `&`[_drv_]_name_                                      | Load and execute program        |
 
 ### RESET Commands
 
