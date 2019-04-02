@@ -4,7 +4,7 @@ In the [series about the variants of the Commodore Peripheral Bus family](https:
 
 ![](docs/cbmbus/layer3.png =601x251)
 
-The variants of the Commodore Peripheral Bus family have some very different connectors and byte transfer protocols, but they all share layers 3 and 4 of the protocol stack. This article on layer 3 is therefore valid for all Commodore 8 bit computers, no matter whether they use IEEE-488, Serial, TCBM or CBDOS on the underlying layers.
+The variants of the Commodore Peripheral Bus family have some very different connectors and byte transfer protocols (layers 1 and 2), but they all share layers 3 and 4 of the protocol stack. This article on layer 3 is therefore valid for all Commodore 8 bit computers, no matter whether they use IEEE-488, Serial, TCBM or CBDOS on the underlying layers.
 
 All variants of layer 2, the layer below, provide:
 
@@ -33,7 +33,7 @@ Layer 3, which is based on the IEEE-488 standard, provides interruptable communi
 
 Layer 2 allows everyone on the bus to talk to everyone else – but there is no mechanism in place for who is sending or receiving data at what time. The primary feature of layer 3 is controlling exactly this.
 
-For this, we need one bus participant to be the designated **controller** – this is always the computer. It sends command byte streams to all other bus participants, the **devices**.
+One bus participant needs to be the designated **controller** – this is always the computer. It sends command byte streams to all other bus participants, the **devices**.
 
 ## Primary Address
 
@@ -183,7 +183,7 @@ If the controller wants to know when the transmission is finished, it will have 
 
 ## Named Channels (OPEN/CLOSE)
 
-When Commodore chose IEEE-488 as the protocol stack for the PET, they felt that a numeric secondary address from 0 to 31 was not expressive enough for the different context of e.g. a disk drive, so they added **named channels**.
+When Commodore chose IEEE-488 as the protocol stack for the PET, they felt that a numeric secondary address from 0 to 31 was not expressive enough for the different contexts of e.g. a disk drive, so they added **named channels**.
 
 The controller can associate a secondary address with a name, and later dissociate it again. A name is a byte stream of arbitrary length (including zero bytes) and usually the PETSCII encoding is implied. Only secondary addresses in the range of 0-15 can be associated with a name, 16-31 cannot.
 
@@ -207,7 +207,7 @@ The controller now sends the name of the channel, followed by `UNLISTEN`:
 
 Unlike regular data transmissions, where the controller can pause and resume the stream using `UNLISTEN`/`LISTEN`, the name of the channel has to be sent in one go. The end of the name is indicated by the `UNLISTEN` command, not by `EOI`.
 
-The device can indicate an error associating the channel with the name using an error condition on layer 2.
+The device can indicate an error associating the channel with the name[^3] using an error condition on layer 2.
 
 Dissociating a channel from a name is done using the sequence `LISTEN`/`CLOSE`/`UNLISTEN`, like in this example:
 
@@ -278,17 +278,7 @@ All calls deal with layer 3 functionality, except for `SETTMO`, which controls a
 
 ### KERNAL Channel I/O API
 
-The KERNAL's Channel I/O API is higher-level and not specific to the Commodore Peripheral Bus. Devices 0-3 will target the keyboard, tape, RS-232 (PET: tape #2) and the screen. This API does not support multiple listeners or controller-less transmissions.
-
-Channel I/O allows up to 10 logical files open at the same time, across all devices. A logical file is addressed by a user-selected logical file number (0-127). To open a logical file, the logical file number and device's primary and secondary addresses (255 = none) have to be set using `SETLFS`, the name has to be set using `SETNAM`, and `OPEN` hast to be called.
-
-`OPEN` with a filename will send the `LISTEN`/`OPEN`/_filename_/`UNLISTEN` sequence, associating the name with the secondary address. `OPEN` without a filename will not send anything on the bus, but will remember the secondary address for later operations.
-
-Similary, `CLOSE` on a file with a filename will send the `LISTEN`/`CLOSE`/`UNLISTEN` sequence, and otherwise, `CLOSE` will not send anything on the bus.
-
-The current input and/or output has to be globally selected using `CHKIN`, which will send `TALK`, and `CHKOUT`, which will send `LISTEN`. Both are followed by `SECOND`, if a secondary address was set. `CLRCHN` resets the current input and output channels and sends `UNTALK` or `UNLISTEN`.
-
-With `CHKIN`/`CHKOUT` set up to talk on the Commodore Peripheral Bus, `CHRIN` and `CHROUT` will just be forwarded to the low-level calls `ACPTR` and `CIOUT`.
+The KERNAL's Channel I/O API is higher-level and not specific to the Commodore Peripheral Bus. Devices 0-3 will target the keyboard, tape, RS-232 (PET: tape #2) and the screen. This API does not support multiple listeners or controller-less transmissions (but it can be combined with the low-level API for this).
 
 | address | name     | description                             | arguments                           |
 |---------|----------|-----------------------------------------|-------------------------------------|
@@ -303,6 +293,16 @@ With `CHKIN`/`CHKOUT` set up to talk on the Commodore Peripheral Bus, `CHRIN` an
 | `$FFCF` | `CHRIN`  | Input character from channel            | _byte_ → `A`                        |
 | `$FFD2` | `CHROUT` | Output character to channel             | `A` = _byte_                        |
 | `$FFE7` | `CLALL`  | Close all channels and files            |                                     |
+
+Channel I/O allows up to 10 logical files open at the same time, across all devices. A logical file is addressed by a user-selected logical file number (0-127). To open a logical file, the logical file number and device's primary and secondary addresses (255 = none) have to be set using `SETLFS`, the name has to be set using `SETNAM`, and `OPEN` hast to be called.
+
+`OPEN` with a filename will send the `LISTEN`/`OPEN`/_filename_/`UNLISTEN` sequence, associating the name with the secondary address. `OPEN` without a filename will not send anything on the bus, but will remember the secondary address for later operations.
+
+Similary, `CLOSE` on a file with a filename will send the `LISTEN`/`CLOSE`/`UNLISTEN` sequence, and otherwise, `CLOSE` will not send anything on the bus.
+
+The current input and/or output has to be globally selected using `CHKIN`, which will send `TALK`, and `CHKOUT`, which will send `LISTEN`. Both are followed by `SECOND`, if a secondary address was set. `CLRCHN` resets the current input and output channels and sends `UNTALK` or `UNLISTEN`.
+
+With `CHKIN`/`CHKOUT` set up to talk on the Commodore Peripheral Bus, `CHRIN` and `CHROUT` will just be forwarded to the low-level calls `ACPTR` and `CIOUT`.
 
 ### BASIC API
 
@@ -335,4 +335,6 @@ Part 3 of the series of articles on the Commodore Peripheral Bus family will cov
 
 [^1]: It is possible to change the primary address of a Commodore 1541 using a Commodore DOS (layer 4) command, with `o` as the old and `n` as the new address:<br/>`o=8:n=4:oP15,o,15:pR15,"m-w";cH(119);cH(0);cH(2);cH(n+32)+cH(n+64):clO15`<br/>It is no problem to change the primary address to 4, the default address of the printer, and still interact with it using BASIC commands for disk access: `load"$",4`
 
-[^2]: Somewhat breaking conventions, some devices interpret `UNLISTEN` as a delimiter, e.g. Commodore disk drives will execute disk command strings sent to channel 15 on the `UNLISTEN` event. See layer 4.
+[^2]: Commodore disk drives break this convention in one case: When they receive a command string on channel 15, they will execute it as soon as there is an `UNLISTEN` event, as opposed to only triggering on `EOI`.
+
+[^3]: For disk drives, this happens when layer 4 decides that a file was not found or there was no disk in the drive, for example.
