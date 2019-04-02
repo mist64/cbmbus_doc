@@ -47,11 +47,30 @@ While the underlying layers of the bus specifies channel numbers (secondary addr
 
 ## Named Channels
 
-Channels 0 to 14 need to be associated with names. Names are used to create channels for reading or writing a file, reading the directory listing, 
+Channels 0 to 14 need to be associated with names. Names are used to create channels for reading or writing a file, reading the directory listing and reading/writing sectors directly. Empty names are illegal.
 
-* empty names are illegal
+### Files
 
-### files
+A named channel can be used to open a file for reading or writing. The syntax for the channel's name is as follows:
+
+[[`@`][_drive_]`:`]_filename_[`,`_type_[`,`_access_]]
+
+The core of the channel name is the name of the file to be accessed. If an existing file is opened, wildcards (see below) are allowed.
+
+There are optional prefixes and suffixes.
+
+* By default, drive 0 is assumed. This can be overridden by a leading drive number, followed by a colon[^2].
+
+* The modifier flag "`@`" specifies that the file is supposed to be overwritten, if it is opened for writing and it already exists[^3] - the default is to return an error. The use of "`@`", a drive number, or both, requires to add a colon character as a delimiter between the prefix and the filename.
+
+* The file type is one of "`S`" (`SEQ`), "`P`" (`PRG`),  "`U`" (`USR`), or "`L`" (`REL`). If the type is omitted, `PRG` is assumed.
+
+* The _access_ byte depends on the file type: For `SEQ`, `PRG` and `USR`, a file can be opened for reading, by specifying "`R`", for writing using "`W`" and for appending using "`A`". The default is for reading. For relative files, the access byte is the binary-encoded record size. For creating a relative file, it must be specified, for opening an existing one, it can be omitted. Relative files are always open for reading _and_ writing.
+
+* 
+
+
+XXX
 
 * file access string:
 	* ,P/S/U/L
@@ -78,7 +97,7 @@ Channels 0 to 14 need to be associated with names. Names are used to create chan
 	* $:abc*
 	* link to post
 
-### Buffer I/O
+### Direct-Access Buffer I/O
 * "#"
 	* fn "#" or "#n", where n is the buffer number (0-4 on 1541)
 	* command channel will return buffer number
@@ -131,7 +150,9 @@ run
 
 -->
 
-### limitations
+## Wildcards
+
+## limitations
 
 * 0 byte files don't exist
 * all Commodore drives:
@@ -157,18 +178,18 @@ run
 run
 -->
 
-### optional features
+## optional features
 
 * consistent feature set on
 	* all IEEE-488 drives (e.g. 2040 [1978], D9060/D9090 HD, SFD 1001 [1985])
 	* 1540, 1541(-C, -II), 1551; 1541 clones
 * later "Fast Serial" devices had additions
 
-#### 1571
+### 1571
 
 * burst commands
 
-#### 1581
+### 1581
 
 * partitions (`CBM`)
 
@@ -176,7 +197,7 @@ run
 |----------------|-------------------------------------------------------|---------------------------------|
 | PARTITION      | `/`[_drv_][`:`_name_[`,`_track_ _sector_ _count_lo_ _count_hi_ `,C`]] | Select/create partition |
 
-#### CMD
+### CMD
 * CMD-style partitions
 * subdirectories (`DIR`), CMD
 * real-time clock
@@ -230,4 +251,8 @@ run
 
 --->
 
-[^1] This is a limitation of the layer 2 protocol: It is impossible to send a 0-byte stream of bytes.
+[^1]: This is a limitation of the layer 2 protocol: It is impossible to send a 0-byte stream of bytes.
+
+[^2]: Most devices only have a single drive, so in practice, drive numbers are rarely specified.
+
+[^3]: All single-drive Commodore devices except the 1571 (revision 5 ROM only), 1541-C, 1541-II and 1581 have a [bug](https://groups.google.com/forum/#!topic/comp.sys.cbm/TKKl8a-3EPA) that can currupt the filesystem when using the overwrite feature.
