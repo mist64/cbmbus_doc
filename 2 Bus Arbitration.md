@@ -335,6 +335,6 @@ Part 3 of the series of articles on the Commodore Peripheral Bus family will cov
 
 [^1]: It is possible to change the primary address of a Commodore 1541 using a Commodore DOS (layer 4) command, with `o` as the old and `n` as the new address:<br/>`o=8:n=4:oP15,o,15:pR15,"m-w";cH(119);cH(0);cH(2);cH(n+32)+cH(n+64):clO15`<br/>It is no problem to change the primary address to 4, the default address of the printer, and still interact with it using BASIC commands for disk access: `load"$",4`
 
-[^2]: Commodore disk drives break this convention in one case: When they receive a command string on channel 15, they will execute it as soon as there is an `UNLISTEN` event, as opposed to only triggering on `EOI`.
+[^2]: Commodore DOS breaks this convention in one case: When a disk drive receives a command string on channel 15, it will execute it as soon as there is an `UNLISTEN` event, as opposed to only triggering on `EOI`.
 
 [^3]: For disk drives, this happens when layer 4 decides that a file was not found or there was no disk in the drive, for example.
