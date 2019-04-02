@@ -2,11 +2,13 @@
 
 In the [series about the variants of the Commodore Peripheral Bus family](https://www.pagetable.com/?p=1018), this article covers the common layer 4: The "Commodore DOS" interface to disk drives.
 
+XXX list of Commodore drives
+
 ![](docs/cbmbus/layer4.png =601x251)
 
 From a device's point of view, the layer below, layer 3 ("TALK/LISTEN") provides the following:
 
-* A device has 32 channels (0-31).
+* A device has 32 channels (a.k.a. secondary addresses, 0-31).
 * A channel (0-15) can be associated with a name and dissociated from it again.
 * A device can send byte streams from channels.
 * A device can receive byte streams into channels.
@@ -52,7 +54,7 @@ While the underlying layers of the bus specifies channel numbers (secondary addr
 
 Channels 0 to 14 need to be associated with names. Names are used to create channels for reading or writing a file, reading the directory listing and reading/writing sectors directly. Empty names are illegal.
 
-Channels 0 and 1 are special. They both force XXX
+XXX Channels 0 and 1 are special. Channel 0 forces the type of `PRG` and the access mode
 
 ### Files
 
@@ -74,7 +76,7 @@ There are optional prefixes and suffixes.
 
 * The _access_ byte depends on the file type: For `SEQ`, `PRG` and `USR`, a file can be opened for reading, by specifying "`R`", for writing using "`W`" and for appending using "`A`". The default is for reading. For relative files, the access byte is the binary-encoded record size. For creating a relative file, it must be specified, for opening an existing one, it can be omitted. Relative files are always open for reading _and_ writing.
 
-Sequential files can then be read from or written to, depending on the access type. Files opened for writing need to be closed again for all data structures on disk to be valid. Relative files allow reading and writing and do not have to be closed for the data on disk to be consistent. In order to position the read/write pointer to a particular record, the command channel is used (see below).
+Sequential files can then be read from or written to, depending on the access type. Files opened for writing need to be closed again for all data structures on disk to be valid. Relative files allow reading and writing and do not have to be closed for the data on disk to be consistent. Positioning of the read/write pointer to a particular record is done using the command channel ("`P`" command, see below).
 
 ### Directory Listing
 
@@ -87,6 +89,26 @@ Just using "`$`" as the name will return the complete directory contents of driv
 The [format of the data returned is tokenized Microsoft BASIC](https://www.pagetable.com/?p=273).
 
 ### Direct-Access Buffer I/O
+
+The "`#`" name is used to allocate a buffer inside the device that is used for reading and writing sectors. This is the syntax:
+
+`#`[_buffer_number_]
+
+There is an optional buffer number argument that is not usually used. Without it, the device will allocate an unused buffer in the device's RAM. If a buffer number is specified, the operation will fail if this particular buffer is not available. This is useful for allocating memory in the device in order to upload code for execution. The mapping from buffer number to RAM address is device-specific - but so is the uploaded code[^4].
+
+The number of the allocated buffer will be returned  XXX
+
+10 fori=0to10
+20 open2,8,2,"#"+str$(i)
+30 dos
+40 close2
+50 next
+run
+
+
+The buffer stays allocated as long as the named channel is open. The "`B-R`", "`B-W`", "`B-P`", "`U1`" and "`U2`" commands on the command channel take the channel number of the buffer as an argument.
+
+
 * "#"
 	* fn "#" or "#n", where n is the buffer number (0-4 on 1541)
 	* command channel will return buffer number
@@ -117,7 +139,7 @@ The [format of the data returned is tokenized Microsoft BASIC](https://www.paget
 | MEMORY-EXECUTE | `M-E` _addr_lo_ _addr_hi_                             | Execute code                    |
 | U1/UA          | `U1` _channel_ _track_ _sector_                       | Synonym of B-R                  |
 | U2/UB          | `U2` _channel_ _track_ _sector_                       | Synonym of B-W                  |
-| U3-U8/UC-UH    | `U3-U7`                                               | Execute code                    |
+| U3-U8/UC-UH    | `U3-U8`                                               | Execute code                    |
 | U9/UI          | `U9`                                                  | Soft RESET                      |
 | U:/UJ          | `U9`                                                  | Hard RESET                      |
 
@@ -245,3 +267,5 @@ run
 [^2]: Most devices only have a single drive, so in practice, drive numbers are rarely specified.
 
 [^3]: All single-drive Commodore devices except the 1571 (revision 5 ROM only), 1541-C, 1541-II and 1581 have a [bug](https://groups.google.com/forum/#!topic/comp.sys.cbm/TKKl8a-3EPA) that can currupt the filesystem when using the overwrite feature.
+
+[^4]: On a Commodore 1541, for example, buffer 2, which is located from `$0500` to `$05ff` in RAM, is the "user buffer". The "`U3`"-"`U8`" commands are shortcuts to execute commands in this buffer. 
