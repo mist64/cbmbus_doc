@@ -36,6 +36,8 @@ There are four file types (`SEQ`, `PRG`, `USR` and `REL`) that fall into two cat
 
 While the interface to DOS often requres to specify the file type, it is not part of a file's identifier, i.e. there can not be two files with the same name but just a different type.
 
+XXX low-level API: tracks, sectors, buffers
+
 ## Channel Numbers
 
 | Channel | Description       |
@@ -90,31 +92,29 @@ The [format of the data returned is tokenized Microsoft BASIC](https://www.paget
 
 ### Direct-Access Buffer I/O
 
-The "`#`" name is used to allocate a buffer inside the device that is used for reading and writing sectors. This is the syntax:
+The "`#`" name is used to allocate a sector-sized buffer inside the device. This is the syntax:
 
 `#`[_buffer_number_]
 
-There is an optional buffer number argument that is not usually used. Without it, the device will allocate an unused buffer in the device's RAM. If a buffer number is specified, the operation will fail if this particular buffer is not available. This is useful for allocating memory in the device in order to upload code for execution. The mapping from buffer number to RAM address is device-specific - but so is the uploaded code[^4].
+There are two use cases for allocated buffers:
 
-The number of the allocated buffer will be returned  XXX
+* When specifying a number, a particular buffer will be allocated, if available. This is useful for allocating a specific memory area in the device in order to upload code for execution. The mapping from buffer number to RAM address is device-specific - but so is the uploaded code: On a Commodore 1541, for example, buffer 2, which is located from `$0500` to `$05ff` in RAM, is the "user buffer". The "`U3`"-"`U8`" command channel commands are shortcuts to execute code in this buffer.
+* Without an explicit number, any free buffer in the device's RAM will be allocated. This is what you do to have a buffer for reading and writing sectors.
 
+<!--
 10 fori=0to10
 20 open2,8,2,"#"+str$(i)
 30 dos
 40 close2
 50 next
 run
-
+-->
 
 The buffer stays allocated as long as the named channel is open. The "`B-R`", "`B-W`", "`B-P`", "`U1`" and "`U2`" commands on the command channel take the channel number of the buffer as an argument.
 
-
-* "#"
-	* fn "#" or "#n", where n is the buffer number (0-4 on 1541)
-	* command channel will return buffer number
-
 ### "&"
-* "&"
+
+XXX TODO
 
 ## command channel
 
@@ -268,4 +268,3 @@ run
 
 [^3]: All single-drive Commodore devices except the 1571 (revision 5 ROM only), 1541-C, 1541-II and 1581 have a [bug](https://groups.google.com/forum/#!topic/comp.sys.cbm/TKKl8a-3EPA) that can currupt the filesystem when using the overwrite feature.
 
-[^4]: On a Commodore 1541, for example, buffer 2, which is located from `$0500` to `$05ff` in RAM, is the "user buffer". The "`U3`"-"`U8`" commands are shortcuts to execute commands in this buffer. 
