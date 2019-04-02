@@ -36,7 +36,7 @@ There are four file types (`SEQ`, `PRG`, `USR` and `REL`) that fall into two cat
 
 While the interface to DOS often requres to specify the file type, it is not part of a file's identifier, i.e. there can not be two files with the same name but just a different type.
 
-XXX low-level API: tracks, sectors, buffers
+XXX low-level API: blocks, tracks, sectors, buffers
 
 ## Channel Numbers
 
@@ -54,7 +54,7 @@ While the underlying layers of the bus specifies channel numbers (secondary addr
 
 ## Named Channels
 
-Channels 0 to 14 need to be associated with names. Names are used to create channels for reading or writing a file, reading the directory listing and reading/writing sectors directly. Empty names are illegal.
+Channels 0 to 14 need to be associated with names. Names are used to create channels for reading or writing a file, reading the directory listing and reading/writing blocks directly. Empty names are illegal.
 
 XXX Channels 0 and 1 are special. Channel 0 forces the type of `PRG` and the access mode
 
@@ -90,16 +90,16 @@ Just using "`$`" as the name will return the complete directory contents of driv
 
 The [format of the data returned is tokenized Microsoft BASIC](https://www.pagetable.com/?p=273).
 
-### Direct-Access Buffer I/O
+### Direct Access Buffer I/O
 
-The "`#`" name is used to allocate a sector-sized buffer inside the device. This is the syntax:
+The "`#`" name is used to allocate a block-sized buffer inside the device. This is the syntax:
 
 `#`[_buffer_number_]
 
 There are two use cases for allocated buffers:
 
 * When specifying a number, a particular buffer will be allocated, if available. This is useful for allocating a specific memory area in the device in order to upload code for execution. The mapping from buffer number to RAM address is device-specific - but so is the uploaded code: On a Commodore 1541, for example, buffer 2, which is located from `$0500` to `$05ff` in RAM, is the "user buffer". The "`U3`"-"`U8`" command channel commands are shortcuts to execute code in this buffer.
-* Without an explicit number, any free buffer in the device's RAM will be allocated. This is what you do to have a buffer for reading and writing sectors.
+* Without an explicit number, any free buffer in the device's RAM will be allocated. This is what you do to have a buffer for reading and writing blocks.
 
 <!--
 10 fori=0to10
@@ -116,50 +116,126 @@ The buffer stays allocated as long as the named channel is open. The "`B-R`", "`
 
 XXX TODO
 
-## command channel
+## Command Channel
 
-* write: command
-	* uppercase ASCII commands (= PETSCII)
-	* terminated by CR or UNLISTEN :(
+The command channel is always available as channel 15. When writing to it, the device interprets the byte stream as commands in a unified format. When reading from it, the byte stream from the device is usually status information in a unified format (with the exception of the reply to "`M-R`", see below).
+
+## Status
+
+The status information that is sent from channel 15 is a `CR`-delimited ASCII-encoded string with a uniform encoding:
+
+_code_`,`_string_`,`_a_`,`_b_[`,`_c_]
+
+* _code_ is a two-digit decimal error code.
+* _string_ is a short English-language version of the error code.
+* _a_ and _b_ are two additional two-digit decimal numbers that depend on the type of error ("`00`" if unused).
+* _c_ is the single-digit decimal number drive that caused the status message. Devices with only a single drive don't usually return this[^5].
+
+A status code of 0 will return the string "`00, OK,00,00`" (or "`00, OK,00,00,0`" on dual-drive devices, assuming the last command was performed on drive 0).
+
+The first decimal digit encodes the category of the error.
+
+| First Digit | Description                  |
+|-------------|------------------------------|
+| 0, 1        | No error, informational only |
+| 2           | Physical disk error          |
+| 3           | Error parsing the command    |
+| 4           | unused                       |
+| 5           | Relative file related error  |
+| 6           | File error                   |
+| 7           | Generic disk or device error |
+
+The English-language versions of status messages that are not errors (codes below 20) are additionally prefixed with a SPACE.
+
+The full list of error messages can be found in practically every disk drive users manual, here are just some examples:
+
+* `00, OK,00,00`: There was no error, or the status has already been cleared since.
+* `01, FILES SCRATCHED,03,00`: Informational: 3 files have been deleted ("scratched").
+* `23,READ ERROR,18,00`: There was a checksum error when trying to read track 18, sector 0.
+* `31,SYNTAX ERROR,00,00`: The command sent was not understood.
+* `51,OVERFLOW IN RECORD,00,00`: More data was written into a REL file record that fits.
+* `65,NO BLOCK,17,01`: When trying to allocate a block using the `B-A` command, the given block was already allocated. Track 17, sector 1 is the next free block.
+* `66,ILLEGAL TRACK OR SECTOR,34,55`
+* `73,CBM DOS V2.6 1541,00,00`
+
+
+Reading the status will clear it. Keeping on reading will keep returning status messages.
+
+The following BASIC program will read a single status message:
+
+	10 open 1,8,15,"ui"
+	20 get#1,a$:?a$;:ifa$<>chr$(13)goto20
+	30 close 1
+
+## Commands
+
+All commands are byte streams that are mostly ASCII/PETSCII, but with some binary arguments in some cases. They are terminated an `EOI` or `UNLISTEN` event[^4]. The follwing BASIC code send the command "`I`" to drive 8:
+
+    OPEN 1,8,15
+    PRINT#1, "I";
+    CLOSE 1
+
+(On layer 3, this will send `LISTEN 8`/`SECOND 15`/"`I`"/`UNLISTEN`.)
+
+Alternatively, a command can be sent as opening channel 15 with the command as the associated name. This does not in fact perform any association though (and dissociation would be a no-op), it just allows shorter code, e.g. in BASIC:
+
+	OPEN 1,8,15,"I"
+	CLOSE 1
+
+(On layer 3, this will send `LISTEN 8`/`OPEN 15`/"`I`"/`UNLISTEN`/`LISTEN 8`/`CLOSE 15`/`UNLISTEN`.)
+
+There are several categories for commands. XXX
+
+### Global
 
 | Name           | Syntax                                                | Description                     |
 |----------------|-------------------------------------------------------|---------------------------------|
+| INITIALIZE     | `I`[_drv_]                                            | Force reading disk metadata     |
 | NEW            | `N`[_drv_]`:`_name_[,_id_]                            | Low-level or quick format       |
 | VALIDATE       | `V`[_drv_]                                            | Re-build block availability map |
-| INITIALIZE     | `I`[_drv_]                                            | Force reading disk metadata     |
 | RENAME         | `R`[_drv_]`:`_new_name_`=`_old_name_                  | Rename file                     |
 | COPY           | `C`[_drv_a_]`:`_target_name_`=`[_drv_b_]`:`_source_name_[,...] | Copy/concatenate files |
 | SCRATCH        | `S`[_drv_]`:`_name_[`,`...]                           | Delete files                    |
 | DUPICATE       | `D:`[_drv_a_]``=``[_drv_b_]                           | Duplicate disk                  |
+
+### Relative Files
+
+| Name           | Syntax                                                | Description                     |
+|----------------|-------------------------------------------------------|---------------------------------|
 | POSITION       | `P` _channel_ _pos_lo_ _pos_hi_ _offset_              | Set record index in REL file    |
+
+### Direct Access
+
+| Name           | Syntax                                                | Description                     |
+|----------------|-------------------------------------------------------|---------------------------------|
 | BLOCK-READ     | `B-R` _channel_ _track_ _sector_                      | Read sector                     |
 | BLOCK-WRITE    | `B-W` _channel_ _track_ _sector_                      | Write sector                    |
+| U1/UA          | `U1` _channel_ _track_ _sector_                       | XXX Synonym of B-R              |
+| U2/UB          | `U2` _channel_ _track_ _sector_                       | XXX Synonym of B-W              |
+| BUFFER-POINTER | `B-P` XXX                                             | XXX                             |
+
+### BAM
+
+| Name           | Syntax                                                | Description                     |
+|----------------|-------------------------------------------------------|---------------------------------|
+| BLOCK-ALLOCATE | `B-A` XXX                                             | XXX                             |
+| BLOCK-FREE     | `B-F` XXX                                             | XXX                             |
+
+### Memory
+
+| Name           | Syntax                                                | Description                     |
+|----------------|-------------------------------------------------------|---------------------------------|
 | MEMORY-WRITE   | `M-W` _addr_lo_ _addr_hi_ _count_ _data_              | Write RAM                       |
 | MEMORY-READ    | `M-R` _addr_lo_ _addr_hi_ _count_                     | Read RAM                        |
 | MEMORY-EXECUTE | `M-E` _addr_lo_ _addr_hi_                             | Execute code                    |
-| U1/UA          | `U1` _channel_ _track_ _sector_                       | Synonym of B-R                  |
-| U2/UB          | `U2` _channel_ _track_ _sector_                       | Synonym of B-W                  |
 | U3-U8/UC-UH    | `U3-U8`                                               | Execute code                    |
+
+### RESET
+
+| Name           | Syntax                                                | Description                     |
+|----------------|-------------------------------------------------------|---------------------------------|
 | U9/UI          | `U9`                                                  | Soft RESET                      |
 | U:/UJ          | `U9`                                                  | Hard RESET                      |
-
-
-* read: status
-	* terminated by CR, will keep repeating
-	* aa,sssss,bb,cc,d
-	* with d:
-		* 1001, 8050, 8250
-	* without d:
-		* 2031, all serial devices
-
-<!--
-
-10 open 1,8,15,"ui"
-20 get#1,a$:?a$;:ifa$<>chr$(13)goto20
-30 close 1
-run
-
--->
 
 ## Wildcards
 
@@ -268,3 +344,6 @@ run
 
 [^3]: All single-drive Commodore devices except the 1571 (revision 5 ROM only), 1541-C, 1541-II and 1581 have a [bug](https://groups.google.com/forum/#!topic/comp.sys.cbm/TKKl8a-3EPA) that can currupt the filesystem when using the overwrite feature.
 
+[^4]: Commodore DOS breaks the layer 3 convention in this case. An `UNLISTEN` event does not signal the termination of a byte stream, it should merely pause it.
+
+[^5]: The SFD-1001 is the exception to this: It is single-drive device that shares most of its ROM with the dual-drive CBM 8250.
