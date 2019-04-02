@@ -38,6 +38,12 @@ While the interface to DOS often requres to specify the file type, it is not par
 
 XXX low-level API: blocks, tracks, sectors, buffers
 
+## Wildcards
+
+Some interfaces features permit using wildcard characters:
+* A question mark ("`?`") matches any character.
+* An asterisk ("`*`") matches zero or more characters. Characters in the pattern after the asterisk are ignored.
+
 ## Channel Numbers
 
 | Channel | Description       |
@@ -84,9 +90,9 @@ Sequential files can then be read from or written to, depending on the access ty
 
 The "`$`" name is used to read the directory listing. This is the syntax:
 
-`$`[[_drive_]`:`][_pattern_]
+`$`[[_drive_]`:`][_pattern_[`,`...][`=`_type_]]
 
-Just using "`$`" as the name will return the complete directory contents of drive 0. Specifying the drive number, followed by a colon, will override this. Additionally, a file name pattern can be appended to filter which directory entries are returned.
+Just using "`$`" as the name will return the complete directory contents of drive 0. Specifying the drive number, followed by a colon, will override this. Additionally, one or more file name patterns can be appended to filter which directory entries are returned. Finally, specifying "`=`" followed by a single-character file type specifier, will only show files of a particular type.
 
 The [format of the data returned is tokenized Microsoft BASIC](https://www.pagetable.com/?p=273).
 
@@ -145,7 +151,7 @@ The first decimal digit encodes the category of the error.
 | 6           | File error                   |
 | 7           | Generic disk or device error |
 
-The English-language versions of status messages that are not errors (codes below 20) are additionally prefixed with a SPACE. Note that a program cannot rely on any of these strings, just on the codes.
+Note that a program cannot rely on any of these strings, just on the codes.
 
 The full list of error messages can be found in practically every disk drive users manual, here are just some examples:
 
@@ -195,7 +201,7 @@ The filesystem commands deal with creating, fixing and modifying the filesystem.
 
 On multi-drive units, the copy command can also copy files between drives, while on single-drive units, it can only duplicate files. In either case, it can concatenate several files into one.
 
-All arguments for these commands are text. Execpt for the duplicate command, all drive numbers are optional and default to 0.
+All arguments for these commands are text. Except for the duplicate command, all drive numbers are optional and default to 0.
 
 | Name           | Syntax                                                | Description                     |
 |----------------|-------------------------------------------------------|---------------------------------|
@@ -268,8 +274,6 @@ A variation of `UI` that all _Serial_ devices except the Commodore 1540 support 
 	* `UI-`: Change Serial bus timings to the faster VIC-20 specification.
 	* `UI+`: Change Serial bus timings to the slower C64 specification.
 
-## Wildcards
-
 ## limitations
 
 * 0 byte files don't exist
@@ -339,10 +343,7 @@ run
 
 ### Notes
 
-* Scratch needs type? no, gets ignored
-
-
-/Users/mist/Library/Mobile\ Documents/com~apple~CloudDocs/Applications/x64.app/Contents/MacOS/x64 -dos4000 /Users/mist/Libry/Mobile\ Documents/com~apple~CloudDocs/JiffyDOS/JiffyDOS_Complete_Manual_PDF/CMD\ FD-2000\ DOS\ V1.40\ CS\ 33CC6F.bin -drive8type 4000
+/Users/mist/Library/Mobile\ Documents/com~apple~CloudDocs/Applications/x64.app/Contents/MacOS/x64 -dos4000 /Users/mist/Library/Mobile\ Documents/com~apple~CloudDocs/JiffyDOS/JiffyDOS_Complete_Manual_PDF/CMD\ FD-2000\ DOS\ V1.40\ CS\ 33CC6F.bin -drive8type 4000
 
 10 open 1,8,15,"ui"
 20 get#1,a$:?a$;:ifa$<>chr$(13)goto20
