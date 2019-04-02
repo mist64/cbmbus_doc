@@ -1,40 +1,35 @@
 # Commodore Peripheral Bus: Part 3: Commodore DOS
 
-## layer 3 features relevant from a device's view
+In the [series about the variants of the Commodore Peripheral Bus family](https://www.pagetable.com/?p=1018), this article covers the common layer 4: The "Commodore DOS" interface to disk drives.
 
-* a device has 32 channels
-* a channel can be associated (and dissociated) with a name
-* device can send byte streams from channels
-* device can receive byte streams into channels
+![](docs/cbmbus/layer4.png =601x251)
 
--> description of common feature set of Commodore DOS; extensions at the end of the article
+From a device's point of view, the layer below, layer 3 ("TALK/LISTEN") provides the following:
 
-* in contrast to other articles of the series, this one is just an overview of the design
-* respective manuals are good references
-* *conceptual* 
+* A device has 32 channels (0-31).
+* A channel (0-15) can be associated with a name and dissociated from it again.
+* A device can send byte streams from channels.
+* A device can receive byte streams into channels.
 
-## disk drive overview
+The Commodore DOS API defines the meaning of channel numbers, channel names in the context of disk drives. This article covers the common feature set of Commodore DOS, extensions will be described at the end of the article.
 
-* one or more drives
-	* one "unit", one or more drives: 0, 1...
-* disks
-	* have a name
-	* have an ID
-	* support files
-* file types
-	* sequential
-		* SEQ/PRG/USR
-		* only linear access, no random access (seeking)
-		* PRG is meant for executable files
-		* USR is meant as an extension
-		* both treated the same by DOS
-		* at least 1 byte!
-	* relative
-		* REL
-		* fixed record size
-		* random access
-	* not part of filename
-		* can't have X,S and X,P on the same disk
+In contrast to all other articles of the series, this one is only meant as a conceptual overview of the design and not as a complete reference. The respective user manuals of Commodore and CMD disk drives are already very good references.
+
+## Overview
+
+What is usually called a disk drive and is associated with a primary address is actually a **unit**, because a unit can have more than one drive in its enclosure, like two mechanisms for two diskettes. Drives are numbered starting with 0, and there is no upper limit to the number of drives.
+
+Every drive has its own filesystem. The encoding of all text is ASCII/PETSCII: While all Commodore computers use the PETSCII variant, the difference is irrelevant for all commands and names, XXX
+
+A filesystem has a name of an unspecified maximum size (but 16 characters Commodore devices) and a two-character ID.
+
+A filesystem contains an unsorted set of files. All files have a unique **name** and a file **type**, and have to be at least one byte in size[^1]. There are four file types (`SEQ`, `PRG`, `USR` and `REL`) that fall into two categories: sequential and relative.
+
+**Sequential files** only allow linear access, i.e. it is impossible to position the read or write pointer. They can be appended to though. There are three types of sequential files: `SEQ`, `PRG` and `USR`. They are treated the same by DOS, but the user convention is to store executable programs in PRG files and data into SEQ files.
+
+**Relative files** (`REL`) have a fixed record size of 1-254 bytes and allow positioning the read or write pointer to any record and thus allow random access.
+
+While the interface to DOS often requres to specify the file type, it is not part of a file's identifier, i.e. there can not be two files with the same name but just a different type.
 
 ## channel number overview
 
@@ -208,4 +203,29 @@ run
 
 /Users/mist/Library/Mobile\ Documents/com~apple~CloudDocs/Applications/x64.app/Contents/MacOS/x64 -dos4000 /Users/mist/Libry/Mobile\ Documents/com~apple~CloudDocs/JiffyDOS/JiffyDOS_Complete_Manual_PDF/CMD\ FD-2000\ DOS\ V1.40\ CS\ 33CC6F.bin -drive8type 4000
 
+10 open 1,8,15,"ui"
+20 get#1,a$:?a$;:ifa$<>chr$(13)goto20
+30 close 1
+40 open 1,8,15,"s:test"
+50 get#1,a$:?a$;:ifa$<>chr$(13)goto50
+60 close 1
+70 open2,8,2,"test,p,w"
+rem 75 print#2,"ab";
+80 close2
+90 open2,8,2,"test,p,r"
+100 fori=1to10
+110 get#2,a$:?asc(a$+chr$(0)),st
+120 next
+run
+
+
+10 open 1,8,15,"ui"
+100 fori=1to10
+110 get#1,a$:?asc(a$+chr$(0)),st
+120 next
+run
+
+
 --->
+
+[^1] This is a limitation of the layer 2 protocol: It is impossible to send a 0-byte stream of bytes.
