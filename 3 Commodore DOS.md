@@ -48,6 +48,12 @@ Some interfaces features permit using wildcard characters:
 
 ### Blocks
 
+XXX
+* describe three APIs:
+	* level 1: file level API - for built-in data structures
+	* level 2: block API - for custom optimized data structures
+	* level 3: code execution - meant to extend the functionality
+
 There is a set of lower-level APIs that allows reading and writing individual blocks (of 256 bytes) and marking them as allocated or free in the disk's metadata. For certain use cases, this does not require an understanding of any of the disk's internal data structures.
 
 ## Channel Numbers
@@ -328,15 +334,15 @@ run
 
 Practically all features described so far are supported on all but the very first (1.x) Commodore devices. Third party devices also generally support even the low-level and code execution APIs, even though these APIs require knowledge of the differences in the architecture of the interface.
 
-With the advent of "Fast Serial" devices, the APIs were significantly extended. Devices by CMD added their own extensions as well.
+With the advent of "Fast Serial" devices (1571, 1581), the APIs were significantly extended. Devices by CMD added their own extensions as well.
 
 ### 1541
 
-For the 1541, the timing of the layer 2 Serial protocol was updated to support the C64
+For the 1541, the timing of the layer 2 Serial protocol was slowed down to support the C64's unique timing properties. Since the 1541 replaced the 1540, it came with a mode to switch back to the faster VIC-20 Serial protocol[^12].
 
-XXX
-
-* U0+/-
+| Name           | Syntax                                                | Description                     |
+|----------------|-------------------------------------------------------|---------------------------------|
+| USER           | `UI`{`+`&#x7c;`-`}                                    | Use C64/VIC-20 Serial protocol  |
 
 ### 1571
 
@@ -381,11 +387,26 @@ And there are a few more generic commands:
 | USER           | `U0>MR` _addr_hi_ _count_hi_                          | Read RAM (Burst protocol)       |
 | USER           | `U0>MW` _addr_hi_ _count_hi_                          | Write RAM (Burst protocol)      |
 
-;	"U0>I"+CHR$(IEEE_TIMEOUT_VALUE)
+XXX ;	"U0>I"+CHR$(IEEE_TIMEOUT_VALUE)
+
+XXX new path syntax with partitions
+
+### Commodore RAMDOS
+
+XXX
+
+* ftp://www.zimmers.net/pub/cbm/manuals/peripherals/1764_Ram_Expansion_Module_Users_Guide.pdf
+* https://github.com/xlar54/ramdos2crt-master/blob/master/src/c128devpack/ramdos12.src
+
+### JiffyDOS
+
+XXX jiffydos.manual.txt
 
 ### CMD Devices
 
 Floppy drives and hard drives by Creative Micro Devices (CMD) support all 1581 commands and features, and have some additions of their own.
+
+XXX RAMLink
 
 #### CMD-style partitions
 
@@ -435,6 +456,8 @@ And finally, there are some miscellaneous new commands.
 
 #### Syntax Additions
 
+XXX
+
 * partitions
 	* Partition numbers can be used in place of drive numbers in all file specifiers and commands. Partition 0 is the current partition.
 * directories
@@ -443,7 +466,7 @@ And finally, there are some miscellaneous new commands.
 
 ### C65 Disk Drive
 
-For the C65 disk drive, support for CMD-style partitions and sub-directories was planned, but never implemented. None of the other commands added by CMD are supported, but the DOS of the C65 drive has some additions of its own:
+For the internal C65 disk drive, support for CMD-style partitions and sub-directories was planned, but never implemented. None of the other commands added by CMD are supported, but the DOS of the C65 drive has some additions of its own:
 
 | Name           | Syntax                                                | Description                     |
 |----------------|-------------------------------------------------------|---------------------------------|
@@ -456,11 +479,19 @@ For the C65 disk drive, support for CMD-style partitions and sub-directories was
 
 ## Extra: Printers
 
+XXX
+
 * printers use the secondary address to pre-select a character set
 * 0 Print data in Uppercase/Graphics mode
 * 7 Print data in Upper/lowercase
 
+## Next Up
+
+XXX
+
 ## References
+
+XXX
 
 * http://www.softwolves.pp.se/idoc/alternative/vc1541_de/
 * Schramm, K.: [Die Floppy 1541](https://spiro.trikaliotis.net/Book#vic1541). Haar bei München: Markt-und-Technik-Verlag, 1985. ISBN 3-89090-098-4
@@ -536,3 +567,5 @@ run
 [^10]: The feature has existed in all Commodore drives [since the release of the 1540](https://github.com/mist64/cbmsrc/blob/master/DOS_1540/utlodr), but they only started documenting it with the 1551 drive, and never documented the actual file format or the algorithm for the required checksum. The 1540, early 1541 drives, the 8250/8050/4040 with DOS V2.7 as well as the D9060/D9090 hard disks supported the also undocumented "boot clip": a device that grounds certain pins on the data connector and will force the unit to execute the first file on disk. All this hints at this mostly being a feature that was used in-house.
 
 [^11]: `U1` and `U2` were added in a firmware update to the Commodore 4040 drive because of bugs in `B-R` and `B-W` in version 2.1. They were probably added as `USER` commands as opposed to proper commands (or fixing the broken commands) in order to keep the changes to the new ROM version contained to one ROM chip. Later drives retained this feature.
+
+[^12]: The command was piggy-backed onto `UI` in order to keep the changes between the 1540 an the 1541 contained to the second ROM chip.
