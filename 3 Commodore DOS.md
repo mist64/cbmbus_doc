@@ -263,11 +263,14 @@ The arguments are binary-encoded bytes.
 
 ### Utility Loader Command
 
-XXX
+The utility loader command instructs the unit to load a file into its RAM and execute it. The file has to follow a certain format and contains checksums.
+
+[^9]
+
 
 | Name           | Syntax                                                | Description                     |
 |----------------|-------------------------------------------------------|---------------------------------|
-| UTILITY LOADER | `&`[_drv_]_name_                                      | Load and execute program        |
+| UTILITY LOADER | `&`[[_drv_]`:`]_name_                                 | Load and execute program        |
 
 ### RESET Commands
 
@@ -345,6 +348,7 @@ run
 * CBM\ 2040-3040-4040-8050\ Disk\ Drive\ Manual.pdf
 * commodore_vic_1541_floppy_drive_users_manual.pdf
 * https://www.lyonlabs.org/commodore/onrequest/cmd/CMD_Hard_Drive_Users_Manual.pdf
+* http://commodore64.se/wiki/index.php/1541_tricks#Utility_loader_.28.22.26.22_command.29
 * ftp://www.zimmers.net/pub/cbm/manuals/printers/MPS-801_Printer_Users_Manual.pdf
 
 <!---
@@ -399,4 +403,6 @@ run
 
 [^7]: Commodore DOS breaks the layer 3 convention in this case. An `UNLISTEN` event does not signal the termination of a byte stream, it should merely pause it.
 
-[^8]: Many [sources](https://spiro.trikaliotis.net/Book#vic1541) describe the "`B-R`" and "`B-W`" commands as buggy because their behavior didn't seem to make sense and the explanation seemed to have been missing from common forms of documentation.
+[^8]: Many [sources](https://spiro.trikaliotis.net/Book#vic1541) describe the "`B-R`" and "`B-W`" commands as buggy because their behavior didn't seem to make sense and the explanation seemed to have been missing from common forms of documentation. XXX describe "random files" use case
+
+[^9]: The feature has existed in all Commodore drives [since the release of the 1540](https://github.com/mist64/cbmsrc/blob/master/DOS_1540/utlodr), but they only started documenting it with the 1551 drive, and never documented the actual file format or the algorithm for the required checksum. The 1540, early 1541 drives as well as the D9060/D9090 hard disks supported the also undocumented "boot clip": a device that grounds certain pins on the data connector and will force the unit to execute the first file on disk. All this hints at this mostly being a feature that was used in-house.
