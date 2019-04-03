@@ -62,7 +62,10 @@ While the underlying layers of the bus specifies channel numbers (secondary addr
 
 Channels 0 to 14 need to be associated with names. Names are used to create channels for reading or writing a file, reading the directory listing and reading/writing blocks directly. Empty names are illegal.
 
-XXX Channels 0 and 1 are special. Channel 0 forces the type of `PRG` and the access mode
+Channels 0 and 1 are special shortcuts to drive the cases below with less syntax:
+
+* Channel 0 is the `LOAD` channel: It forces a type of `PRG` and an access mode of "read". It works with regular files and the directory listing.
+* Channel 1 is the `SAVE` channel: It forces a type of `PRG` and an access mode of "write". It works with regular files only.
 
 ### Files
 
@@ -243,8 +246,8 @@ The argument encoding is the same as for direct access.
 
 | Name           | Syntax                                                | Description                     |
 |----------------|-------------------------------------------------------|---------------------------------|
-| BLOCK-ALLOCATE | `B-A` _drive_ _track_ _sector_                        | XXX                             |
-| BLOCK-FREE     | `B-F` _drive_ _track_ _sector_                        | XXX                             |
+| BLOCK-ALLOCATE | `B-A` _drive_ _track_ _sector_                        | Allocate a block in the BAM     |
+| BLOCK-FREE     | `B-F` _drive_ _track_ _sector_                        | Free a block in the BAM         |
 
 ### Memory Commands
 
