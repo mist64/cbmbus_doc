@@ -30,7 +30,7 @@ Every drive has its own independent filesystem. A filesystem has a name, a two-c
 DOS does not specify a maximum size for disk or file names, but the limit for all Commodore devices is 16 characters. There is also no specified character encoding: Names consist of 8 bit characters, and DOS does not interpret them. Names have very few limitations:
 
 * The comma, colon and `CR` (carriage return) characters are illegal in disk or file names (because of the encoding of channel names and commands).
-* The code `0xa0` (SPACE with with bit 7 set; PETSCII shifted SPACE) is illegal in file names (it is used as the terminating character on disk).
+* The code `0xa0` (ISO 8859-1 non-breaking space, PETSCII shifted SPACE) is illegal in file names (it is used as the terminating character on disk).
 
 There are four file types (`SEQ`, `PRG`, `USR` and `REL`) that fall into two categories: sequential and relative.
 
@@ -151,10 +151,11 @@ The first decimal digit encodes the category of the error.
 | 0, 1        | No error, informational only |
 | 2           | Physical disk error          |
 | 3           | Error parsing the command    |
-| 4           | unused                       |
+| 4           | Controller error (CMD only)  |
 | 5           | Relative file related error  |
 | 6           | File error                   |
 | 7           | Generic disk or device error |
+| 8, 9        | unused                       |
 
 Note that a program cannot rely on any of these strings, just on the codes.
 
@@ -321,13 +322,17 @@ run
 
 Practically all features described so far are supported on all but the very first (1.x) Commodore devices. Third party devices also generally support even the low-level and code execution APIs, even though these APIs require knowledge of the differences in the architecture of the interface.
 
-With the advent of "Fast Serial" devices, the APIs were significantly extended. Devices by Creative Micro Devices (CMD) added their own extensions as well.
+With the advent of "Fast Serial" devices, the APIs were significantly extended. Devices by CMD added their own extensions as well.
 
 ### 1541
+
+XXX
 
 * U0+/-
 
 ### 1571
+
+XXX
 
 * new commands
 	* "U0>S" + CHR$(SECTOR INTERLEAVE)
@@ -343,27 +348,31 @@ With the advent of "Fast Serial" devices, the APIs were significantly extended. 
 
 ### 1581
 
-* partitions (`CBM`)
-	* "/" (create sub-partition)
-	* "/" (change sub-partition)
+The 1581 adds support for partitions. They occupy any number of contiguous sectors, are treated as files by the root filesystem (type `CBM`) and can be arbitrarily nested.
 
 | Name           | Syntax                                                | Description                     |
 |----------------|-------------------------------------------------------|---------------------------------|
-| PARTITION      | `/`[_drv_][`:`_name_[`,`_track_ _sector_ _count_lo_ _count_hi_ `,C`]] | Select/create partition |
+| PARTITION      | `/`[_drv_][`:`_name_]                                 | Select partition |
+| PARTITION      | `/`[_drv_]`:`_name_`,`_track_ _sector_ _count_lo_ _count_hi_ `,C` | Create partition |
 
-### CMD
+### CMD Devices
+
+Floppy drives and hard drives by Creative Micro Devices (CMD) support all 1581 commands and features, and have some additions of their own.
 
 #### CMD-style partitions
-	* partitions = drives; 0 = current
+
+Independently of 1581 partitions, CMD devices have "native" partitions that cannot be nested. There is a global partition table on disk.
 
 | Name           | Syntax                                                | Description                     |
 |----------------|-------------------------------------------------------|---------------------------------|
-| CREATE PARTITION | `CP` XXX | XXX |
-| GET PARTITION  | `GP` XXX | XXX |
-| RENAME-PARTITION | `R-P` XXX | XXX |
-| RENAME-HEADER  | `R-H` XXX | XXX |
+| CHANGE PARTITION | `CP` _num_                                          | Make a partition the default    |
+| GET PARTITION  | `GP` _num_                                            | Get information about partition |
+| RENAME-PARTITION | `R-P:`_new_name_`=`_old_name_                       | Rename a partition              |
+| RENAME-HEADER  | `R-H`[_drv_]`:`_new_name_                             | Rename a filesystem             |
 
 #### Sub-Directories
+
+CMD devices also add subdirectory support.
 
 | Name           | Syntax                                                | Description                     |
 |----------------|-------------------------------------------------------|---------------------------------|
@@ -372,6 +381,8 @@ With the advent of "Fast Serial" devices, the APIs were significantly extended. 
 | REMOVE DIRECTORY | `RD`[_drv_]`:`_name_                                | Delete a sub-directory          |
 
 #### Real-Time Clock
+
+Some CMD devices have a real-time clock that can be read and written in multiple formats.
 
 | Name           | Syntax                                                | Description                     |
 |----------------|-------------------------------------------------------|---------------------------------|
@@ -382,7 +393,9 @@ With the advent of "Fast Serial" devices, the APIs were significantly extended. 
 | TIME READ BCD  | `T-RB`                                                | Read Time/Date (BCD)            |
 | TIME WRITE BCD | `T-WB` _b0_ _b1_ _b2_ _b3_ _b4_ _b5_ _b6_ _b7_ _b8_   | Write Time/Date (BCD)           |
 
-#### Other
+#### Misc
+
+And finally, there are some miscellaneous new commands.
 
 | Name           | Syntax                                                | Description                     |
 |----------------|-------------------------------------------------------|---------------------------------|
@@ -392,12 +405,26 @@ With the advent of "Fast Serial" devices, the APIs were significantly extended. 
 | SCSI COMMAND   | `S-C` _scsi_dev_num_ _buf_ptr_lp_ _buf_ptr_hi_ _num_bytes_ | Send SCSI Command (HD only) |
 | SWAP           | `S-`{`8`&#x7c;`9`&#x7c;`D`}                           | Change primary address          |
 
+#### Syntax Additions
+
+* partitions
+	* Partition numbers can be used in place of drive numbers in all file specifiers and commands. Partition 0 is the current partition.
+* directories
 * more options for directory listings
 	* partition directory
 
-### CBDOS
+### C65 Disk Drive
 
-* based on CMD-style partitions
+For the C65 disk drive, support for CMD-style partitions and sub-directories was planned, but never implemented. None of the other commands added by CMD are supported, but the DOS of the C65 drive has some additions of its own:
+
+| Name           | Syntax                                                | Description                     |
+|----------------|-------------------------------------------------------|---------------------------------|
+| FILE LOCK      | `F-L`[_drv_]`:`_name_[`,`...]                         | Enable file write-protect       |
+| FILE UNLOCK    | `F-U`[_drv_]`:`_name_[`,`...]                         | Disable file write-protect      |
+| FILE RESTORE   | `F-R`[_drv_]`:`_name_[`,`...]                         | Restore a deleted file          |
+|                | `U0>D`_inc_                                           | Set directory interleave        |
+|                | `U0>?`_pa_                                            | Set unit primary address        |
+|                | `U0>L`_flag_                                          | Large REL file support on/off   |
 
 ## Extra: Printers
 
