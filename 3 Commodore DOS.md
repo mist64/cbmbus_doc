@@ -17,9 +17,13 @@ The Commodore DOS API defines the meaning of channel numbers, channel names in t
 
 In contrast to all other articles of the series, this one is only meant as a conceptual overview of the design and not as a complete reference. The respective user manuals of Commodore and CMD disk drives are already very good references.
 
-## Overview
+## Concepts
+
+### Units and Drives
 
 What is usually called a disk drive and is associated with a primary address is actually a **unit**, because a unit can have more than one drive in its enclosure, like two mechanisms for two diskettes. Drives are numbered starting with 0, and there is no upper limit to the number of drives.
+
+### Files
 
 Every drive has its own independent filesystem. A filesystem has a name, a two-character ID, and contains an unsorted set of files. All files have a unique **name** and a file **type**, and have to be at least one byte in size[^1].
 
@@ -36,13 +40,15 @@ There are four file types (`SEQ`, `PRG`, `USR` and `REL`) that fall into two cat
 
 While the interface to DOS often requres to specify the file type, it is not part of a file's identifier, i.e. there can not be two files with the same name but just a different type.
 
-XXX low-level API: blocks, tracks, sectors, buffers
-
-## Wildcards
+### Wildcards
 
 Some interfaces features permit using wildcard characters:
 * A question mark ("`?`") matches any character.
 * An asterisk ("`*`") matches zero or more characters. Characters in the pattern after the asterisk are ignored.
+
+### Blocks
+
+There is a set of lower-level APIs that allows reading and writing individual blocks (of 256 bytes) and marking them as allocated or free in the disk's metadata. For certain use cases, this does not require an understanding of any of the disk's internal data structures.
 
 ## Channel Numbers
 
@@ -223,9 +229,11 @@ While a relative file is open, a command on the command channel is used to posit
 
 ### Direct Access Commands
 
-The direct access commands require a direct access buffer to be allocated ("`#`"). The `U1` and `U2` commands allows reading a block into the buffer and writing the buffer into a block. Reading from the channel will read from the buffer and writing to the channel will write to it. Both operations will advance the buffer pointer, which can be set to an explicit offset using the "`B-P`" command.
+The direct access commands require a direct access buffer to be allocated ("`#`"). The `U1` and `U2` commands allow reading a block into the buffer and writing the buffer into a block. Reading from the channel will read from the buffer and writing to the channel will write to it. Both operations will advance the buffer pointer, which can be set to an explicit offset using the "`B-P`" command.
 
 The `B-R` and `B-W` commands are deceptive: The names suggest they are general-purpose block read/write commands, but they assume a certain data format of the blocks: The first byte is the block's buffer pointer. When writing a block, the current buffer pointer will be put into it, signaling how many valid bytes are contained in the block. When reading, it marks the end of the buffer that cannot be read past[^8].
+
+Commodore DOS specifies that all devices have logical blocks that are 256 bytes in size and are addressed by an 8 bit track number (starting from 1) and an 8 bit sector number (starting from 1)[^9].
 
 All arguments are decimal ASCII values and can be separated by a space, a comma or a code `0x1d` (ASCII "Group Separator", PETSCII "Cursor Right"). The command name and the first argument have to be separated by any of the above or a colon.
 
@@ -266,10 +274,7 @@ The arguments are binary-encoded bytes.
 
 ### Utility Loader Command
 
-The utility loader command instructs the unit to load a file into its RAM and execute it. The file has to follow a certain format and contains checksums.
-
-[^9]
-
+The utility loader command instructs the unit to load a file into its RAM and execute it. The file has to follow a certain format and contains checksums[^10].
 
 | Name           | Syntax                                                | Description                     |
 |----------------|-------------------------------------------------------|---------------------------------|
@@ -408,4 +413,6 @@ run
 
 [^8]: Many [sources](https://spiro.trikaliotis.net/Book#vic1541) describe the "`B-R`" and "`B-W`" commands as buggy because their behavior didn't seem to make sense and the explanation seemed to have been missing from common forms of documentation. Where they are documented, they are called the "random access files" commands, for a third type of file (next to sequential and relative) that was based on the user keeping track of allocation and linking, but using the "first byte holds block pointer" format provided by these commands.
 
-[^9]: The feature has existed in all Commodore drives [since the release of the 1540](https://github.com/mist64/cbmsrc/blob/master/DOS_1540/utlodr), but they only started documenting it with the 1551 drive, and never documented the actual file format or the algorithm for the required checksum. The 1540, early 1541 drives, the 8250/8050/4040 with DOS V2.7 as well as the D9060/D9090 hard disks supported the also undocumented "boot clip": a device that grounds certain pins on the data connector and will force the unit to execute the first file on disk. All this hints at this mostly being a feature that was used in-house.
+[^9]: On disks that do not use Commodore's native "GCR" bit encoding (e.g. CBM 8280, D9060/D9090, 1581, the C65 drive and all drives by CMD), the physical layout doesn't match the logical layout, i.e. the medium may have a different sector size or track/sector(/head) numbering. On the CMD HD, the track and sector numbers are interpreted as a linear block address, and the constraint of 255 tracks and 256 sectors of 256 bytes limited the maximum partition size to just under 16 MB.
+
+[^10]: The feature has existed in all Commodore drives [since the release of the 1540](https://github.com/mist64/cbmsrc/blob/master/DOS_1540/utlodr), but they only started documenting it with the 1551 drive, and never documented the actual file format or the algorithm for the required checksum. The 1540, early 1541 drives, the 8250/8050/4040 with DOS V2.7 as well as the D9060/D9090 hard disks supported the also undocumented "boot clip": a device that grounds certain pins on the data connector and will force the unit to execute the first file on disk. All this hints at this mostly being a feature that was used in-house.
