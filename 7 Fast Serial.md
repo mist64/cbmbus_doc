@@ -93,3 +93,4 @@
 * Burst
 	* TODO
 
+http://the-cbm-files.tripod.com/diskdrive/h1571.htm

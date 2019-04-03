@@ -262,8 +262,6 @@ The argument encoding is the same as for direct access.
 
 The memory commands allow reading and writing device memory as well as executing code in the context of the interface CPU. This CPU is usually a 6502 derivative, but executing code is highly device-specific in any case.
 
-The `U` commands execute device-specific vectors in a designated buffer or in expansion ROM, if available.
-
 The resulting bytes from the "`M-R`" command will be delivered through channel 15 in place of the status string.
 
 The arguments are binary-encoded bytes.
@@ -273,7 +271,6 @@ The arguments are binary-encoded bytes.
 | MEMORY-WRITE   | `M-W` _addr_lo_ _addr_hi_ _count_ _data_              | Write RAM                       |
 | MEMORY-READ    | `M-R` _addr_lo_ _addr_hi_ _count_                     | Read RAM                        |
 | MEMORY-EXECUTE | `M-E` _addr_lo_ _addr_hi_                             | Execute code                    |
-| U3-U8/UC-UH    | `U3`-`U8`                                             | Execute code through jump table |
 
 ### Utility Loader Command
 
@@ -283,12 +280,21 @@ The utility loader command instructs the unit to load a file into its RAM and ex
 |----------------|-------------------------------------------------------|---------------------------------|
 | UTILITY LOADER | `&`[[_drv_]`:`]_name_                                 | Load and execute program        |
 
-### RESET Commands
+### USER Commands
 
-There is a soft and a hard reset command. In both cases, the status will read back code 73.
+The `USER` commands were meant to give the user a command interface that calls uploaded code or code in expansion ROM (if available).
+
+The commands `U1` to `U9` and `U:` (and their synonyms `U1` to `U:`) execute code through a jump table. There is a default jump table that can be replaced using a device-specific `M-W` command, and reset to the default using `U0`.
+
+The default jump table contains the already discussed `U1` and `U2` commands for reading and writing blocks[^11]. `U3` to `U8` jump into some useful device-specific locations. On most devices, all these jumps point into the user buffer, on some older devices, some jumps point into expansion ROM.
+
+The commands `U9` and `U:` execute a soft and a hard reset, respectively. In both cases, the status will read back code 73.
 
 | Name           | Syntax                                                | Description                     |
 |----------------|-------------------------------------------------------|---------------------------------|
+| U0             | `U0`                                                  | Init user vectors               |
+| U1-U2/UA-UB    | (see above)                                           | Raw read/write of a block       |
+| U3-U8/UC-UH    | `U3` - `U8`                                           | Execute in user buffer or expansion ROM |
 | U9/UI          | `UI`                                                  | Soft RESET (NMI)                |
 | U:/UJ          | `UJ`                                                  | Hard RESET                      |
 
@@ -326,34 +332,56 @@ With the advent of "Fast Serial" devices, the APIs were significantly extended. 
 
 ### 1541
 
+For the 1541, the timing of the layer 2 Serial protocol was updated to support the C64
+
 XXX
 
 * U0+/-
 
 ### 1571
 
-XXX
+The 1571 adds several new generic commands:
 
-* new commands
-	* "U0>S" + CHR$(SECTOR INTERLEAVE)
-	* "U0>R" + CHR$(RETRIES)
-	* "U0>T" test rom checksum
-	* "U0>M1" = 1571 MODE
-	* "U0>M0" = 1541 MODE
-	* "U0>H0" = SIDE ZERO
-	* "U0>H1" = SIDE ONE (1541 mode only)
-	* "U0>" + CHR$(#DEV), where #DEV = 4 - 30
-* burst commands
-	* XXX
+| Name           | Syntax                                                | Description                     |
+|----------------|-------------------------------------------------------|---------------------------------|
+| USER           | `U0>S` _val_                                          | Set sector interleave           |
+| USER           | `U0>R` _num_                                          | Set number fo retries           |
+| USER           | `U0>T`                                                | Test ROM checksum               |
+| USER           | `U0>` + CHR$(#DEV), where #DEV = 4 - 30
+
+XXX they're U0 because it was easy to add them to the 1571 without changing the ROM layout too much
+
+The following two additions are 1571-specific:
+
+| Name           | Syntax                                                | Description                     |
+|----------------|-------------------------------------------------------|---------------------------------|
+| USER           | `U0>M` _flag_                                         | Enable/disable 1541 emulation mode|
+| USER           | `U0>H` _number_                                       | Select head 0/1                 |
+
+
+XXX burst commands
+* only support drives 0 and 1
 
 ### 1581
 
-The 1581 adds support for partitions. They occupy any number of contiguous sectors, are treated as files by the root filesystem (type `CBM`) and can be arbitrarily nested.
+In addition to all generic 1571 commands, the 1581 adds support for partitions. They occupy any number of contiguous sectors, are treated as files by the root filesystem (type `CBM`) and can be arbitrarily nested.
 
 | Name           | Syntax                                                | Description                     |
 |----------------|-------------------------------------------------------|---------------------------------|
 | PARTITION      | `/`[_drv_][`:`_name_]                                 | Select partition |
 | PARTITION      | `/`[_drv_]`:`_name_`,`_track_ _sector_ _count_lo_ _count_hi_ `,C` | Create partition |
+
+And there are a few more generic commands:
+
+| Name           | Syntax                                                | Description                     |
+|----------------|-------------------------------------------------------|---------------------------------|
+| USER           | `U0>B` _flag_                                         | Enable/disable Fast Serial      |
+| USER           | `U0>V` _flag_                                         | Enable/disable verify           |
+| USER           | `U0>I` _val_                                          | Set Serial timeout value        |
+| USER           | `U0>MR` _addr_hi_ _count_hi_                          | Read RAM (Burst protocol)       |
+| USER           | `U0>MW` _addr_hi_ _count_hi_                          | Write RAM (Burst protocol)      |
+
+;	"U0>I"+CHR$(IEEE_TIMEOUT_VALUE)
 
 ### CMD Devices
 
@@ -422,9 +450,9 @@ For the C65 disk drive, support for CMD-style partitions and sub-directories was
 | FILE LOCK      | `F-L`[_drv_]`:`_name_[`,`...]                         | Enable file write-protect       |
 | FILE UNLOCK    | `F-U`[_drv_]`:`_name_[`,`...]                         | Disable file write-protect      |
 | FILE RESTORE   | `F-R`[_drv_]`:`_name_[`,`...]                         | Restore a deleted file          |
-|                | `U0>D`_inc_                                           | Set directory interleave        |
-|                | `U0>?`_pa_                                            | Set unit primary address        |
-|                | `U0>L`_flag_                                          | Large REL file support on/off   |
+| USER           | `U0>D`_val_                                           | Set directory sector interleave |
+| USER           | `U0>?`_pa_                                            | Set unit primary address        |
+| USER           | `U0>L`_flag_                                          | Large REL file support on/off   |
 
 ## Extra: Printers
 
@@ -437,6 +465,7 @@ For the C65 disk drive, support for CMD-style partitions and sub-directories was
 * http://www.softwolves.pp.se/idoc/alternative/vc1541_de/
 * Schramm, K.: [Die Floppy 1541](https://spiro.trikaliotis.net/Book#vic1541). Haar bei München: Markt-und-Technik-Verlag, 1985. ISBN 3-89090-098-4
 * Inside Commodore DOS
+* http://the-cbm-files.tripod.com/diskdrive/1571-6.txt
 * 8061UsersManual.pdf
 * cbm4031.pdf
 * CBM\ 2040-3040-4040-8050\ Disk\ Drive\ Manual.pdf
@@ -500,8 +529,10 @@ run
 
 [^7]: Commodore DOS breaks the layer 3 convention in this case. An `UNLISTEN` event does not signal the termination of a byte stream, it should merely pause it.
 
-[^8]: [Many](http://mirror.thelifeofkenneth.com/sites/remotecpu.com/Commodore/Reference%20Material/Books/Commodore%20Peripheral%20Reference/1541%20Users%20Guide.pdf) [sources](https://spiro.trikaliotis.net/Book#vic1541) describe the "`B-R`" and "`B-W`" commands as buggy because their behavior didn't seem to make sense and the explanation seemed to have been missing from common forms of documentation. Where they are documented, they are called the "random access files" commands, for a third type of file (next to sequential and relative) that was based on the user keeping track of allocation and linking, but using the "first byte holds block pointer" format provided by these commands.
+[^8]: [Many]( http://mirror.thelifeofkenneth.com/sites/remotecpu.com/Commodore/Reference%20Material/Books/Commodore%20Peripheral%20Reference/1541%20Users%20Guide.pdf) [sources](https://spiro.trikaliotis.net/Book#vic1541) describe the "`B-R`" and "`B-W`" commands as buggy because their behavior didn't seem to make sense and the explanation seemed to have been missing from common forms of documentation. Where they are documented, they are called the "random access files" commands, for a third type of file (next to sequential and relative) that was based on the user keeping track of allocation and linking, but using the "first byte holds block pointer" format provided by these commands.
 
 [^9]: On disks that do not use Commodore's native "GCR" bit encoding (e.g. CBM 8280, D9060/D9090, 1581, the C65 drive and all drives by CMD), the physical layout doesn't match the logical layout, i.e. the medium may have a different sector size or track/sector(/head) numbering. On the CMD HD, the track and sector numbers are interpreted as a linear block address, and the constraint of 255 tracks and 256 sectors of 256 bytes limited the maximum partition size to just under 16 MB.
 
 [^10]: The feature has existed in all Commodore drives [since the release of the 1540](https://github.com/mist64/cbmsrc/blob/master/DOS_1540/utlodr), but they only started documenting it with the 1551 drive, and never documented the actual file format or the algorithm for the required checksum. The 1540, early 1541 drives, the 8250/8050/4040 with DOS V2.7 as well as the D9060/D9090 hard disks supported the also undocumented "boot clip": a device that grounds certain pins on the data connector and will force the unit to execute the first file on disk. All this hints at this mostly being a feature that was used in-house.
+
+[^11]: `U1` and `U2` were added in a firmware update to the Commodore 4040 drive because of bugs in `B-R` and `B-W` in version 2.1. They were probably added as `USER` commands as opposed to proper commands (or fixing the broken commands) in order to keep the changes to the new ROM version contained to one ROM chip. Later drives retained this feature.
