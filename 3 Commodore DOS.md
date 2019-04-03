@@ -2,7 +2,7 @@
 
 In the [series about the variants of the Commodore Peripheral Bus family](https://www.pagetable.com/?p=1018), this article covers the common layer 4: The "Commodore DOS" interface to disk drives.
 
-XXX list of Commodore drives
+Commodore DOS provides file as well as direct block access APIs, and is supported by all floppy disk and hard disk drives for the Commodore 8 bit family (such as the well-known 1541), independently of the connectors and byte transfer protocols on the lower layers of the protocol stack.
 
 ![](docs/cbmbus/layer4.png =601x251)
 
