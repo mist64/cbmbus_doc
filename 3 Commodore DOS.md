@@ -6,16 +6,16 @@ Commodore DOS provides file as well as direct block access APIs, and is supporte
 
 ![](docs/cbmbus/layer4.png =601x251)
 
-From a device's point of view, the layer below, layer 3 ("TALK/LISTEN") provides the following:
+From a device's point of view, the layer below, layer 3 ("TALK/LISTEN") defines the following:
 
 * A device has 32 channels (a.k.a. secondary addresses, 0-31).
 * A channel (0-15) can be associated with a name and dissociated from it again.
 * A device can send byte streams from channels.
 * A device can receive byte streams into channels.
 
-The Commodore DOS API defines the meaning of channel numbers, channel names in the context of disk drives. This article covers the common feature set of Commodore DOS since version 2.0, extensions will be described at the end of the article.
+The Commodore DOS API defines the meaning of channel numbers, channel names and the data traveling over channels in the context of disk drives. This article covers the common feature set of Commodore DOS since version 2.0, extensions will be described at the end of the article.
 
-In contrast to all other articles of the series, this one is only meant as a conceptual overview of the design and not as a complete reference. The respective user manuals of Commodore and CMD disk drives are already very good references.
+Contrary to the other articles of the series, this one is only meant as a conceptual overview of the design and not as a complete reference. The respective user manuals of Commodore and CMD disk drives are already very good references.
 
 ## Concepts
 
@@ -259,7 +259,9 @@ The argument encoding is the same as for direct access.
 
 ### Memory Commands
 
-The memory commands allow reading and writing device memory as well as executing code in the context of the interface CPU. The `U` commands execute device-specific vectors in a designated buffer or in expansion ROM, if available.
+The memory commands allow reading and writing device memory as well as executing code in the context of the interface CPU. This CPU is usually a 6502 derivative, but executing code is highly device-specific in any case.
+
+The `U` commands execute device-specific vectors in a designated buffer or in expansion ROM, if available.
 
 The resulting bytes from the "`M-R`" command will be delivered through channel 15 in place of the status string.
 
@@ -315,30 +317,87 @@ There is a soft and a hard reset command. In both cases, the status will read ba
 run
 -->
 
-## optional features
+## Optional Features
 
-* consistent feature set on
-	* all IEEE-488 drives (e.g. 2040 [1978], D9060/D9090 HD, SFD 1001 [1985])
-	* 1540, 1541(-C, -II), 1551; 1541 clones
-* later "Fast Serial" devices had additions
+Practically all features described so far are supported on all but the very first (1.x) Commodore devices. Third party devices also generally support even the low-level and code execution APIs, even though these APIs require knowledge of the differences in the architecture of the interface.
+
+With the advent of "Fast Serial" devices, the APIs were significantly extended. Devices by Creative Micro Devices (CMD) added their own extensions as well.
+
+### 1541
+
+* U0+/-
 
 ### 1571
 
+* new commands
+	* "U0>S" + CHR$(SECTOR INTERLEAVE)
+	* "U0>R" + CHR$(RETRIES)
+	* "U0>T" test rom checksum
+	* "U0>M1" = 1571 MODE
+	* "U0>M0" = 1541 MODE
+	* "U0>H0" = SIDE ZERO
+	* "U0>H1" = SIDE ONE (1541 mode only)
+	* "U0>" + CHR$(#DEV), where #DEV = 4 - 30
 * burst commands
+	* XXX
 
 ### 1581
 
 * partitions (`CBM`)
+	* "/" (create sub-partition)
+	* "/" (change sub-partition)
 
 | Name           | Syntax                                                | Description                     |
 |----------------|-------------------------------------------------------|---------------------------------|
 | PARTITION      | `/`[_drv_][`:`_name_[`,`_track_ _sector_ _count_lo_ _count_hi_ `,C`]] | Select/create partition |
 
 ### CMD
-* CMD-style partitions
-* subdirectories (`DIR`), CMD
-* real-time clock
-* lots of commands
+
+#### CMD-style partitions
+	* partitions = drives; 0 = current
+
+| Name           | Syntax                                                | Description                     |
+|----------------|-------------------------------------------------------|---------------------------------|
+| CREATE PARTITION | `CP` XXX | XXX |
+| GET PARTITION  | `GP` XXX | XXX |
+| RENAME-PARTITION | `R-P` XXX | XXX |
+| RENAME-HEADER  | `R-H` XXX | XXX |
+
+#### Sub-Directories
+
+| Name           | Syntax                                                | Description                     |
+|----------------|-------------------------------------------------------|---------------------------------|
+| CHANGE DIRECTORY | `CD`[_drv_]`:`_name_                                | Change the current sub-directory|
+| MAKE DIRECTORY | `MD`[_drv_]`:`_name_                                  | Create a sub-directory          |
+| REMOVE DIRECTORY | `RD`[_drv_]`:`_name_                                | Delete a sub-directory          |
+
+#### Real-Time Clock
+
+| Name           | Syntax                                                | Description                     |
+|----------------|-------------------------------------------------------|---------------------------------|
+| TIME READ ASCII | `T-RA`                                               | Read Time/Date (ASCII)          |
+| TIME WRITE ASCII | `T-WA` _dow_ _mo_`/`_da_`/`_yr_ _hr_`:`_mi_`:`_se_ _ampm_ | Write Time/Date (ASCII)   |
+| TIME READ DECIMAL | `T-RD`                                             | Read Time/Date (Decimal)        |
+| TIME WRITE DECIMAL | `T-WD` _b0_ _b1_ _b2_ _b3_ _b4_ _b5_ _b6_ _b7_    | Write Time/Date (Decimal)       |
+| TIME READ BCD  | `T-RB`                                                | Read Time/Date (BCD)            |
+| TIME WRITE BCD | `T-WB` _b0_ _b1_ _b2_ _b3_ _b4_ _b5_ _b6_ _b7_ _b8_   | Write Time/Date (BCD)           |
+
+#### Other
+
+| Name           | Syntax                                                | Description                     |
+|----------------|-------------------------------------------------------|---------------------------------|
+| LOCK           | `L`[_drv_]`:`_name_                                   | Toggle file write protect       |
+| WRITE PROTECT  | `W-`{`0`&#x7c;`1`}                                    | Set/unset device write protect  |
+| GET DISKCHANGE | `G-D`                                                 | Query disk change (FD only)     |
+| SCSI COMMAND   | `S-C` _scsi_dev_num_ _buf_ptr_lp_ _buf_ptr_hi_ _num_bytes_ | Send SCSI Command (HD only) |
+| SWAP           | `S-`{`8`&#x7c;`9`&#x7c;`D`}                           | Change primary address          |
+
+* more options for directory listings
+	* partition directory
+
+### CBDOS
+
+* based on CMD-style partitions
 
 ## Extra: Printers
 
@@ -356,12 +415,15 @@ run
 * CBM\ 2040-3040-4040-8050\ Disk\ Drive\ Manual.pdf
 * commodore_vic_1541_floppy_drive_users_manual.pdf
 * https://www.lyonlabs.org/commodore/onrequest/cmd/CMD_Hard_Drive_Users_Manual.pdf
+* cmd_fd-2000_manual.pdf
 * http://commodore64.se/wiki/index.php/1541_tricks#Utility_loader_.28.22.26.22_command.29
 * ftp://www.zimmers.net/pub/cbm/manuals/printers/MPS-801_Printer_Users_Manual.pdf
 
 <!---
 
 ### Notes
+
+XXX U0 on 1540/1541?
 
 10 open 1,8,15,"ui"
 20 get#1,a$:?a$;:ifa$<>chr$(13)goto20
@@ -411,7 +473,7 @@ run
 
 [^7]: Commodore DOS breaks the layer 3 convention in this case. An `UNLISTEN` event does not signal the termination of a byte stream, it should merely pause it.
 
-[^8]: Many [sources](https://spiro.trikaliotis.net/Book#vic1541) describe the "`B-R`" and "`B-W`" commands as buggy because their behavior didn't seem to make sense and the explanation seemed to have been missing from common forms of documentation. Where they are documented, they are called the "random access files" commands, for a third type of file (next to sequential and relative) that was based on the user keeping track of allocation and linking, but using the "first byte holds block pointer" format provided by these commands.
+[^8]: [Many](http://mirror.thelifeofkenneth.com/sites/remotecpu.com/Commodore/Reference%20Material/Books/Commodore%20Peripheral%20Reference/1541%20Users%20Guide.pdf) [sources](https://spiro.trikaliotis.net/Book#vic1541) describe the "`B-R`" and "`B-W`" commands as buggy because their behavior didn't seem to make sense and the explanation seemed to have been missing from common forms of documentation. Where they are documented, they are called the "random access files" commands, for a third type of file (next to sequential and relative) that was based on the user keeping track of allocation and linking, but using the "first byte holds block pointer" format provided by these commands.
 
 [^9]: On disks that do not use Commodore's native "GCR" bit encoding (e.g. CBM 8280, D9060/D9090, 1581, the C65 drive and all drives by CMD), the physical layout doesn't match the logical layout, i.e. the medium may have a different sector size or track/sector(/head) numbering. On the CMD HD, the track and sector numbers are interpreted as a linear block address, and the constraint of 255 tracks and 256 sectors of 256 bytes limited the maximum partition size to just under 16 MB.
 

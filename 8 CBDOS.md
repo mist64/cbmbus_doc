@@ -11,4 +11,5 @@
 * DOS runs on main CPU
 * IEC calls are going to CBDOS drive first, and if failure, to IEC
 
+* is the second drive unit 9, or unit 8 drive 1?
 
