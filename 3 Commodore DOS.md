@@ -241,6 +241,8 @@ All arguments for these commands are text. Except for the duplicate command, all
 | LOCK           | `L`[_drv_]`:`_name_                                   | Toggle file write protect       |
 | WRITE PROTECT  | `W-`{`0`&#x7c;`1`}                                    | Set/unset device write protect  |
 
+XXX footnote: JiffyDOS supports "L" on the client-side.
+
 * C65
 
 | Name           | Syntax                                                | Description                     |
@@ -249,6 +251,12 @@ All arguments for these commands are text. Except for the duplicate command, all
 | FILE UNLOCK    | `F-U`[_drv_]`:`_name_[`,`...]                         | Disable file write-protect      |
 | FILE RESTORE   | `F-R`[_drv_]`:`_name_[`,`...]                         | Restore a deleted file          |
 
+* 1541U
+
+    @m:d64	mount .d64 file (1541ultimate) 
+    @md:d64	create empty d64 image file (1541ultimate)
+
+
 ### Command for Relative Files
 
 While a relative file is open, a command on the command channel is used to position the read/write pointer to a particular record. The arguments are four binary-encoded bytes.
@@ -256,6 +264,8 @@ While a relative file is open, a command on the command channel is used to posit
 | Name           | Syntax                                                | Description                     |
 |----------------|-------------------------------------------------------|---------------------------------|
 | POSITION       | `P` _channel_ _record_lo_ _record_hi_ _offset_        | Set record index in REL file    |
+
+XXX SD2IEC: works on sequential files if stored on FAT
 
 ### 1581-style partitions
 
@@ -287,6 +297,7 @@ CMD devices also add subdirectory support.
 | MAKE DIRECTORY | `MD`[_drv_]`:`_name_                                  | Create a sub-directory          |
 | REMOVE DIRECTORY | `RD`[_drv_]`:`_name_                                | Delete a sub-directory          |
 
+* XXX SD2IEC: "CD:" can mount a D64
 
 ## Block-Level API
 
@@ -312,6 +323,10 @@ run
 
 The buffer stays allocated as long as the named channel is open. The "`B-R`", "`B-W`", "`B-P`", "`U1`" and "`U2`" commands on the command channel take the channel number of the buffer as an argument.
 
+XXX buffer pointer defaults to 1 when creating and after B-R, and 0 after U1.
+
+XXX SD2IEC large buffers
+
 ### Direct Access Commands
 
 The direct access commands require a direct access buffer to be allocated ("`#`"). The `U1` and `U2` commands allow reading a block into the buffer and writing the buffer into a block. Reading from the channel will read from the buffer and writing to the channel will write to it. Both operations will advance the buffer pointer, which can be set to an explicit offset using the "`B-P`" command.
@@ -330,6 +345,8 @@ All arguments are decimal ASCII values and can be separated by a space, a comma 
 | BLOCK-READ     | `B-R` _channel_ _track_ _sector_                      | Read block                      |
 | BLOCK-WRITE    | `B-W` _channel_ _track_ _sector_                      | Write block                     |
 | BLOCK-EXECUTE  | `B-E` _channel_ _track_ _sector_                      | Load and execute a block        |
+
+XXX SD2IEC: B-P supports _index_hi_
 
 ### Block Availability Map Commands
 
@@ -394,8 +411,6 @@ XXX burst commands
 
 ## Extra API: Settings
 
-XXX where do they belong?
-
 * 1571+
 
 | Name           | Syntax                                                | Description                     |
@@ -431,6 +446,10 @@ And finally, there are some miscellaneous new commands.
 | SCSI COMMAND   | `S-C` _scsi_dev_num_ _buf_ptr_lp_ _buf_ptr_hi_ _num_bytes_ | Send SCSI Command (HD only) |
 | SWAP           | `S-`{`8`&#x7c;`9`&#x7c;`D`}                           | Change primary address          |
 
+* 1541U
+
+`K`: kill drive (1541ultimate)
+
 
 ## Extra API: Real-Time Clock
 
@@ -445,6 +464,7 @@ Some CMD devices have a real-time clock that can be read and written in multiple
 | TIME READ BCD  | `T-RB`                                                | Read Time/Date (BCD)            |
 | TIME WRITE BCD | `T-WB` _b0_ _b1_ _b2_ _b3_ _b4_ _b5_ _b6_ _b7_ _b8_   | Write Time/Date (BCD)           |
 
+XXX SD2IEC: T-RI/T-WI (ISO)
 
 ## Family-Specific Features
 
@@ -493,7 +513,11 @@ Floppy drives and hard drives by Creative Micro Devices (CMD) support all 1581 c
 
 XXX RAMLink
 
+### SD2IEC
 
+`X` commands:
+	* `XW`: make current pa permanent
+	* SD2IEC specific, changing -> see there
 
 ## Extra: Printers
 
@@ -524,6 +548,7 @@ XXX
 * ftp://www.zimmers.net/pub/cbm/manuals/peripherals/1764_Ram_Expansion_Module_Users_Guide.pdf
 * https://www.lyonlabs.org/commodore/onrequest/cmd/CMD_Hard_Drive_Users_Manual.pdf
 * cmd_fd-2000_manual.pdf
+* https://www.sd2iec.de/gitweb/?p=sd2iec.git;a=blob;f=README;hb=HEAD
 * http://commodore64.se/wiki/index.php/1541_tricks#Utility_loader_.28.22.26.22_command.29
 * ftp://www.zimmers.net/pub/cbm/manuals/printers/MPS-801_Printer_Users_Manual.pdf
 
