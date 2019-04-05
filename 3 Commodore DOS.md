@@ -17,65 +17,26 @@ The Commodore DOS API defines the meaning of channel numbers, channel names and 
 
 Contrary to the other articles of the series, this one is only meant as a conceptual overview of the design and not as a complete reference. The respective user manuals of Commodore and CMD disk drives are already very good references.
 
+
 ## Concepts
-
-### Units and Drives
-
-What is usually called a disk drive and is associated with a primary address is actually a **unit**, because a unit can have more than one drive in its enclosure, like two mechanisms for two diskettes. Drives are numbered starting with 0, and there is no upper limit to the number of drives.
-
-### XXX Communication Mechanisms
-
-* data channels
-	* 0-14
-	* always named
-	* used for 
-		* files
-		* directory listing
-		* direct I/O channel
-	
-* command channel
-	* 15
-	* not named
-	* send: command
-		* some commands include a data channel number for context
-	* read: status
-		* some commands return data on this channel
-
-### Files
-
-Every drive has its own independent filesystem. A filesystem has a name, a two-character ID, and contains an unsorted set of files. All files have a unique **name** and a file **type**, and have to be at least one byte in size[^1].
-
-DOS does not specify a maximum size for disk or file names, but the limit for all Commodore devices is 16 characters. There is also no specified character encoding: Names consist of 8 bit characters, and DOS does not interpret them. Names have very few limitations:
-
-* The comma, colon and `CR` (carriage return) characters are illegal in disk or file names (because of the encoding of channel names and commands).
-* The code `0xa0` (ISO 8859-1 non-breaking space, PETSCII shifted SPACE) is illegal in file names (it is used as the terminating character on disk).
-
-There are four file types (`SEQ`, `PRG`, `USR` and `REL`) that fall into two categories: sequential and relative.
-
-**Sequential files** only allow linear access, i.e. it is impossible to position the read or write pointer. They can be appended to though. There are three types of sequential files: `SEQ`, `PRG` and `USR`. They are treated the same by DOS, but the user convention is to store executable programs in PRG files and data into SEQ files.
-
-**Relative files** (`REL`) have a fixed record size of 1-254 bytes and allow positioning the read/write pointer to any record and thus allow random access.
-
-While the interface to DOS often requres to specify the file type, it is not part of a file's identifier, i.e. there can not be two files with the same name but just a different type.
-
-### Wildcards
-
-Some interfaces features permit using wildcard characters:
-* A question mark ("`?`") matches any character.
-* An asterisk ("`*`") matches zero or more characters. Characters in the pattern after the asterisk are ignored.
-
-### Blocks
 
 XXX
 * describe three APIs:
 	* level 1: file level API - for built-in data structures
 	* level 2: block level API - for custom optimized data structures
+		* There is a set of lower-level APIs that allows reading and writing individual blocks (of 256 bytes) and marking them as allocated or free in the disk's metadata. For certain use cases, this does not require an understanding of any of the disk's internal data structures.
 	* level 3: code execution - meant to extend the functionality
 	* burst
 
-There is a set of lower-level APIs that allows reading and writing individual blocks (of 256 bytes) and marking them as allocated or free in the disk's metadata. For certain use cases, this does not require an understanding of any of the disk's internal data structures.
+### Units and Drives
 
-## Channel Numbers
+What is usually called a disk drive and is associated with a primary address is actually a **unit**, because a unit can have more than one drive in its enclosure, like two mechanisms for two diskettes. Drives are numbered starting with 0, and there is no upper limit to the number of drives.
+
+XXX partitions
+
+### XXX Communication Mechanisms
+
+XXX
 
 | Channel | Description       |
 |---------|-------------------|
@@ -89,76 +50,29 @@ Channels 0 to 14 need to be associated with a name. 0 and 1 only support special
 
 While the underlying layers of the bus specifies channel numbers (secondary addressed) from 0 to 31, Commodore DOS does not support numbers 16-31.
 
-## Named Channels
+* data channels
+	* 0-14
+	* always named
+	* used for 
+		* files
+		* directory listing
+		* direct I/O channel
 
-Channels 0 to 14 need to be associated with names. Names are used to create channels for reading or writing a file, reading the directory listing and reading/writing blocks directly. Empty names are illegal.
+* command channel
+	* 15
+	* not named
+	* send: command
+		* some commands include a data channel number for context
+	* read: status
+		* some commands return data on this channel
 
-Channels 0 and 1 are special shortcuts to drive the cases below with less syntax:
-
-* Channel 0 is the `LOAD` channel: It forces a type of `PRG` and an access mode of "read". It works with regular files and the directory listing.
-* Channel 1 is the `SAVE` channel: It forces a type of `PRG` and an access mode of "write". It works with regular files only.
-
-### Files
-
-A named channel can be used to open a file for reading or writing. The syntax for the channel's name is as follows:
-
-[[`@`][_drive_]`:`]_filename_[`,`_type_[`,`_access_]]
-
-The core of the channel name is the name of the file to be accessed. If an existing file is opened, wildcards (see below) are allowed.
-
-There are optional prefixes and suffixes.
-
-* By default, drive 0 is assumed. This can be overridden by a leading drive number, followed by a colon[^2].
-
-* The modifier flag "`@`" specifies that the file is supposed to be overwritten, if it is opened for writing and it already exists[^3] - the default is to return an error. The use of "`@`", a drive number, or both, requires to add a colon character as a delimiter between the prefix and the filename.
-
-* By using the drive prefix (or just using a "`:`" prefix, it is possible to use filenames that start with "`$`" or "`#`". These letters would otherwise indicate special named channels (see next sections).
-
-* The file type is one of "`S`" (`SEQ`), "`P`" (`PRG`),  "`U`" (`USR`), or "`L`" (`REL`). If the type is omitted, `PRG` is assumed.
-
-* The _access_ byte depends on the file type: For `SEQ`, `PRG` and `USR`, a file can be opened for reading, by specifying "`R`", for writing using "`W`" and for appending using "`A`". The default is for reading. For relative files, the access byte is the binary-encoded record size. For creating a relative file, it must be specified, for opening an existing one, it can be omitted. Relative files are always open for reading _and_ writing.
-
-Sequential files can then be read from or written to, depending on the access type. Files opened for writing need to be closed again for all data structures on disk to be valid. Relative files allow reading and writing and do not have to be closed for the data on disk to be consistent. Positioning of the read/write pointer to a particular record is done using the command channel ("`P`" command, see below).
-
-### Directory Listing
-
-The "`$`" name is used to read the directory listing. This is the syntax:
-
-`$`[[_drive_]`:`][_pattern_[`,`...][`=`_type_]]
-
-Just using "`$`" as the name will return the complete directory contents of drive 0. Specifying the drive number, followed by a colon, will override this. Additionally, one or more file name patterns can be appended to filter which directory entries are returned. Finally, specifying "`=`" followed by a single-character file type specifier, will only show files of a particular type.
-
-The [format of the data returned is tokenized Microsoft BASIC](https://www.pagetable.com/?p=273).
-
-XXX only works on channel 0
-
-### Direct Access Buffer I/O
-
-The "`#`" name is used to allocate a block-sized buffer inside the device. This is the syntax:
-
-`#`[_buffer_number_]
-
-There are two use cases for allocated buffers:
-
-* When specifying a number, a particular buffer will be allocated, if available. This is useful for allocating a specific memory area in the device in order to upload code for execution. The mapping from buffer number to RAM address is device-specific - but so is the uploaded code: On a Commodore 1541, for example, buffer 2, which is located from `$0500` to `$05ff` in RAM, is the "user buffer". The "`U3`"-"`U8`" command channel commands are shortcuts to execute code in this buffer.
-* Without an explicit number, any free buffer in the device's RAM will be allocated. This is what you do to have a buffer for reading and writing blocks.
-
-<!--
-10 fori=0to10
-20 open2,8,2,"#"+str$(i)
-30 dos
-40 close2
-50 next
-run
--->
-
-The buffer stays allocated as long as the named channel is open. The "`B-R`", "`B-W`", "`B-P`", "`U1`" and "`U2`" commands on the command channel take the channel number of the buffer as an argument.
-
-## Command Channel
+#### Command Channel
 
 The command channel is always available as channel 15. When writing to it, the device interprets the byte stream as commands in a unified format. When reading from it, the byte stream from the device is usually status information in a unified format (with the exception of the reply to "`M-R`", see below).
 
-## Status
+##### Status
+
+XXX move most of this to the end
 
 The status information that is sent from channel 15 is a `CR`-delimited ASCII-encoded string with a uniform encoding:
 
@@ -205,7 +119,7 @@ The following BASIC program will read a single status message:
 	20 GET#1,A$: PRINT A$;: IF A$<>CHR$(13) GOTO 20
 	30 CLOSE 1
 
-## Commands
+##### Commands
 
 All commands are byte streams that are mostly ASCII/PETSCII, but with some binary arguments in some cases. There are two different ways to send them:
 
@@ -226,7 +140,80 @@ Alternatively, channel 15 can be opened as a named channel with the command as t
 
 In both cases, commands that don't contain binary arguments can also be terminated by the `CR` character.
 
-The following sections will give an overview of the different command categories.
+
+## File-Level API
+
+Every drive has its own independent filesystem. A filesystem has a name, a two-character ID, and contains an unsorted set of files. All files have a unique **name** and a file **type**, and have to be at least one byte in size[^1].
+
+DOS does not specify a maximum size for disk or file names, but the limit for all Commodore devices is 16 characters. There is also no specified character encoding: Names consist of 8 bit characters, and DOS does not interpret them. Names have very few limitations:
+
+* The comma, colon and `CR` (carriage return) characters are illegal in disk or file names (because of the encoding of channel names and commands).
+* The code `0xa0` (ISO 8859-1 non-breaking space, PETSCII shifted SPACE) is illegal in file names (it is used as the terminating character on disk).
+
+There are four file types (`SEQ`, `PRG`, `USR` and `REL`) that fall into two categories: sequential and relative.
+
+**Sequential files** only allow linear access, i.e. it is impossible to position the read or write pointer. They can be appended to though. There are three types of sequential files: `SEQ`, `PRG` and `USR`. They are treated the same by DOS, but the user convention is to store executable programs in PRG files and data into SEQ files.
+
+**Relative files** (`REL`) have a fixed record size of 1-254 bytes and allow positioning the read/write pointer to any record and thus allow random access.
+
+While the interface to DOS often requres to specify the file type, it is not part of a file's identifier, i.e. there can not be two files with the same name but just a different type.
+
+### Wildcards
+
+Some interfaces features permit using wildcard characters:
+* A question mark ("`?`") matches any character.
+* An asterisk ("`*`") matches zero or more characters. Characters in the pattern after the asterisk are ignored.
+
+XXX 1581/CMD Syntax Additions:
+* partitions
+	* Partition numbers can be used in place of drive numbers in all file specifiers and commands. Partition 0 is the current partition.
+* directories
+* more options for directory listings
+	* partition directory
+
+
+### Named Channels
+
+Channels 0 to 14 need to be associated with names. Names are used to create channels for reading or writing a file, reading the directory listing and reading/writing blocks directly. Empty names are illegal.
+
+Channels 0 and 1 are special shortcuts to drive the cases below with less syntax:
+
+* Channel 0 is the `LOAD` channel: It forces a type of `PRG` and an access mode of "read". It works with regular files and the directory listing.
+* Channel 1 is the `SAVE` channel: It forces a type of `PRG` and an access mode of "write". It works with regular files only.
+
+### Files
+
+A named channel can be used to open a file for reading or writing. The syntax for the channel's name is as follows:
+
+[[`@`][_drive_]`:`]_filename_[`,`_type_[`,`_access_]]
+
+The core of the channel name is the name of the file to be accessed. If an existing file is opened, wildcards (see below) are allowed.
+
+There are optional prefixes and suffixes.
+
+* By default, drive 0 is assumed. This can be overridden by a leading drive number, followed by a colon[^2].
+
+* The modifier flag "`@`" specifies that the file is supposed to be overwritten, if it is opened for writing and it already exists[^3] - the default is to return an error. The use of "`@`", a drive number, or both, requires to add a colon character as a delimiter between the prefix and the filename.
+
+* By using the drive prefix (or just using a "`:`" prefix, it is possible to use filenames that start with "`$`" or "`#`". These letters would otherwise indicate special named channels (see next sections).
+
+* The file type is one of "`S`" (`SEQ`), "`P`" (`PRG`),  "`U`" (`USR`), or "`L`" (`REL`). If the type is omitted, `PRG` is assumed.
+
+* The _access_ byte depends on the file type: For `SEQ`, `PRG` and `USR`, a file can be opened for reading, by specifying "`R`", for writing using "`W`" and for appending using "`A`". The default is for reading. For relative files, the access byte is the binary-encoded record size. For creating a relative file, it must be specified, for opening an existing one, it can be omitted. Relative files are always open for reading _and_ writing.
+
+Sequential files can then be read from or written to, depending on the access type. Files opened for writing need to be closed again for all data structures on disk to be valid. Relative files allow reading and writing and do not have to be closed for the data on disk to be consistent. Positioning of the read/write pointer to a particular record is done using the command channel ("`P`" command, see below).
+
+### Directory Listing
+
+The "`$`" name is used to read the directory listing. This is the syntax:
+
+`$`[[_drive_]`:`][_pattern_[`,`...][`=`_type_]]
+
+Just using "`$`" as the name will return the complete directory contents of drive 0. Specifying the drive number, followed by a colon, will override this. Additionally, one or more file name patterns can be appended to filter which directory entries are returned. Finally, specifying "`=`" followed by a single-character file type specifier, will only show files of a particular type.
+
+The [format of the data returned is tokenized Microsoft BASIC](https://www.pagetable.com/?p=273).
+
+XXX only works on channel 0
 
 ### Filesystem Commands
 
@@ -247,6 +234,21 @@ All arguments for these commands are text. Except for the duplicate command, all
 | COPY           | `C`_dst_drv_`=`_src_drv_                              | Copy all files between disk     |
 | DUPLICATE      | `D:`_dst_drv_``=``_src_drv_                           | Duplicate disk                  |
 
+* CMD
+ 
+| Name           | Syntax                                                | Description                     |
+|----------------|-------------------------------------------------------|---------------------------------|
+| LOCK           | `L`[_drv_]`:`_name_                                   | Toggle file write protect       |
+| WRITE PROTECT  | `W-`{`0`&#x7c;`1`}                                    | Set/unset device write protect  |
+
+* C65
+
+| Name           | Syntax                                                | Description                     |
+|----------------|-------------------------------------------------------|---------------------------------|
+| FILE LOCK      | `F-L`[_drv_]`:`_name_[`,`...]                         | Enable file write-protect       |
+| FILE UNLOCK    | `F-U`[_drv_]`:`_name_[`,`...]                         | Disable file write-protect      |
+| FILE RESTORE   | `F-R`[_drv_]`:`_name_[`,`...]                         | Restore a deleted file          |
+
 ### Command for Relative Files
 
 While a relative file is open, a command on the command channel is used to position the read/write pointer to a particular record. The arguments are four binary-encoded bytes.
@@ -254,6 +256,61 @@ While a relative file is open, a command on the command channel is used to posit
 | Name           | Syntax                                                | Description                     |
 |----------------|-------------------------------------------------------|---------------------------------|
 | POSITION       | `P` _channel_ _record_lo_ _record_hi_ _offset_        | Set record index in REL file    |
+
+### 1581-style partitions
+
+In addition to all generic 1571 commands, the 1581 adds support for partitions. They occupy any number of contiguous sectors, are treated as files by the root filesystem (type `CBM`) and can be arbitrarily nested.
+
+| Name           | Syntax                                                | Description                     |
+|----------------|-------------------------------------------------------|---------------------------------|
+| PARTITION      | `/`[_drv_][`:`_name_]                                 | Select partition |
+| PARTITION      | `/`[_drv_]`:`_name_`,`_track_ _sector_ _count_lo_ _count_hi_ `,C` | Create partition |
+
+### CMD-style partitions
+
+Independently of 1581 partitions, CMD devices have "native" partitions that cannot be nested. There is a global partition table on disk.
+
+| Name           | Syntax                                                | Description                     |
+|----------------|-------------------------------------------------------|---------------------------------|
+| CHANGE PARTITION | `CP` _num_                                          | Make a partition the default    |
+| GET PARTITION  | `GP` _num_                                            | Get information about partition |
+| RENAME-PARTITION | `R-P:`_new_name_`=`_old_name_                       | Rename a partition              |
+| RENAME-HEADER  | `R-H`[_drv_]`:`_new_name_                             | Rename a filesystem             |
+
+### Sub-Directories
+
+CMD devices also add subdirectory support.
+
+| Name           | Syntax                                                | Description                     |
+|----------------|-------------------------------------------------------|---------------------------------|
+| CHANGE DIRECTORY | `CD`[_drv_]`:`_name_                                | Change the current sub-directory|
+| MAKE DIRECTORY | `MD`[_drv_]`:`_name_                                  | Create a sub-directory          |
+| REMOVE DIRECTORY | `RD`[_drv_]`:`_name_                                | Delete a sub-directory          |
+
+
+## Block-Level API
+
+### Direct Access Buffer I/O
+
+The "`#`" name is used to allocate a block-sized buffer inside the device. This is the syntax:
+
+`#`[_buffer_number_]
+
+There are two use cases for allocated buffers:
+
+* When specifying a number, a particular buffer will be allocated, if available. This is useful for allocating a specific memory area in the device in order to upload code for execution. The mapping from buffer number to RAM address is device-specific - but so is the uploaded code: On a Commodore 1541, for example, buffer 2, which is located from `$0500` to `$05ff` in RAM, is the "user buffer". The "`U3`"-"`U8`" command channel commands are shortcuts to execute code in this buffer.
+* Without an explicit number, any free buffer in the device's RAM will be allocated. This is what you do to have a buffer for reading and writing blocks.
+
+<!--
+10 fori=0to10
+20 open2,8,2,"#"+str$(i)
+30 dos
+40 close2
+50 next
+run
+-->
+
+The buffer stays allocated as long as the named channel is open. The "`B-R`", "`B-W`", "`B-P`", "`U1`" and "`U2`" commands on the command channel take the channel number of the buffer as an argument.
 
 ### Direct Access Commands
 
@@ -284,6 +341,9 @@ The argument encoding is the same as for direct access.
 |----------------|-------------------------------------------------------|---------------------------------|
 | BLOCK-ALLOCATE | `B-A` _drive_ _track_ _sector_                        | Allocate a block in the BAM     |
 | BLOCK-FREE     | `B-F` _drive_ _track_ _sector_                        | Free a block in the BAM         |
+
+
+## Memory-Level API
 
 ### Memory Commands
 
@@ -325,39 +385,70 @@ The commands `U9` and `U:` execute a soft and a hard reset, respectively. In bot
 | U9/UI          | `UI`                                                  | Soft RESET (NMI)                |
 | U:/UJ          | `UJ`                                                  | Hard RESET                      |
 
-## limitations
 
-* 0 byte files don't exist
-* all Commodore drives:
-	* 0 and 1 byte files buggy
-	* read back as 13 0 2 13
-* CMD drives
-	* 0 byte files will have single 13
+## Burst API
 
-<--
-10 open 1,8,15,"ui"
-20 get#1,a$:?a$;:ifa$<>chr$(13)goto20
-30 close 1
-40 open 1,8,15,"s:test"
-50 get#1,a$:?a$;:ifa$<>chr$(13)goto50
-60 close 1
-70 open2,8,2,"test,p,w"
-75 print#2,"ab";
-80 close2
-90 open2,8,2,"test,p,r"
-100 fori=1to10
-110 get#2,a$:?asc(a$+chr$(0)),st
-120 next
-run
--->
+XXX burst commands
+* only support drives 0 and 1
 
-## Optional Features
 
-Practically all features described so far are supported on all but the very first (1.x) Commodore devices. Third party devices also generally support even the low-level and code execution APIs, even though these APIs require knowledge of the differences in the architecture of the interface.
+## Extra API: Settings
 
-With the advent of "Fast Serial" devices (1571, 1581), the APIs were significantly extended. Devices by CMD added their own extensions as well.
+XXX where do they belong?
 
-### 1541
+* 1571+
+
+| Name           | Syntax                                                | Description                     |
+|----------------|-------------------------------------------------------|---------------------------------|
+| USER           | `U0>S` _val_                                          | Set sector interleave           |
+| USER           | `U0>R` _num_                                          | Set number fo retries           |
+| USER           | `U0>T`                                                | Test ROM checksum               |
+| USER           | `U0>` _pa_                                            | Set unit primary address        |
+
+* 1581+
+
+| Name           | Syntax                                                | Description                     |
+|----------------|-------------------------------------------------------|---------------------------------|
+| USER           | `U0>B` _flag_                                         | Enable/disable Fast Serial      |
+| USER           | `U0>V` _flag_                                         | Enable/disable verify           |
+
+XXX they're U0 because it was easy to add them to the 1571 without changing the ROM layout too much
+
+* C65
+
+| Name           | Syntax                                                | Description                     |
+|----------------|-------------------------------------------------------|---------------------------------|
+| USER           | `U0>D`_val_                                           | Set directory sector interleave |
+| USER           | `U0>L`_flag_                                          | Large REL file support on/off   |
+
+* CMD
+
+And finally, there are some miscellaneous new commands.
+
+| Name           | Syntax                                                | Description                     |
+|----------------|-------------------------------------------------------|---------------------------------|
+| GET DISKCHANGE | `G-D`                                                 | Query disk change (FD only)     |
+| SCSI COMMAND   | `S-C` _scsi_dev_num_ _buf_ptr_lp_ _buf_ptr_hi_ _num_bytes_ | Send SCSI Command (HD only) |
+| SWAP           | `S-`{`8`&#x7c;`9`&#x7c;`D`}                           | Change primary address          |
+
+
+## Extra API: Real-Time Clock
+
+Some CMD devices have a real-time clock that can be read and written in multiple formats.
+
+| Name           | Syntax                                                | Description                     |
+|----------------|-------------------------------------------------------|---------------------------------|
+| TIME READ ASCII | `T-RA`                                               | Read Time/Date (ASCII)          |
+| TIME WRITE ASCII | `T-WA` _dow_ _mo_`/`_da_`/`_yr_ _hr_`:`_mi_`:`_se_ _ampm_ | Write Time/Date (ASCII)   |
+| TIME READ DECIMAL | `T-RD`                                             | Read Time/Date (Decimal)        |
+| TIME WRITE DECIMAL | `T-WD` _b0_ _b1_ _b2_ _b3_ _b4_ _b5_ _b6_ _b7_    | Write Time/Date (Decimal)       |
+| TIME READ BCD  | `T-RB`                                                | Read Time/Date (BCD)            |
+| TIME WRITE BCD | `T-WB` _b0_ _b1_ _b2_ _b3_ _b4_ _b5_ _b6_ _b7_ _b8_   | Write Time/Date (BCD)           |
+
+
+## Family-Specific Features
+
+### 1541 + 1571
 
 For the 1541, the timing of the layer 2 Serial protocol was slowed down to support the C64's unique timing properties. Since the 1541 replaced the 1540, it came with a mode to switch back to the faster VIC-20 Serial protocol[^12]. This is only supported by th 1541 and 1571 series.
 
@@ -367,17 +458,6 @@ For the 1541, the timing of the layer 2 Serial protocol was slowed down to suppo
 
 ### 1571
 
-The 1571 adds several new generic commands:
-
-| Name           | Syntax                                                | Description                     |
-|----------------|-------------------------------------------------------|---------------------------------|
-| USER           | `U0>S` _val_                                          | Set sector interleave           |
-| USER           | `U0>R` _num_                                          | Set number fo retries           |
-| USER           | `U0>T`                                                | Test ROM checksum               |
-| USER           | `U0>` + CHR$(#DEV), where #DEV = 4 - 30
-
-XXX they're U0 because it was easy to add them to the 1571 without changing the ROM layout too much
-
 The following two additions are 1571-specific:
 
 | Name           | Syntax                                                | Description                     |
@@ -385,26 +465,12 @@ The following two additions are 1571-specific:
 | USER           | `U0>M` _flag_                                         | Enable/disable 1541 emulation mode|
 | USER           | `U0>H` _number_                                       | Select head 0/1                 |
 
-
-XXX burst commands
-* only support drives 0 and 1
-
 ### 1581
-
-In addition to all generic 1571 commands, the 1581 adds support for partitions. They occupy any number of contiguous sectors, are treated as files by the root filesystem (type `CBM`) and can be arbitrarily nested.
-
-| Name           | Syntax                                                | Description                     |
-|----------------|-------------------------------------------------------|---------------------------------|
-| PARTITION      | `/`[_drv_][`:`_name_]                                 | Select partition |
-| PARTITION      | `/`[_drv_]`:`_name_`,`_track_ _sector_ _count_lo_ _count_hi_ `,C` | Create partition |
 
 And there are a few more generic commands:
 
 | Name           | Syntax                                                | Description                     |
 |----------------|-------------------------------------------------------|---------------------------------|
-| USER           | `U0>B` _flag_                                         | Enable/disable Fast Serial      |
-| USER           | `U0>V` _flag_                                         | Enable/disable verify           |
-| USER           | `U0>I` _val_                                          | Set Serial timeout value        |
 | USER           | `U0>MR` _addr_hi_ _count_hi_                          | Read RAM (Burst protocol)       |
 | USER           | `U0>MW` _addr_hi_ _count_hi_                          | Write RAM (Burst protocol)      |
 
@@ -427,74 +493,7 @@ Floppy drives and hard drives by Creative Micro Devices (CMD) support all 1581 c
 
 XXX RAMLink
 
-#### CMD-style partitions
 
-Independently of 1581 partitions, CMD devices have "native" partitions that cannot be nested. There is a global partition table on disk.
-
-| Name           | Syntax                                                | Description                     |
-|----------------|-------------------------------------------------------|---------------------------------|
-| CHANGE PARTITION | `CP` _num_                                          | Make a partition the default    |
-| GET PARTITION  | `GP` _num_                                            | Get information about partition |
-| RENAME-PARTITION | `R-P:`_new_name_`=`_old_name_                       | Rename a partition              |
-| RENAME-HEADER  | `R-H`[_drv_]`:`_new_name_                             | Rename a filesystem             |
-
-#### Sub-Directories
-
-CMD devices also add subdirectory support.
-
-| Name           | Syntax                                                | Description                     |
-|----------------|-------------------------------------------------------|---------------------------------|
-| CHANGE DIRECTORY | `CD`[_drv_]`:`_name_                                | Change the current sub-directory|
-| MAKE DIRECTORY | `MD`[_drv_]`:`_name_                                  | Create a sub-directory          |
-| REMOVE DIRECTORY | `RD`[_drv_]`:`_name_                                | Delete a sub-directory          |
-
-#### Real-Time Clock
-
-Some CMD devices have a real-time clock that can be read and written in multiple formats.
-
-| Name           | Syntax                                                | Description                     |
-|----------------|-------------------------------------------------------|---------------------------------|
-| TIME READ ASCII | `T-RA`                                               | Read Time/Date (ASCII)          |
-| TIME WRITE ASCII | `T-WA` _dow_ _mo_`/`_da_`/`_yr_ _hr_`:`_mi_`:`_se_ _ampm_ | Write Time/Date (ASCII)   |
-| TIME READ DECIMAL | `T-RD`                                             | Read Time/Date (Decimal)        |
-| TIME WRITE DECIMAL | `T-WD` _b0_ _b1_ _b2_ _b3_ _b4_ _b5_ _b6_ _b7_    | Write Time/Date (Decimal)       |
-| TIME READ BCD  | `T-RB`                                                | Read Time/Date (BCD)            |
-| TIME WRITE BCD | `T-WB` _b0_ _b1_ _b2_ _b3_ _b4_ _b5_ _b6_ _b7_ _b8_   | Write Time/Date (BCD)           |
-
-#### Misc
-
-And finally, there are some miscellaneous new commands.
-
-| Name           | Syntax                                                | Description                     |
-|----------------|-------------------------------------------------------|---------------------------------|
-| LOCK           | `L`[_drv_]`:`_name_                                   | Toggle file write protect       |
-| WRITE PROTECT  | `W-`{`0`&#x7c;`1`}                                    | Set/unset device write protect  |
-| GET DISKCHANGE | `G-D`                                                 | Query disk change (FD only)     |
-| SCSI COMMAND   | `S-C` _scsi_dev_num_ _buf_ptr_lp_ _buf_ptr_hi_ _num_bytes_ | Send SCSI Command (HD only) |
-| SWAP           | `S-`{`8`&#x7c;`9`&#x7c;`D`}                           | Change primary address          |
-
-#### Syntax Additions
-
-XXX
-
-* partitions
-	* Partition numbers can be used in place of drive numbers in all file specifiers and commands. Partition 0 is the current partition.
-* directories
-* more options for directory listings
-	* partition directory
-
-### C65 Disk Drive
-
-For the internal C65 disk drive, support for CMD-style partitions and sub-directories was planned, but never implemented. None of the other commands added by CMD are supported, but the DOS of the C65 drive has some additions of its own:
-
-| Name           | Syntax                                                | Description                     |
-|----------------|-------------------------------------------------------|---------------------------------|
-| FILE LOCK      | `F-L`[_drv_]`:`_name_[`,`...]                         | Enable file write-protect       |
-| FILE UNLOCK    | `F-U`[_drv_]`:`_name_[`,`...]                         | Disable file write-protect      |
-| FILE RESTORE   | `F-R`[_drv_]`:`_name_[`,`...]                         | Restore a deleted file          |
-| USER           | `U0>D`_val_                                           | Set directory sector interleave |
-| USER           | `U0>?`_pa_                                            | Set unit primary address        |
-| USER           | `U0>L`_flag_                                          | Large REL file support on/off   |
 
 ## Extra: Printers
 
@@ -504,9 +503,11 @@ XXX
 * 0 Print data in Uppercase/Graphics mode
 * 7 Print data in Upper/lowercase
 
+
 ## Next Up
 
 XXX
+
 
 ## References
 
@@ -526,9 +527,37 @@ XXX
 * http://commodore64.se/wiki/index.php/1541_tricks#Utility_loader_.28.22.26.22_command.29
 * ftp://www.zimmers.net/pub/cbm/manuals/printers/MPS-801_Printer_Users_Manual.pdf
 
+
+## limitations
+
+* 0 byte files don't exist
+	* writing a 0 byte file will make it contain a single 13
+	* all Commodore drives:
+		* 0 and 1 byte files buggy
+		* read back as 13 0 2 13
+	* CMD drives
+		* read back OK
+
+<--
+10 open 1,8,15,"ui"
+20 get#1,a$:?a$;:ifa$<>chr$(13)goto20
+30 close 1
+40 open 1,8,15,"s:test"
+50 get#1,a$:?a$;:ifa$<>chr$(13)goto50
+60 close 1
+70 open2,8,2,"test,p,w"
+75 print#2,"ab";
+80 close2
+90 open2,8,2,"test,p,r"
+100 fori=1to10
+110 get#2,a$:?asc(a$+chr$(0)),st
+120 next
+run
+-->
+
 <!---
 
-### Notes
+## Notes
 
 * max 40/58? char commands
 * modify mode ("M")
