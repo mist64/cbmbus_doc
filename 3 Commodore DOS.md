@@ -23,6 +23,24 @@ Contrary to the other articles of the series, this one is only meant as a concep
 
 What is usually called a disk drive and is associated with a primary address is actually a **unit**, because a unit can have more than one drive in its enclosure, like two mechanisms for two diskettes. Drives are numbered starting with 0, and there is no upper limit to the number of drives.
 
+### XXX Communication Mechanisms
+
+* data channels
+	* 0-14
+	* always named
+	* used for 
+		* files
+		* directory listing
+		* direct I/O channel
+	
+* command channel
+	* 15
+	* not named
+	* send: command
+		* some commands include a data channel number for context
+	* read: status
+		* some commands return data on this channel
+
 ### Files
 
 Every drive has its own independent filesystem. A filesystem has a name, a two-character ID, and contains an unsorted set of files. All files have a unique **name** and a file **type**, and have to be at least one byte in size[^1].
@@ -51,8 +69,9 @@ Some interfaces features permit using wildcard characters:
 XXX
 * describe three APIs:
 	* level 1: file level API - for built-in data structures
-	* level 2: block API - for custom optimized data structures
+	* level 2: block level API - for custom optimized data structures
 	* level 3: code execution - meant to extend the functionality
+	* burst
 
 There is a set of lower-level APIs that allows reading and writing individual blocks (of 256 bytes) and marking them as allocated or free in the disk's metadata. For certain use cases, this does not require an understanding of any of the disk's internal data structures.
 
@@ -110,6 +129,8 @@ The "`$`" name is used to read the directory listing. This is the syntax:
 Just using "`$`" as the name will return the complete directory contents of drive 0. Specifying the drive number, followed by a colon, will override this. Additionally, one or more file name patterns can be appended to filter which directory entries are returned. Finally, specifying "`=`" followed by a single-character file type specifier, will only show files of a particular type.
 
 The [format of the data returned is tokenized Microsoft BASIC](https://www.pagetable.com/?p=273).
+
+XXX only works on channel 0
 
 ### Direct Access Buffer I/O
 
@@ -253,7 +274,7 @@ All arguments are decimal ASCII values and can be separated by a space, a comma 
 | BLOCK-WRITE    | `B-W` _channel_ _track_ _sector_                      | Write block                     |
 | BLOCK-EXECUTE  | `B-E` _channel_ _track_ _sector_                      | Load and execute a block        |
 
-### Block Avariability Map Commands
+### Block Availability Map Commands
 
 The "`B-A`" and "`B-F`" commands allow marking a block as allocated or free in the "block availability map" (BAM). Allocating a block makes sure the filesystem won't use it. The `V` (validate) command will re-build the BAM from the filesystems metadata and undo any "`B-A`" commands.
 
@@ -292,7 +313,7 @@ The `USER` commands were meant to give the user a command interface that calls u
 
 The commands `U1` to `U9` and `U:` (and their synonyms `U1` to `U:`) execute code through a jump table. There is a default jump table that can be replaced using a device-specific `M-W` command, and reset to the default using `U0`.
 
-The default jump table contains the already discussed `U1` and `U2` commands for reading and writing blocks[^11]. `U3` to `U8` jump into some useful device-specific locations. On most devices, all these jumps point into the user buffer, on some older devices, some jumps point into expansion ROM.
+For historical reasons[^11], the default jump table contains the already discussed `U1` and `U2` commands for reading and writing blocks. `U3` to `U8` jump into some useful device-specific locations. On most devices, all these jumps point into the user buffer, on some older devices, some jumps point into expansion ROM.
 
 The commands `U9` and `U:` execute a soft and a hard reset, respectively. In both cases, the status will read back code 73.
 
@@ -338,7 +359,7 @@ With the advent of "Fast Serial" devices (1571, 1581), the APIs were significant
 
 ### 1541
 
-For the 1541, the timing of the layer 2 Serial protocol was slowed down to support the C64's unique timing properties. Since the 1541 replaced the 1540, it came with a mode to switch back to the faster VIC-20 Serial protocol[^12].
+For the 1541, the timing of the layer 2 Serial protocol was slowed down to support the C64's unique timing properties. Since the 1541 replaced the 1540, it came with a mode to switch back to the faster VIC-20 Serial protocol[^12]. This is only supported by th 1541 and 1571 series.
 
 | Name           | Syntax                                                | Description                     |
 |----------------|-------------------------------------------------------|---------------------------------|
@@ -386,8 +407,6 @@ And there are a few more generic commands:
 | USER           | `U0>I` _val_                                          | Set Serial timeout value        |
 | USER           | `U0>MR` _addr_hi_ _count_hi_                          | Read RAM (Burst protocol)       |
 | USER           | `U0>MW` _addr_hi_ _count_hi_                          | Write RAM (Burst protocol)      |
-
-XXX ;	"U0>I"+CHR$(IEEE_TIMEOUT_VALUE)
 
 XXX new path syntax with partitions
 
@@ -501,6 +520,7 @@ XXX
 * cbm4031.pdf
 * CBM\ 2040-3040-4040-8050\ Disk\ Drive\ Manual.pdf
 * commodore_vic_1541_floppy_drive_users_manual.pdf
+* ftp://www.zimmers.net/pub/cbm/manuals/peripherals/1764_Ram_Expansion_Module_Users_Guide.pdf
 * https://www.lyonlabs.org/commodore/onrequest/cmd/CMD_Hard_Drive_Users_Manual.pdf
 * cmd_fd-2000_manual.pdf
 * http://commodore64.se/wiki/index.php/1541_tricks#Utility_loader_.28.22.26.22_command.29
@@ -509,6 +529,17 @@ XXX
 <!---
 
 ### Notes
+
+* max 40/58? char commands
+* modify mode ("M")
+* not specifying drive -> last one used?
+
+* added value:
+	* explains the *levels*
+	* integrates all extensions
+* Q
+	* bust name stupid: burst instruction set vs. burst serial protocol
+	* CHGUTL ("U0>") commands are part of burst instruction set, but unrelated to "raw disk access"
 
 XXX U0 on 1540/1541?
 
