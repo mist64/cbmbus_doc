@@ -15,9 +15,9 @@ From a device's point of view, the layer below, layer 3 ("TALK/LISTEN") defines 
 
 The Commodore DOS API defines the meaning of channel numbers, channel names and the data traveling over channels in the context of disk drives.
 
-## Concepts
+## Generations and Concepts
 
-Commodore DOS has been in existence since the Commodore 2040 drive from 1978. It remained fairly unchanged up to the Commodore 1581 from 1987. These are the **first-generation** devices. **Second-generation** devices are the floppy and hard disk drives by Creative Micro Devices (CMD) from the 1990s, with some existended features. Finally, there are **modern** Commodore DOS devices that have added some more features. This section gives an overview of the shared concepts and some of the optional features.
+Commodore DOS has been in existence since the Commodore 2040 drive from 1978. It remained fairly unchanged up to the Commodore 1581 from 1987. These are the **first-generation** devices. **Second-generation** devices are the floppy and hard disk drives by Creative Micro Devices (CMD) from the 1990s, with some extended features[^95]. Finally, there are **modern** Commodore DOS devices that have added some more features[^94]. This section gives an overview of the shared concepts and some of the optional features.
 
 Commodore DOS calls a device (with its own primary address) connected to the bus a **unit**.
 
@@ -65,12 +65,12 @@ There are several independent sets of API:
 
 ## File-Level API
 
-Every medium has its own independent filesystem. A filesystem has a name, a two-character ID, and contains an unsorted set of files. All files have a unique **name** as well as a file **type**, and have to be at least one byte in size[^1]. Optionally, the device can support nested subdirectories in order to group files.
+Every medium has its own independent filesystem. A filesystem has a name, a two-character ID, and contains an unsorted set of files. All files have a unique **name** as well as a file **type**, and have to be at least one byte in size[^1]. Second-generation and modern devices maintain a last-changed timestamp with files and support nested subdirectories in order to group files.
 
 DOS does not specify a maximum size for disk or file names, but the limit for all Commodore and CMD devices is 16 characters. There is also no specified character encoding: Names consist of 8 bit characters, and DOS does not interpret them. Names have very few limitations:
 
-* The comma, colon and `CR` (carriage return) characters are illegal in disk, file and directory names (because of the syntax of channel names and commands).
-* The slash character is illegal for directory names (because of the syntax of path specifiers).
+* The "`,`" (comma), "`:`" (colon), "`=`" (equals) and `CR` (carriage return) characters are illegal in disk, file and directory names (because of the syntax of channel names and commands).
+* The "`/`" (slash) character is illegal for directory names (because of the syntax of path specifiers).
 * The code `0xa0` (Unicode/ISO 8859-1 non-breaking space, CBM-ASCII shifted SPACE) is illegal in file and directory names (it is used as the terminating character on disk).
 
 There are two file type categories: sequential files and relative files.
@@ -169,14 +169,28 @@ While channels 2 through 14 can be used to open any kind of file in any mode, ch
 
 Reading the directory listing is done by associating channel 0 with a name starting with `$` and reading from it. This is the syntax:
 
-`$`[[_path_]`:`][_pattern_[`,`...][`=`_type_]]
+`$`[`=T`][[_path_]`:`][_pattern_[`,`...][`=`{_type_&#x7c;_option_}[,_option_, ...]]]
 
-Just using "`$`" as the name will return the complete contents of the current directory contents of medium 0. Specifying the path, followed by a colon, will override this. Additionally, one or more file name patterns can be appended to filter which directory entries are returned. Finally, specifying "`=`" followed by a single-character file type specifier, will only show files of a particular type.
+Just using "`$`" as the name will return the complete contents of the current directory contents of medium 0. Specifying the path, followed by a colon, will override this. Additionally, one or more file name patterns can be appended to filter which directory entries are returned. Specifying "`=`" followed by a single-character file type specifier will only show files of a particular type. (Inconsistently, it's "`R`" for "`REL`", not "`L`" like in the case of opening a relative file.)
 
-The [format of the data returned is tokenized Microsoft BASIC](https://www.pagetable.com/?p=273).
+Second-generation devices introduce a file listing that is amended with timestamp information, which can be requested using the "`=T`" modifier. In this case, any number of _option_ arguments can be specified, which have the following meaning:
 
-* XXX more options for directory listings
-	* partition directory
+* `L`: append long timestamp format; the default is shortened to fit an entry into 40 characters
+* `N`: do not append timestamp
+* `<`_timestamp_: filter for files last changed before _timestamp_
+* `>`_timestamp_: filter for files last changed after _timestamp_
+
+The syntax of the _timestamp_ argument works like this:
+
+`12/31/99 11:59 PM`
+
+The [format of the data returned is tokenized Microsoft BASIC](https://www.pagetable.com/?p=273) that can be displayed on-screen easily, but is a little tricky to parse.
+
+Second-generation devices also introduce listing partitions with the following syntax:
+
+`$=P`[`:*`][`=`_type_]
+
+XXX
 
 ### Filesystem Commands
 
@@ -718,3 +732,7 @@ XXX 8250/1001 has 154 logical tracks
 [^92]: Commodore calls them _sub-directories_, not to be confused with CMD-style subdirectories.
 
 [^93]: Again, this is because of a limitation of the layer 2 protocol when reading the file. In addition, all Commodore drives have a bug where files that contain only one or two bytes will read four bytes. CMD drives do not have this bug.
+
+[^94]: "Modern" devices mostly means the [SD2IEC](https://www.sd2iec.de) in native mode, not emulation devices like the [Pi1541](https://cbm-pi1541.firebaseapp.com).
+
+[^95]: CMD devices have emulation modes for the 1541, 1571 and 1581 devices and don't support all new features in these modes.
