@@ -27,9 +27,11 @@ A simple one-drive unit like the Commodore 1541 only has a single block device "
 
 Some devices with multiple megabytes of storage, like the floppy and hard disk drives by Creative Micro Devices (CMD), support partitioning: Each partition is a block device. The partitions are numbered starting with "1", while "0" is a shortcut for the currently active partition.
 
-### XXX Communication Mechanisms
+XXX blocks and filesystems
 
-XXX
+### Communication Mechanisms
+
+Communication to Commodore DOS happens through 15 data channels and one command channel:
 
 | Channel | Description       |
 |---------|-------------------|
@@ -39,26 +41,9 @@ XXX
 | 15      | commands/status   |
 | 16-31   | illegal           |
 
-Channels 0 to 14 need to be associated with a name. 0 and 1 only support special kinds of names and will be discussed later. Channel 15 is used to send either global commands, or commands that deal with named channels, and to read the result code or general status of the unit.
+Channels 0 to 14 need to be associated with a name and are used for the transfer of actual data like file contents and block contents. (0 and 1 are special-cased and will be discussed later.) Channel 15 is a "meta" channel that is is used to send out of band communication regarding the data channels, or global commands, as well as to read the result of a command or the general status of the unit.
 
 While the underlying layers of the bus specifies channel numbers (secondary addressed) from 0 to 31, Commodore DOS does not support numbers 16-31.
-
-* data channels
-	* 0-14
-	* always named
-	* used for 
-		* files
-		* directory listing
-		* direct I/O channel
-
-* command channel
-	* 15
-	* not named
-	* "meta"/"out of band communication"
-	* send: command
-		* some commands include a data channel number for context
-	* read: status
-		* some commands return data on this channel
 
 #### Command Channel
 
