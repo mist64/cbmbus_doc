@@ -187,7 +187,7 @@ On devices that do not support subdirectories, paths only consist of the (option
 
 ### Wildcards
 
-Some interfaces features permit using wildcard characters:
+Some APIs permit using wildcard characters:
 * A question mark ("`?`") matches any character.
 * An asterisk ("`*`") matches zero or more characters. On classic devices, characters in the pattern after the asterisk are ignored, so an asterisk can only match characters at the end of the name.
 
@@ -195,7 +195,7 @@ Some interfaces features permit using wildcard characters:
 
 Files are read and written through named channels 0 through 14. Opening a named channel associates the channel with the filename. Closing it will dissociate the channel and, for files that were written to, make sure the file data on disk is consistent.
 
-A named channel can be used to open a file for reading or writing. The syntax for the channel's name is as follows:
+The following channel name syntax is used to open a file for reading or writing:
 
 [[`@`][_path_]`:`]_filename_[`,`_type_[`,`_mode_]]
 
@@ -217,8 +217,8 @@ There are optional prefixes and suffixes.
 
 For `SEQ`, `PRG` and `USR`, the following modes are possible:
 
-* `R` (read): Reading from the channel will return the file contents sequentially. The file pointer starts at the beginning of the file. When all files have been read, the unit signals this with an `EOI` condition.
-* `M`: (recovery read): This mode is a recovery feature that allows reading files that are marked as inconsistent (i.e. written to but never closed) in the filesystem's metadata. Normal read mode would refuse to open it.
+* `R` (read): Reading from the channel will return the file contents sequentially. The file pointer starts at the beginning of the file. When all bytes have been read, the unit signals this with an `EOI` condition.
+* `M`: (recovery read): This mode is a recovery feature that allows reading a file that is marked as inconsistent (i.e. written to but never closed) in the filesystem's metadata. Normal read mode would refuse to open it.
 * `W` (write): The file will be created (if it doesn't exist or the "`@`" modifier has been specified), and writing to the channel will write the bytes into the file. The file has to be closed for it to be consistent. Creating a file and closing it without writing anything will result in a file that contains a single `CR` character[^93]. 
 * `A` (append): Same as writing, but the file has to exist and the file pointer starts at the end of the file.
 
@@ -230,7 +230,7 @@ The default mode is "`R`".
 
 For relative files, the mode character is actually a binary-encoded byte that specifies the record size. For creating a relative file, it must be specified, for opening an existing one, it can be omitted. Relative files are always open for reading _and_ writing.
 
-Positioning of the read/write pointer to a particular record is done byt sending the "`P`" command on the command channel. The arguments are four binary-encoded bytes.
+Positioning of the read/write pointer to a particular record is done by sending the "`P`" command on the command channel. The arguments are four binary-encoded bytes.
 
 | Name           | Syntax                                                | Description                     |
 |----------------|-------------------------------------------------------|---------------------------------|
@@ -272,13 +272,13 @@ Devices that support partitions also introduce the following syntax to list part
 
 `$=P`[`:*`][`=`_type_]
 
-The list can be filtered by partition _type_:
+The list can be filtered by partition _type_. CMD devices support the following types:
 
-* `N`: native
-* `4`: 1541
-* `7`: 1581
-* `8`: 1581
-* `C`: 1581 CP/M
+* `N`: CMD native partition
+* `4`: 1541 emulation partition (683 blocks)
+* `7`: 1571 emulation partition (1366 blocks)
+* `8`: 1581 emulation partition (3200 blocks, 1581-partition support)
+* `C`: 1581 CP/M emulation partition
 
 ### Filesystem Commands
 
@@ -297,13 +297,13 @@ There are many command-channel commands that deal with creating, fixing and modi
 
 (Unless otherwise mentioned, arguments for all commands are ASCII.)
 
-The `INITIALIZE` command is only useful on classic 5.25" devices, where it works around the risk of not invalidating the cache after swapping a disk.
+The `INITIALIZE` command is only useful on classic 5.25" devices. These had trouble detecting the user swapping a disk, so this command makes sure the disk metadata cache is invalidated.
 
 The `VALIDATE` command is a simple check-disk function that will make sure the "block availability map" is consistent with other on-disk data structures. It is recommended on a disk that contains a file that has not been closed after writing.
 
-The `NEW` command will create a new filesystem. On removable media if an "ID" is specified, it will do a low-level format before. There is no way to specify the disk format in drives that support multiple formats. A Commodore 8250, which can also disks in 8050 format, will always write the 8250 format.
+The `NEW` command will create a new filesystem. On removable media if an "ID" is specified, it will do a low-level format before. There is no way to specify the disk format in drives that support multiple formats. For instance, a Commodore 8250, which can also read and write existing disks in 8050 format, will always write the 8250 format. (The Burst API allows more fine-grained formatting settings.)
 
-On units with multiple drives or partitioning support, the `COPY` command can also copy files between media, while on all other units, it can only duplicate files. In either case, it can concatenate several files into one.
+On units with multiple media, the `COPY` command can also copy files between media, while on all other units, it can only duplicate files. In either case, it can concatenate several files into one.
 
 The `DUPLICATE` command and the `COPY` variant that copies all files are only supported on units with multiple drives. They do not work on partitions.
 
@@ -653,13 +653,6 @@ Part 4 of the series of articles on the Commodore Peripheral Bus family will cov
 
 ## limitations
 
-* 0 byte files don't exist
-	* writing a 0 byte file will make it contain a single 13
-	* all Commodore drives:
-		* 0 and 1 byte files buggy
-		* read back as 13 0 2 13
-	* CMD drives
-		* read back OK
 
 10 open 1,8,15,"ui"
 20 get#1,a$:?a$;:ifa$<>chr$(13)goto20
@@ -738,7 +731,7 @@ run
 
 [^92]: Commodore calls them _sub-directories_, not to be confused with CMD-style subdirectories.
 
-[^93]: Again, this is because of a limitation of the layer 2 protocol when reading the file. In addition, all Commodore drives have a bug where files that contain only one or two bytes will read four bytes. CMD drives do not have this bug.
+[^93]: Again, this is because of a limitation of the layer 2 protocol when reading the file. In addition, all Commodore drives have a bug where a file that contains only one or two bytes will read back four bytes, i.e. with added garbage. CMD drives do not have this bug.
 
 [^94]: "Modern" devices mostly means the [SD2IEC](https://www.sd2iec.de) in native mode, not emulation devices like the [Pi1541](https://cbm-pi1541.firebaseapp.com).
 
