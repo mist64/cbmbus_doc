@@ -15,23 +15,9 @@ From a device's point of view, the layer below, layer 3 ("TALK/LISTEN") defines 
 
 The Commodore DOS API defines the meaning of channel numbers, channel names and the data traveling over channels in the context of disk drives.
 
-## Features and Concepts
+## Feature Sets
 
-Commodore DOS has been in existence since the Commodore 2040 drive from 1978.
-
-
-
-It remained fairly unchanged up to the Commodore 1581 from 1987. These are the **first-generation** devices. **Second-generation** devices are the floppy and hard disk drives by Creative Micro Devices (CMD) from the 1990s, with some extended features[^95]. Finally, there are **modern** Commodore DOS devices that have added some more features[^94]. This section gives an overview of the shared concepts and some of the optional features.
-
-Commodore DOS calls a device (with its own primary address) connected to the bus a **unit**.
-
-A unit can have one or more **media**[^90], a sequence of **blocks** that have a block numbering independent of the other media. A medium usually contains a **filesystem**, but it can also be used for direct block access independently of any filesystem. These media are numbered, starting from one.
-
-For first-generation devices, a simple one-drive unit like the Commodore 1541 only has a single medium "0". A dual-drive unit like the Commodore 8250 has two, named "0" and "1", one for each disk drive. Reference manuals of these kinds of units call these numbers the **drive number**.
-
-Second-generation and modern devices support partitioning: Each partition is a medium. The partitions are numbered starting with "1", while "0" always points to the currently active partition. Reference manuals of these kinds of units call these numbers the **partition number**.
-
-## Features
+Commodore DOS has been in existence since the Commodore 2040 drive from 1978, and new firmware code for Commodore DOS devices is being developed to this day. The API has gotten some extensions in the meantime, so while this article covers the complete API, it important to understand that not all APIs are supported by all devices.
 
 | Feature          | 2040 | 1541 | 1571/1581 | RAM-DOS | CMD HD/FD | SD2IEC   |
 |------------------|------|------|-----------|---------|-----------|----------|
@@ -39,10 +25,20 @@ Second-generation and modern devices support partitioning: Each partition is a m
 | Relative files   | no   | yes  | yes       | yes     | yes       | yes      |
 | Block access     | yes  | yes  | yes       | no      | yes       | yes[^96] |
 | Code execution   | yes  | yes  | yes       | no      | yes       | no       |
-| Burst commands   | no   | no   | yes       | no      | yes       | ? XXX    |
+| Burst commands   | no   | no   | yes       | no      | yes       | no       |
 | Time             | no   | no   | no        | no      | yes       | yes      |
 | Partitions       | no   | no   | no        | no      | yes       | yes      |
 | Subdirectories   | no   | no   | no        | no      | yes       | yes      |
+
+## Concepts
+
+Commodore DOS calls a device (with its own primary address) connected to the bus a **unit**.
+
+A unit can have one or more **media**[^90], a sequence of **blocks** that have a block numbering independent of the other media. A medium usually contains a **filesystem**, but it can also be used for direct block access independently of any filesystem. These media are numbered, starting from one.
+
+For devices that do not support partitions, a simple one-drive unit like the Commodore 1541 only has a single medium "0". A dual-drive unit like the Commodore 8250 has two, named "0" and "1", one for each disk drive. Reference manuals of these kinds of units call these numbers the **drive number**.
+
+On devices that do support partitioning, each partition is a medium. The partitions are numbered starting with "1", while "0" always points to the currently active partition. Reference manuals of these kinds of units call these numbers the **partition number**.
 
 ## API Basics
 
@@ -82,7 +78,7 @@ There are several independent sets of API:
 
 ## File-Level API
 
-Every medium has its own independent filesystem. A filesystem has a name, a two-character ID, and contains an unsorted set of files. All files have a unique **name** as well as a file **type**, and have to be at least one byte in size[^1]. Second-generation and modern devices maintain a last-changed timestamp with files and support nested subdirectories in order to group files.
+Every medium has its own independent filesystem. A filesystem has a name, a two-character ID, and contains an unsorted set of files. All files have a unique **name** as well as a file **type**, and have to be at least one byte in size[^1]. Some devices maintain a last-changed timestamp with files, and some support nested subdirectories in order to group files.
 
 DOS does not specify a maximum size for disk or file names, but the limit for all Commodore and CMD devices is 16 characters. There is also no specified character encoding: Names consist of 8 bit characters, and DOS does not interpret them. Names have very few limitations:
 
@@ -190,7 +186,7 @@ Reading the directory listing is done by associating channel 0 with a name start
 
 Just using "`$`" as the name will return the complete contents of the current directory contents of medium 0. Specifying the path, followed by a colon, will override this. Additionally, one or more file name patterns can be appended to filter which directory entries are returned. Specifying "`=`" followed by a single-character file type specifier will only show files of a particular type. (Inconsistently, it's "`R`" for "`REL`", not "`L`" like in the case of opening a relative file.)
 
-Second-generation devices introduce a file listing that is amended with timestamp information, which can be requested using the "`=T`" modifier. In this case, any number of _option_ arguments can be specified, which have the following meaning:
+Devices that support time will allow a file listing that is amended with timestamp information, which can be requested using the "`=T`" modifier. In this case, any number of _option_ arguments can be specified, which have the following meaning:
 
 * `L`: append long timestamp format; the default is shortened to fit an entry into 40 characters
 * `N`: do not append timestamp
@@ -201,13 +197,21 @@ The syntax of the _timestamp_ argument works like this:
 
 `12/31/99 11:59 PM`
 
+(The year only has two digits. Consistent with [GEOS](https://github.com/mist64/geos/blob/master/kernal/time/time1.s), a year of "`00`" represents the year 2000. It is not specified what the cutoff year should be, but 1980 would make sense, so 80-99 would be 1980-1999, and 0-79 would be 2000-2079.)
+
 The [format of the data returned is tokenized Microsoft BASIC](https://www.pagetable.com/?p=273) that can be displayed on-screen easily, but is a little tricky to parse.
 
-Second-generation devices also introduce listing partitions with the following syntax:
+Devices that support partitions also introduce the following syntax to list partitions:
 
 `$=P`[`:*`][`=`_type_]
 
-XXX
+The list can be filtered by partition _type_:
+
+* `N`: native
+* `4`: 1541
+* `7`: 1581
+* `8`: 1581
+* `C`: 1581 CP/M
 
 ### Filesystem Commands
 
