@@ -23,7 +23,7 @@ Commodore DOS has been in existence since the Commodore 2040 drive from 1978, an
 |------------------|------|------|-----------|---------|-----------|----------|
 | Sequential files | yes  | yes  | yes       | yes     | yes       | yes      |
 | Relative files   | no   | yes  | yes       | yes     | yes       | yes      |
-| Block access     | yes  | yes  | yes       | no      | yes       | yes[^96] |
+| Block access     | yes  | yes  | yes       | no      | yes       | yes      |
 | Code execution   | yes  | yes  | yes       | no      | yes       | no       |
 | Burst commands   | no   | no   | yes       | no      | yes       | no       |
 | Time             | no   | no   | no        | no      | yes       | yes      |
@@ -278,89 +278,68 @@ Devices with subdirectory support add the following:
 | MAKE DIRECTORY | `MD`[_path_]`:`_name_                                 | Create a sub-directory          |
 | REMOVE DIRECTORY | `RD`[_path_]`:`_name_                               | Delete a sub-directory          |
 
-The syntax to go up one level includes the "`←`" character, which is CBM-ASCII code `0x5f` (underscore in US-ASCII).
+The syntax to go up one level includes the "`←`" (left arrow) character, which is CBM-ASCII code `0x5f` (underscore in US-ASCII).
 
-## Block-Level API
+## Block API
 
-### Direct Access Buffer I/O
+Commodore DOS also allows accessing the disk on a lower level. The block API works with 256-byte-sized logical blocks that are identified by a logical track (1-255) and a logical sector (0-255)[^9].
 
-The "`#`" name is used to allocate a block-sized buffer inside the device. This is the syntax:
+### The Buffer
+
+In order to use the block API, a block-sized buffer has to be allocated inside the device by opening a channel (2-14) with the following syntax:
 
 `#`[_buffer_number_]
 
-There are two use cases for allocated buffers:
-
-* When specifying a number, a particular buffer will be allocated, if available. This is useful for allocating a specific memory area in the device in order to upload code for execution. The mapping from buffer number to RAM address is device-specific - but so is the uploaded code: On a Commodore 1541, for example, buffer 2, which is located from `$0500` to `$05ff` in RAM, is the "user buffer". The "`U3`"-"`U8`" command channel commands are shortcuts to execute code in this buffer.
-* Without an explicit number, any free buffer in the device's RAM will be allocated. This is what you do to have a buffer for reading and writing blocks.
-
-<!--
-10 fori=0to10
-20 open2,8,2,"#"+str$(i)
-30 dos
-40 close2
-50 next
-run
--->
-
-The buffer stays allocated as long as the named channel is open. The "`B-R`", "`B-W`", "`B-P`", "`U1`" and "`U2`" commands on the command channel take the channel number of the buffer as an argument.
-
-XXX buffer pointer defaults to 1 when creating and after B-R, and 0 after U1.
+The buffer number is only useful for a use case around code execution and will be covered later.
 
 XXX SD2IEC large buffers
 
-### Direct Access Commands
+Without an explicit number, the next free buffer in the device's RAM will be allocated. It will stay allocated as long as the named channel is open.
 
-The direct access commands require a direct access buffer to be allocated ("`#`"). The `U1` and `U2` commands allow reading a block into the buffer and writing the buffer into a block. Reading from the channel will read from the buffer and writing to the channel will write to it. Both operations will advance the buffer pointer, which can be set to an explicit offset using the "`B-P`" command.
+Reading from the channel gets a byte from the buffer, and writing to the channel put a byte into the buffer. Every buffer comes with a "buffer pointer" that points to the next byte to be read or written. When creating a buffer, the buffer pointer is set to 1 instead of 0, so reading or writing would skip the first byte in the buffer. (The reason for this is the `B-R`/`B-W` API described later.)
 
-The `B-R` and `B-W` commands are deceptive: The names suggest they are general-purpose block read/write commands, but they assume a certain data format of the blocks: The first byte is the block's buffer pointer. When writing a block, the current buffer pointer will be put into it, signaling how many valid bytes are contained in the block. When reading, it marks the end of the buffer that cannot be read past[^8].
+The buffer pointer can be set to any position within the buffer with the `B-P` command.
 
-Commodore DOS specifies that all devices have logical blocks that are 256 bytes in size and are addressed by an 8 bit track number (starting from 1) and an 8 bit sector number (starting from 1)[^9].
+All arguments in the buffer API are decimal ASCII values and can be separated by a space, a comma or a code `0x1d` (ASCII "Group Separator", CBM-ASCII "Cursor Right"). The command name and the first argument have to be separated by any of the above or a colon.
 
-All arguments are decimal ASCII values and can be separated by a space, a comma or a code `0x1d` (ASCII "Group Separator", CBM-ASCII "Cursor Right"). The command name and the first argument have to be separated by any of the above or a colon.
+| Name           | Syntax                                                | Description                     |
+|----------------|-------------------------------------------------------|---------------------------------|
+| BUFFER-POINTER | `B-P` _channel_ _index_                               | Set r/w pointer within buffer   |
+
+XXX SD2IEC: B-P supports _index_hi_
+
+### Reading and Writing Blocks
+
+The `U1` and `U2` commands allow reading a block into the buffer and writing the buffer into a block. The arguments are the channel number, the track and the sector. After reading a block, the buffer pointer is reset to 0, so that the 256 bytes of the bock can be read from the start.
 
 | Name           | Syntax                                                | Description                     |
 |----------------|-------------------------------------------------------|---------------------------------|
 | U1/UA          | `U1` _channel_ _track_ _sector_                       | Raw read of a block             |
 | U2/UB          | `U2` _channel_ _track_ _sector_                       | Raw write of a block            |
-| BUFFER-POINTER | `B-P` _channel_ _index_                               | Set r/w pointer within block    |
-| BLOCK-READ     | `B-R` _channel_ _track_ _sector_                      | Read block                      |
-| BLOCK-WRITE    | `B-W` _channel_ _track_ _sector_                      | Write block                     |
-
-XXX SD2IEC: B-P supports _index_hi_
 
 ### Block Availability Map Commands
 
 The "`B-A`" and "`B-F`" commands allow marking a block as allocated or free in the "block availability map" (BAM). Allocating a block makes sure the filesystem won't use it. The `V` (validate) command will re-build the BAM from the filesystems metadata and undo any "`B-A`" commands.
 
-The argument encoding is the same as for direct access.
+| Name           | Syntax                                                | Description                     |
+|----------------|-------------------------------------------------------|---------------------------------|
+| BLOCK-ALLOCATE | `B-A` _medium_ _track_ _sector_                       | Allocate a block in the BAM     |
+| BLOCK-FREE     | `B-F` _medium_ _track_ _sector_                       | Free a block in the BAM         |
+
+Using the `U1`/`U2` commands together with `B-A` and `B-F` allow using free blocks on the disk for custom use without interfering with the filesystem's data structures. `B-A` will return the track and sector number of the next free block in case the one passed as an argument was already allocated. Together with the knowledge that the first block on disk is track 1, sector 0, it is possible to allocate blocks for custom use without any knowledge of the disk layout.
+
+### "Random Access Files"
+
+The `B-R` and `B-W` commands have deceptive names and are part of a rarely used and practically deprecated feature: "Random Access Files".
+
+While sequential files only allow sequential access to the file's data, and relative files restrict seeking within the file to record boundaries, the "Random Access File" API calls are meant to give the user a way to build files with arbitrary access patterns.
+
+`B-R` and `B-W` are block read/write commands like `U1`/`U2`, but they assume a certain data format of the blocks: The first byte is the block's buffer pointer. Before writing a block to disk, the current buffer pointer will be put into its first byte, signaling how many valid bytes are contained in the block. When reading, it marks the end of the buffer that cannot be read past[^8]. When reading with `B-R`, the buffer pointer is set to 1, so that the first byte of the payload will be read first.
 
 | Name           | Syntax                                                | Description                     |
 |----------------|-------------------------------------------------------|---------------------------------|
-| BLOCK-ALLOCATE | `B-A` _drive_ _track_ _sector_                        | Allocate a block in the BAM     |
-| BLOCK-FREE     | `B-F` _drive_ _track_ _sector_                        | Free a block in the BAM         |
-
-### 1581-style partitions
-
-XXX non-canonical feature
-
-**Disk sections** (`CBM`, "1581 partitions") occupy a contiguous sequence of blocks. They cannot be read or written as files, but reserve blocks to be accessed by the block API, or to hold a sub-filesystem[^92]. (Only the Commodore 1581 and CMD drives' 1581 emulation modes support this.)
-
-
-In addition to all generic 1571 commands, the 1581 adds support for partitions. They occupy any number of contiguous sectors, are treated as files by the root filesystem (type `CBM`) and can be arbitrarily nested.
-
-| Name           | Syntax                                                | Description                     |
-|----------------|-------------------------------------------------------|---------------------------------|
-| PARTITION      | `/`[_drv_][`:`_name_]                                 | Select partition |
-| PARTITION      | `/`[_drv_]`:`_name_`,`_track_ _sector_ _count_lo_ _count_hi_ `,C` | Create partition |
-
-XXX
-
-* used to protect a range of sectors from VALIDATE
-* can host a sub-filesystem
-	* at least 120 blocks
-	* occupies full tracks (starts at sector 0, size multiple of sectors/track)
-	* this requires knowledge of the logical disk layout
-	* only the 1581 and CMD's 1581 emulation supports all of this this anyway
+| BLOCK-READ     | `B-R` _channel_ _track_ _sector_                      | Read block                      |
+| BLOCK-WRITE    | `B-W` _channel_ _track_ _sector_                      | Write block                     | 
 
 ## Memory-Level API
 
@@ -377,6 +356,10 @@ The arguments are binary-encoded bytes.
 | MEMORY-WRITE   | `M-W` _addr_lo_ _addr_hi_ _count_ _data_              | Write RAM                       |
 | MEMORY-READ    | `M-R` _addr_lo_ _addr_hi_ _count_                     | Read RAM                        |
 | MEMORY-EXECUTE | `M-E` _addr_lo_ _addr_hi_                             | Execute code                    |
+
+XXX
+
+* When specifying a number, a particular buffer will be allocated, if available. This is useful for allocating a specific memory area in the device in order to upload code for execution. The mapping from buffer number to RAM address is device-specific - but so is the uploaded code: On a Commodore 1541, for example, buffer 2, which is located from `$0500` to `$05ff` in RAM, is the "user buffer". The "`U3`"-"`U8`" command channel commands are shortcuts to execute code in this buffer.
 
 ### Block Execute
 
@@ -494,6 +477,29 @@ The following two additions are 1571-specific:
 |----------------|-------------------------------------------------------|---------------------------------|
 | USER           | `U0>M` _flag_                                         | Enable/disable 1541 emulation mode|
 | USER           | `U0>H` _number_                                       | Select head 0/1                 |
+
+### 1581-style partitions
+
+XXX non-canonical feature
+
+**Disk sections** (`CBM`, "1581 partitions") occupy a contiguous sequence of blocks. They cannot be read or written as files, but reserve blocks to be accessed by the block API, or to hold a sub-filesystem[^92]. (Only the Commodore 1581 and CMD drives' 1581 emulation modes support this.)
+
+
+In addition to all generic 1571 commands, the 1581 adds support for partitions. They occupy any number of contiguous sectors, are treated as files by the root filesystem (type `CBM`) and can be arbitrarily nested.
+
+| Name           | Syntax                                                | Description                     |
+|----------------|-------------------------------------------------------|---------------------------------|
+| PARTITION      | `/`[_drv_][`:`_name_]                                 | Select partition |
+| PARTITION      | `/`[_drv_]`:`_name_`,`_track_ _sector_ _count_lo_ _count_hi_ `,C` | Create partition |
+
+XXX
+
+* used to protect a range of sectors from VALIDATE
+* can host a sub-filesystem
+	* at least 120 blocks
+	* occupies full tracks (starts at sector 0, size multiple of sectors/track)
+	* this requires knowledge of the logical disk layout
+	* only the 1581 and CMD's 1581 emulation supports all of this this anyway
 
 ### 1581
 
@@ -740,7 +746,7 @@ XXX 8250/1001 has 154 logical tracks
 
 [^8]: [Many]( http://mirror.thelifeofkenneth.com/sites/remotecpu.com/Commodore/Reference%20Material/Books/Commodore%20Peripheral%20Reference/1541%20Users%20Guide.pdf) [sources](https://spiro.trikaliotis.net/Book#vic1541) describe the "`B-R`" and "`B-W`" commands as buggy because their behavior didn't seem to make sense and the explanation seemed to have been missing from common forms of documentation. Where they are documented, they are called the "random access files" commands, for a third type of file (next to sequential and relative) that was based on the user keeping track of allocation and linking, but using the "first byte holds block pointer" format provided by these commands.
 
-[^9]: On disks that do not use Commodore's native "GCR" bit encoding (e.g. CBM 8280, D9060/D9090, 1581, the C65 drive and all drives by CMD), the physical layout doesn't match the logical layout, i.e. the medium may have a different sector size or track/sector(/head) numbering. On the CMD HD, the track and sector numbers are interpreted as a linear block address, and the constraint of 255 tracks and 256 sectors of 256 bytes limited the maximum partition size to just under 16 MB.
+[^9]: On disks that do not use Commodore's native "GCR" bit encoding (e.g. CBM 8280, D9060/D9090, 1581, the C65 drive and all drives by CMD), the physical layout doesn't match the logical layout, i.e. the medium may have a different sector size or track/sector(/head) numbering. On the CMD HD, the track and sector numbers are interpreted as a linear block address, and the constraint of 255 tracks and 256 sectors of 256 bytes limits the maximum partition size to just under 16 MB.
 
 [^10]: The feature has existed in all Commodore drives [since the release of the 1540](https://github.com/mist64/cbmsrc/blob/master/DOS_1540/utlodr), but they only started documenting it with the 1551 drive, and never documented the actual file format or the algorithm for the required checksum. The 1540, early 1541 drives, the 8250/8050/4040 with DOS V2.7 as well as the D9060/D9090 hard disks supported the also undocumented "boot clip": a device that grounds certain pins on the data connector and will force the unit to execute the first file on disk. All this hints at this mostly being a feature that was used in-house.
 
@@ -758,5 +764,3 @@ XXX 8250/1001 has 154 logical tracks
 [^94]: "Modern" devices mostly means the [SD2IEC](https://www.sd2iec.de) in native mode, not emulation devices like the [Pi1541](https://cbm-pi1541.firebaseapp.com).
 
 [^95]: CMD devices have emulation modes for the 1541, 1571 and 1581 devices and don't support all new features in these modes.
-
-[^96]: Direct block access is only supported for disk images, not for FAT filesystems.
