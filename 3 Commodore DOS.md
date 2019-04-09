@@ -17,19 +17,15 @@ The Commodore DOS API defines the meaning of channel numbers, channel names and 
 
 ## Concepts
 
-### Units and Drives
+Commodore DOS calls a device (with its own primary address) connected to the bus a **unit**.
 
-What is usually called a disk drive and is associated with a primary address is actually a **unit**, because a unit can have more than one drive in its enclosure, like two mechanisms for two diskettes.
+A unit can have one or more **media**[^90], a sequence of **blocks** that have a block numbering independent of the other media. A medium usually contains a **filesystem**, but it can also be used for direct block access independently of any filesystem. These media are numbered, starting from one.
 
-A unit can one one or more of what Unix calls a "block device": A sequence of blocks that have a block numbering independent of the other block devices, which can be used for direct block access, or for use with a filesystem. These block devices are numbered, starting from one.
+A simple one-drive unit like the Commodore 1541 only has a single medium "0". A dual-drive unit like the Commodore 8250 has two, named "0" and "1", one for each disk drive. Reference manuals of these kinds of units call these numbers the **drive** number.
 
-A simple one-drive unit like the Commodore 1541 only has a single block device "0". A dual-drive unit like the Commodore 8250 has two, named "0" and "1", one for each disk drive.
+Later devices with multiple megabytes of storage, like the floppy and hard disk drives by Creative Micro Devices (CMD) as well as modern solutions such as SD2IEC, support partitioning: Each partition is a medium. The partitions are numbered starting with "1", while "0" is a always points to the currently active partition. Reference manuals of these kinds of units call these numbers the **partition** number.
 
-Some devices with multiple megabytes of storage, like the floppy and hard disk drives by Creative Micro Devices (CMD), support partitioning: Each partition is a block device. The partitions are numbered starting with "1", while "0" is a shortcut for the currently active partition.
-
-XXX blocks and filesystems
-
-### Communication Mechanisms
+## Communication Mechanisms
 
 Communication to Commodore DOS happens through 15 data channels and one command channel:
 
@@ -659,3 +655,7 @@ XXX 8250/1001 has 154 logical tracks
 [^11]: `U1` and `U2` were added in a firmware update to the Commodore 4040 drive because of bugs in `B-R` and `B-W` in version 2.1. They were probably added as `USER` commands as opposed to proper commands (or fixing the broken commands) in order to keep the changes to the new ROM version contained to one ROM chip. Later drives retained this feature.
 
 [^12]: The command was piggy-backed onto `UI` in order to keep the changes between the 1540 an the 1541 contained to the second ROM chip.
+
+
+[^90]: No other literature calls it _media_. Commodore calls it _drives_ (because they are actual drives with their own mechanics), and CMD calls it _partitions_ (because they are parts of one large drive). I have decided to introduce a common name for the concept, since the syntax for paths and commands does not make a distinction between the two.
+
