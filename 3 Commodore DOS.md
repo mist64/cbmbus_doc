@@ -74,7 +74,9 @@ There are several independent sets of API:
 
 * **Burst API**: XXX
 
-* **Time API**: XXX
+* **Settings API**: XXX
+
+* **Clock API**: XXX
 
 * **Misc**: XXX
 
@@ -393,23 +395,11 @@ The arguments are binary-encoded bytes.
 
 `M-R` and `M-W` allow accessing the operating system's internal data structures, for example. The combination of `M-W` and `M-E` can be used to upload code from the computer and execute it. In case the drive's operating system does not completely get taken over, it is advisable to allocate a specific buffer before uploading code, so that the existing code won't overwrite the new code.
 
-### Utility Loader Command
-
-The utility loader command instructs the unit to load a file into its RAM and execute it. The file has to follow a certain format and contains checksums[^10].
-
-| Name           | Syntax                                                | Description                     |
-|----------------|-------------------------------------------------------|---------------------------------|
-| UTILITY LOADER | `&`[[_drv_]`:`]_name_                                 | Load and execute program        |
-
 ### USER Commands
 
-The `USER` commands were meant to give the user a command interface that calls uploaded code or code in expansion ROM (if available).
+The `USER` commands were meant to give the user a compact command interface that calls uploaded code or code in expansion ROM (if available).
 
 The commands `U1` to `U9` and `U:` (and their synonyms `U1` to `U:`) execute code through a jump table. There is a default jump table that can be replaced using a device-specific `M-W` command, and reset to the default using `U0`.
-
-For historical reasons[^11], the default jump table contains the already discussed `U1` and `U2` commands for reading and writing blocks. `U3` to `U8` jump into some useful device-specific locations. On most devices, all these jumps point into the user buffer, on some older devices, some jumps point into expansion ROM.
-
-The commands `U9` and `U:` execute a soft and a hard reset, respectively. In both cases, the status will read back code 73.
 
 | Name           | Syntax                                                | Description                     |
 |----------------|-------------------------------------------------------|---------------------------------|
@@ -419,16 +409,46 @@ The commands `U9` and `U:` execute a soft and a hard reset, respectively. In bot
 | U9/UI          | `UI`                                                  | Soft RESET (NMI)                |
 | U:/UJ          | `UJ`                                                  | Hard RESET                      |
 
+For historical reasons[^11], the default jump table contains the already discussed `U1` and `U2` commands for reading and writing blocks. `U3` to `U8` jump into some useful device-specific locations. On most devices, all these jumps point into the user buffer, on some older devices, some jumps point into expansion ROM.
+
+Here are the locations for the 1541:
+
+| Command   | Address |
+|-----------|---------|
+| `U3`/`UC` | $0500   |
+| `U4`/`UD` | $0503   |
+| `U5`/`UE` | $0506   |
+| `U6`/`UF` | $0509   |
+| `U7`/`UG` | $050C   |
+| `U8`/`UH` | $050F   |
+
+The commands `U9` and `U:` execute a soft and a hard reset, respectively. In both cases, the status will read back code 73.
+
+### Utility Loader Command
+
+The utility loader command instructs the unit to load a file into its RAM and execute it. The file has to follow a certain format and contains checksums[^10].
+
+| Name           | Syntax                                                | Description                     |
+|----------------|-------------------------------------------------------|---------------------------------|
+| UTILITY LOADER | `&`[[_drv_]`:`]_name_                                 | Load and execute program        |
+
 
 ## Burst API
 
 XXX burst commands
 * only support drives 0 and 1
 
+| Name           | Syntax                                                | Description                     |
+|----------------|-------------------------------------------------------|---------------------------------|
+| USER           | `U0>MR` _addr_hi_ _count_hi_                          | Read RAM (Burst protocol)       |
+| USER           | `U0>MW` _addr_hi_ _count_hi_                          | Write RAM (Burst protocol)      |
 
-## Extra API: Settings
 
-* 1571+
+## Settings API
+
+There are several commands that change global device settings that appeared in later devices.
+
+These are the commands supported on all devices since the 1571[^96]:
 
 | Name           | Syntax                                                | Description                     |
 |----------------|-------------------------------------------------------|---------------------------------|
@@ -437,25 +457,14 @@ XXX burst commands
 | USER           | `U0>T`                                                | Test ROM checksum               |
 | USER           | `U0>` _pa_                                            | Set unit primary address        |
 
-* 1581+
+And some commands supported on all devices since the 1581:
 
 | Name           | Syntax                                                | Description                     |
 |----------------|-------------------------------------------------------|---------------------------------|
 | USER           | `U0>B` _flag_                                         | Enable/disable Fast Serial      |
 | USER           | `U0>V` _flag_                                         | Enable/disable verify           |
 
-XXX they're U0 because it was easy to add them to the 1571 without changing the ROM layout too much
-
-* C65
-
-| Name           | Syntax                                                | Description                     |
-|----------------|-------------------------------------------------------|---------------------------------|
-| USER           | `U0>D`_val_                                           | Set directory sector interleave |
-| USER           | `U0>L`_flag_                                          | Large REL file support on/off   |
-
-* CMD
-
-And finally, there are some miscellaneous new commands.
+CMD devices added the following commands:
 
 | Name           | Syntax                                                | Description                     |
 |----------------|-------------------------------------------------------|---------------------------------|
@@ -463,14 +472,9 @@ And finally, there are some miscellaneous new commands.
 | SCSI COMMAND   | `S-C` _scsi_dev_num_ _buf_ptr_lp_ _buf_ptr_hi_ _num_bytes_ | Send SCSI Command (HD only) |
 | SWAP           | `S-`{`8`&#x7c;`9`&#x7c;`D`}                           | Change primary address          |
 
-* 1541U
+## Real-Time Clock API
 
-`K`: kill drive (1541ultimate)
-
-
-## Extra API: Real-Time Clock
-
-Some CMD devices have a real-time clock that can be read and written in multiple formats.
+Some devices have a real-time clock that can be read and written in multiple formats.
 
 | Name           | Syntax                                                | Description                     |
 |----------------|-------------------------------------------------------|---------------------------------|
@@ -480,10 +484,14 @@ Some CMD devices have a real-time clock that can be read and written in multiple
 | TIME WRITE DECIMAL | `T-WD` _b0_ _b1_ _b2_ _b3_ _b4_ _b5_ _b6_ _b7_    | Write Time/Date (Decimal)       |
 | TIME READ BCD  | `T-RB`                                                | Read Time/Date (BCD)            |
 | TIME WRITE BCD | `T-WB` _b0_ _b1_ _b2_ _b3_ _b4_ _b5_ _b6_ _b7_ _b8_   | Write Time/Date (BCD)           |
+| TIME READ ISO  | `T-RI`                                                | Read Time/Date (ISO)            |
+| TIME WRITE ISO | `T-WI` _yyyy_`-`_mm_`-`_dd_`T`_hh_`:`_mm_`:`_ss_ _dow_ | Write Time/Date (ISO)          |
 
-XXX SD2IEC: T-RI/T-WI (ISO)
+The ISO variant is only supported on the SD2IEC.
 
 ## Family-Specific Features
+
+There is a number of features that was only supported on one or a few devices and are not part of the canonical feature set.
 
 ### 1541 + 1571
 
@@ -495,46 +503,30 @@ For the 1541, the timing of the layer 2 Serial protocol was slowed down to suppo
 
 ### 1571
 
-The following two additions are 1571-specific:
+The following two commands are 1571-specific:
 
 | Name           | Syntax                                                | Description                     |
 |----------------|-------------------------------------------------------|---------------------------------|
 | USER           | `U0>M` _flag_                                         | Enable/disable 1541 emulation mode|
 | USER           | `U0>H` _number_                                       | Select head 0/1                 |
 
-### 1581-style partitions
+### 1581
 
-XXX non-canonical feature
-
-**Disk sections** (`CBM`, "1581 partitions") occupy a contiguous sequence of blocks. They cannot be read or written as files, but reserve blocks to be accessed by the block API, or to hold a sub-filesystem[^92]. (Only the Commodore 1581 and CMD drives' 1581 emulation modes support this.)
-
-
-In addition to all generic 1571 commands, the 1581 adds support for partitions. They occupy any number of contiguous sectors, are treated as files by the root filesystem (type `CBM`) and can be arbitrarily nested.
+The 1581 (and CMD devices in 1581 emulation mode) supports its own "partitions", which occupy a contiguous sequence of blocks. They appear as files of type `CBM`, but cannot be read or written as files, but reserve blocks to be accessed by the block API (safe from `VALIDATE`), or to hold a sub-filesystem[^92] (if the partition occupies at least 3 full tracks) by formatting it after changing into it. This way, partitions can even be nested.
 
 | Name           | Syntax                                                | Description                     |
 |----------------|-------------------------------------------------------|---------------------------------|
 | PARTITION      | `/`[_drv_][`:`_name_]                                 | Select partition |
 | PARTITION      | `/`[_drv_]`:`_name_`,`_track_ _sector_ _count_lo_ _count_hi_ `,C` | Create partition |
 
-XXX
+### C65
 
-* used to protect a range of sectors from VALIDATE
-* can host a sub-filesystem
-	* at least 120 blocks
-	* occupies full tracks (starts at sector 0, size multiple of sectors/track)
-	* this requires knowledge of the logical disk layout
-	* only the 1581 and CMD's 1581 emulation supports all of this this anyway
-
-### 1581
-
-And there are a few more generic commands:
+The disk drive built into the unreleased C65 supports the following commands:
 
 | Name           | Syntax                                                | Description                     |
 |----------------|-------------------------------------------------------|---------------------------------|
-| USER           | `U0>MR` _addr_hi_ _count_hi_                          | Read RAM (Burst protocol)       |
-| USER           | `U0>MW` _addr_hi_ _count_hi_                          | Write RAM (Burst protocol)      |
-
-XXX new path syntax with partitions
+| USER           | `U0>D`_val_                                           | Set directory sector interleave |
+| USER           | `U0>L`_flag_                                          | Large REL file support on/off   |
 
 ### Commodore RAMDOS
 
@@ -542,16 +534,6 @@ XXX
 
 * ftp://www.zimmers.net/pub/cbm/manuals/peripherals/1764_Ram_Expansion_Module_Users_Guide.pdf
 * https://github.com/xlar54/ramdos2crt-master/blob/master/src/c128devpack/ramdos12.src
-
-### JiffyDOS
-
-XXX jiffydos.manual.txt
-
-### CMD Devices
-
-Floppy drives and hard drives by Creative Micro Devices (CMD) support all 1581 commands and features, and have some additions of their own.
-
-XXX RAMLink
 
 ### SD2IEC
 
@@ -788,3 +770,5 @@ XXX 8250/1001 has 154 logical tracks
 [^94]: "Modern" devices mostly means the [SD2IEC](https://www.sd2iec.de) in native mode, not emulation devices like the [Pi1541](https://cbm-pi1541.firebaseapp.com).
 
 [^95]: CMD devices have emulation modes for the 1541, 1571 and 1581 devices and don't support all new features in these modes.
+
+[^96]: The 1571 aimed to be perfectly backwards-compatible with the 1541, which is why all added commands were added as sub-commands to `U0`, in order to keep the new code contained behind a single vector, keeping the ROM layout as close to the 1541's as possible.
