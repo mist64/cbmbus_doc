@@ -41,59 +41,11 @@ Communication to Commodore DOS happens through 15 data channels and one command 
 | 15      | commands/status   |
 | 16-31   | illegal           |
 
-Channels 0 to 14 need to be associated with a name and are used for the transfer of actual data like file contents and block contents. (0 and 1 are special-cased and will be discussed later.) Channel 15 is a "meta" channel that is is used to send out of band communication regarding the data channels, or global commands, as well as to read the result of a command or the general status of the unit.
+(While the underlying layers of the bus specifies channel numbers (secondary addressed) from 0 to 31, Commodore DOS does not support numbers 16-31.)
 
-While the underlying layers of the bus specifies channel numbers (secondary addressed) from 0 to 31, Commodore DOS does not support numbers 16-31.
+Channels 0 to 14 need to be associated with a name and are used for the transfer of actual data like file contents and block contents. (0 and 1 are special-cased and will be discussed later.)
 
-#### Command Channel
-
-The command channel is always available as channel 15. When writing to it, the device interprets the byte stream as commands in a unified format. When reading from it, the byte stream from the device is usually status information in a unified format (with the exception of the reply to "`M-R`", see below).
-
-##### Status
-
-XXX move most of this to the end
-
-The status information that is sent from channel 15 is a `CR`-delimited ASCII-encoded string with a uniform encoding:
-
-_code_`,`_string_`,`_a_`,`_b_[`,`_c_]
-
-* _code_ is a two-digit decimal error code.
-* _string_ is a short English-language version of the error code.
-* _a_ and _b_ are two additional at least two-digit decimal numbers[^4] that depend on the type of error ("`00`" if unused).
-* _c_ is the single-digit decimal number drive that caused the status message. Devices with only a single drive don't usually return this[^5].
-
-A status code of 0 will return the string "`00, OK,00,00`" (or "`00, OK,00,00,0`" on dual-drive devices, assuming the last command was performed on drive 0).
-
-XXX "details later"
-
-Reading the status will clear it. Keeping on reading will keep returning status messages.
-
-The following BASIC program will read a single status message:
-
-	10 OPEN 1,8,15
-	20 GET#1,A$: PRINT A$;: IF A$<>CHR$(13) GOTO 20
-	30 CLOSE 1
-
-##### Commands
-
-All commands are byte streams that are mostly ASCII, but with some binary arguments in some cases. There are two different ways to send them:
-
-They can be sent as a byte stream to channel 15, terminated an `EOI` or `UNLISTEN` event[^7]. The follwing BASIC code send the command "`I`" to drive 8 this way:
-
-    OPEN 1,8,15
-    PRINT#1, "I";
-    CLOSE 1
-
-(On layer 3, this will send `LISTEN 8`/`SECOND 15`/"`I`"/`UNLISTEN`.)
-
-Alternatively, channel 15 can be opened as a named channel with the command as the name. This does not actually perform an open operation, and a closing would be a no-op. It just allows shorter code, e.g. in BASIC:
-
-	OPEN 1,8,15,"I"
-	CLOSE 1
-
-(On layer 3, this will send `LISTEN 8`/`OPEN 15`/"`I`"/`UNLISTEN`/`LISTEN 8`/`CLOSE 15`/`UNLISTEN`.)
-
-In both cases, commands that don't contain binary arguments can also be terminated by the `CR` character.
+Channel 15 is a "meta" channel. When writing to it, the device interprets the byte stream as commands in a unified format. This is either commands regarding the data channels (out of band communication), or global commands. When reading from it, the byte stream from the device is usually status information in a unified format, and sometimes raw response data to a command.
 
 ### APIs
 
@@ -489,7 +441,33 @@ XXX RAMLink
 	* `XW`: make current pa permanent
 	* SD2IEC specific, changing -> see there
 
-## Error Messages
+#### Command Channel
+
+
+##### Status
+
+XXX move most of this to the end
+
+The status information that is sent from channel 15 is a `CR`-delimited ASCII-encoded string with a uniform encoding:
+
+_code_`,`_string_`,`_a_`,`_b_[`,`_c_]
+
+* _code_ is a two-digit decimal error code.
+* _string_ is a short English-language version of the error code.
+* _a_ and _b_ are two additional at least two-digit decimal numbers[^4] that depend on the type of error ("`00`" if unused).
+* _c_ is the single-digit decimal number drive that caused the status message. Devices with only a single drive don't usually return this[^5].
+
+A status code of 0 will return the string "`00, OK,00,00`" (or "`00, OK,00,00,0`" on dual-drive devices, assuming the last command was performed on drive 0).
+
+XXX "details later"
+
+Reading the status will clear it. Keeping on reading will keep returning status messages.
+
+The following BASIC program will read a single status message:
+
+	10 OPEN 1,8,15
+	20 GET#1,A$: PRINT A$;: IF A$<>CHR$(13) GOTO 20
+	30 CLOSE 1
 
 XXX here's more info on error messages...
 
@@ -519,6 +497,27 @@ The full list of error messages can be found in practically every disk drive use
 * `66,ILLEGAL TRACK OR SECTOR,99,00`: A user command or data structures on disk referenced track 99, sector 00, which does not exist.
 * `73,CBM DOS V2.6 1541,00,00`: This status is returned after the RESET of a device (and after the command "`UI`"). The actual message is specific to the device and can be used to detect the type and sometimes the ROM version[^6].
 
+
+##### Commands
+
+All commands are byte streams that are mostly ASCII, but with some binary arguments in some cases. There are two different ways to send them:
+
+They can be sent as a byte stream to channel 15, terminated an `EOI` or `UNLISTEN` event[^7]. The follwing BASIC code send the command "`I`" to drive 8 this way:
+
+    OPEN 1,8,15
+    PRINT#1, "I";
+    CLOSE 1
+
+(On layer 3, this will send `LISTEN 8`/`SECOND 15`/"`I`"/`UNLISTEN`.)
+
+Alternatively, channel 15 can be opened as a named channel with the command as the name. This does not actually perform an open operation, and a closing would be a no-op. It just allows shorter code, e.g. in BASIC:
+
+	OPEN 1,8,15,"I"
+	CLOSE 1
+
+(On layer 3, this will send `LISTEN 8`/`OPEN 15`/"`I`"/`UNLISTEN`/`LISTEN 8`/`CLOSE 15`/`UNLISTEN`.)
+
+In both cases, commands that don't contain binary arguments can also be terminated by the `CR` character.
 
 ## Extra: Printers
 
