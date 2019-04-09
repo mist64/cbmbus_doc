@@ -2,7 +2,7 @@
 
 In the [series about the variants of the Commodore Peripheral Bus family](https://www.pagetable.com/?p=1018), this article covers the common layer 4: The "Commodore DOS" interface to disk drives.
 
-Commodore DOS is supported by all floppy disk and hard disk drives for the Commodore 8 bit family (such as the well-known 1541), independently of the connectors and byte transfer protocols on the lower layers of the protocol stack. The protocol specifies APIs for file access, for direct block access as well as executing code on the device. While all classic drives supported all three, some support additional APIs.
+Commodore DOS is supported by all floppy disk and hard disk drives for the Commodore 8 bit family (such as the well-known 1541), independently of the connectors and byte transfer protocols on the lower layers of the protocol stack. The protocol specifies APIs for file access, for direct block access as well as for executing code on the device. Only a core set it supported by all devices though, while some devices have additional APIs.
 
 ![](docs/cbmbus/layer4.png =601x251)
 
@@ -15,28 +15,48 @@ From a device's point of view, the layer below, layer 3 ("TALK/LISTEN") defines 
 
 The Commodore DOS API defines the meaning of channel numbers, channel names and the data traveling over channels in the context of disk drives.
 
+<hr/>
+
+> **_NOTE:_**  I am releasing one part every week, at which time links will be added to the bullet points below. The articles will also be announced on my Twitter account <a href="https://twitter.com/pagetable">@pagetable</a> and my Mastodon account <a href="https://mastodon.social/@pagetable">@pagetable&#64;mastodon.social</a>.
+
+<hr/>
+
+* [Part 0: Overview and Introduction](https://www.pagetable.com/?p=1018)
+* [Part 1: IEEE-488](https://www.pagetable.com/?p=1023) [PET/CBM Series; 1977]
+* [Part 2: The TALK/LISTEN Layer](https://www.pagetable.com/?p=1031)
+* **Part 3: The Commodore DOS Layer** ← *this article*
+* Part 4: Standard Serial (IEC) [VIC-20, C64; 1981] *(coming soon)*
+* Part 5: TCBM [C16, C116, Plus/4; 1984] *(coming soon)*
+* Part 6: JiffyDOS [1985] *(coming soon)*
+* Part 7: Fast Serial [C128; 1986] *(coming soon)*
+* Part 8: CBDOS [C65; 1991] *(coming soon)*
+
 ## Feature Sets
 
 Commodore DOS has been in existence since the Commodore 2040 drive from 1978, and new firmware code for Commodore DOS devices is being developed to this day. The API has gotten some extensions in the meantime, so while this article covers the complete API, it important to understand that not all APIs are supported by all devices.
 
-| Feature          | 2040 | 1541 | 1571/1581 | RAM-DOS | CMD HD/FD | SD2IEC   |
-|------------------|------|------|-----------|---------|-----------|----------|
-| Sequential files | yes  | yes  | yes       | yes     | yes       | yes      |
-| Relative files   | no   | yes  | yes       | yes     | yes       | yes      |
-| Block access     | yes  | yes  | yes       | no      | yes       | yes      |
-| Code execution   | yes  | yes  | yes       | no      | yes       | no       |
-| Burst commands   | no   | no   | yes       | no      | yes       | no       |
-| Time             | no   | no   | no        | no      | yes       | yes      |
-| Partitions       | no   | no   | no        | no      | yes       | yes      |
-| Subdirectories   | no   | no   | no        | no      | yes       | yes      |
+| Feature          | 2040 | 1541 | 1571/1581 | RAMDOS | CMD HD/FD | SD2IEC   |
+|------------------|------|------|-----------|--------|-----------|----------|
+| Sequential files | yes  | yes  | yes       | yes    | yes       | yes      |
+| Relative files   | no   | yes  | yes       | yes    | yes       | yes      |
+| Block access     | yes  | yes  | yes       | no     | yes       | yes      |
+| Code execution   | yes  | yes  | yes       | no     | yes       | no       |
+| Burst commands   | no   | no   | yes       | no     | yes       | no       |
+| Time             | no   | no   | no        | no     | yes       | yes      |
+| Partitions       | no   | no   | no        | no     | yes       | yes      |
+| Subdirectories   | no   | no   | no        | no     | yes       | yes      |
 
-Commodore drives up to the 1581 will be called "first-generation" further on.
+(The 2040 is Commodore's first (dual) disk drive. A ROM update to 2.0 later added relative file support. The 1541, 1571 and 1581 are the well-known C64 drives. RAMDOS is a RAM-disk application by Commodore that shipped with the "REU" RAM extender. Creative Micro Devices (CMD) made floppy disk and hard disk drives in the 1990s. SD2IEC is a modern floppy/hard drive replacement for Commodore computers with a Serial bus.)
+
+Commodore drives up to the 1581 will be called "classic" devices further on.
+
+The last device released by Commodore was the 1581 from 1987. CMD practically picked up this line of devices by releasing the HD and FD series devices with lots of added features – and APIs. These additions should be considered canonical.
 
 ## Concepts
 
 Commodore DOS calls a device (with its own primary address) connected to the bus a **unit**.
 
-A unit can have one or more **media**[^90], a sequence of **blocks** that have a block numbering independent of the other media. A medium usually contains a **filesystem**, but it can also be used for direct block access independently of any filesystem. These media are numbered, starting from one.
+A unit can have one or more **media**[^90], a sequence of **blocks** whose numbering is independent of the other media. A medium usually contains a **filesystem**, but it can also be used for direct block access independently of any filesystem. These media are numbered, starting from "0".
 
 For devices that do not support partitions, a simple one-drive unit like the Commodore 1541 only has a single medium "0". A dual-drive unit like the Commodore 8250 has two, named "0" and "1", one for each disk drive. Reference manuals of these kinds of units call these numbers the **drive number**.
 
@@ -60,7 +80,53 @@ Communication to Commodore DOS happens through 15 data channels and one command 
 
 Channels 0 to 14 need to be associated with a name and are used for the transfer of raw data like file and block contents. (0 and 1 are special-cased and will be discussed later.)
 
-Channel 15 is a "meta" channel. When writing to it, the device interprets the byte stream as commands in a unified format. This is either a command regarding a data channel (out of band communication), or a global command. When reading from it, the byte stream from the device is usually status information in a unified format, and sometimes raw response data to a command.
+Channel 15 is a "meta" channel. When writing to it, the device interprets the byte stream as commands in a unified format. It either controls something about a specific data channel (out of band communication), or is a global command. When reading from it, the byte stream from the device is usually status information in a unified format, and sometimes raw response data to a command.
+
+#### Commands
+
+All commands are byte streams that are mostly ASCII, but with some binary arguments in some cases. All devices allow commands of up to 40 bytes in length, some allow more.
+
+There are two different ways to send them:
+
+They can be sent as a byte stream to channel 15, terminated an `EOI` or `UNLISTEN` event[^7]. The follwing BASIC code send the command "`I`" to drive 8 this way:
+
+    OPEN 1,8,15
+    PRINT#1, "I";
+    CLOSE 1
+
+(On layer 3, this will send `LISTEN 8`/`SECOND 15`/"`I`"/`UNLISTEN`.)
+
+Alternatively, channel 15 can be opened as a named channel with the command as the name. This is not a real "OPEN" operation, and a closing would be a no-op. It just allows shorter code, e.g. in BASIC:
+
+	OPEN 1,8,15,"I"
+	CLOSE 1
+
+(On layer 3, this will send `LISTEN 8`/`OPEN 15`/"`I`"/`UNLISTEN`/`LISTEN 8`/`CLOSE 15`/`UNLISTEN`.)
+
+In both cases, commands that don't contain binary arguments can also be terminated by the `CR` character.
+
+#### Status
+
+The status information that is sent from channel 15 is a `CR`-delimited ASCII-encoded string with a uniform encoding:
+
+_code_`,`_string_`,`_a_`,`_b_[`,`_c_]
+
+* _code_ is a two-digit decimal error code.
+* _string_ is a short English-language version of the error code.
+* _a_ and _b_ are two additional at least two-digit decimal numbers[^4] that depend on the type of error ("`00`" if unused).
+* _c_ is the single-digit decimal number drive that caused the status message. Devices with only a single drive don't usually return this[^5].
+
+A status code of 0 will return the string "`00, OK,00,00`" (or "`00, OK,00,00,0`" on dual-drive devices, assuming the last command was performed on drive 0).
+
+Reading the status will clear it. Keeping on reading will keep returning status messages.
+
+The following BASIC program will read a single status message:
+
+	10 OPEN 1,8,15
+	20 GET#1,A$: PRINT A$;: IF A$<>CHR$(13) GOTO 20
+	30 CLOSE 1
+
+More info on error codes towards the end of this article.
 
 ### APIs
 
@@ -68,17 +134,15 @@ There are several independent sets of API:
 
 * **File Access API**: This allows high-level access to files. No knowledge of the underlying data structures is needed. All devices support it.
 
-* **Block Access API**: This allows reading and writing individual logical blocks (256 bytes) of a medium. This can (optionally) be done ignorant of but still compatible with the filesystem's metadata, i.e. to allow custom blocks to coexist with a healthy filesystem on a single medium. This API is optional. RAM-disks and network-backed devices don't support it.
+* **Block Access API**: This allows reading and writing individual logical blocks (256 bytes) of a medium. This can (optionally) be done ignorant of but still compatible with the filesystem's metadata, i.e. to allow custom blocks to coexist with a healthy filesystem on a single medium. This API is optional. RAM-disks (Like RAMDOS) and network-backed devices don't usually support it.
 
 * **Code Execution API**: This allows reading and writing memory in the unit's interface controller, as well as executing code in its context. It is highly device-specific, but allows for implementing optimized or specialized code for existing functionality, or a device-side implementation of custom disk formats.
 
 * **Burst API**: XXX
 
-* **Settings API**: XXX
+* **Settings API**: Later devices support a canonical set of global settings commands.
 
-* **Clock API**: XXX
-
-* **Misc**: XXX
+* **Clock API**: Some devices keep track of time and can assign timestamp metadata to files. These devices allow reading and writing the current time using the clock API.
 
 ## File Access API
 
@@ -127,7 +191,7 @@ On devices that do not support subdirectories, paths only consist of the (option
 
 Some interfaces features permit using wildcard characters:
 * A question mark ("`?`") matches any character.
-* An asterisk ("`*`") matches zero or more characters. On first-generation units, characters in the pattern after the asterisk are ignored, so an asterisk can only match characters at the end of the name.
+* An asterisk ("`*`") matches zero or more characters. On classic devices, characters in the pattern after the asterisk are ignored, so an asterisk can only match characters at the end of the name.
 
 ### Opening Files
 
@@ -235,7 +299,7 @@ There are many command-channel commands that deal with creating, fixing and modi
 
 (Unless otherwise mentioned, arguments for all commands are ASCII.)
 
-The `INITIALIZE` command is only useful on first-generation devices, where it works around the risk of not invalidating the cache after swapping a disk.
+The `INITIALIZE` command is only useful on classic devices, where it works around the risk of not invalidating the cache after swapping a disk.
 
 The `VALIDATE` command is a simple check-disk function that will make sure the "block availability map" is consistent with other on-disk data structures. It is recommended on a disk that contains a file that has not been closed after writing.
 
@@ -269,6 +333,8 @@ Devices with partitioning support add the following commands:
 | GET PARTITION  | `GP` _num_                                            | Get information about partition |
 | RENAME-PARTITION | `R-P:`_new_name_`=`_old_name_                       | Rename a partition              |
 
+(There is a variant of `CHANGE PARTITION` with the `P` character shifted (code `0xd0`), which takes a binary-encoded partition number instead of an ASCII-encoded one.)
+
 There are no commands to create or delete partitions. These functions have to be done through tools that know the internals of the specific device.
 
 Devices with subdirectory support add the following:
@@ -294,8 +360,6 @@ In order to use the block API, a block-sized buffer has to be allocated inside t
 
 The buffer number is only useful for a use case around code execution and will be covered later.
 
-XXX SD2IEC large buffers
-
 Without an explicit number, the next free buffer in the device's RAM will be allocated. It will stay allocated as long as the named channel is open.
 
 Reading from the channel gets a byte from the buffer, and writing to the channel put a byte into the buffer. Every buffer comes with a "buffer pointer" that points to the next byte to be read or written. When creating a buffer, the buffer pointer is set to 1 instead of 0, so reading or writing would skip the first byte in the buffer. (The reason for this is the `B-R`/`B-W` API described later.)
@@ -307,8 +371,6 @@ All arguments in the buffer API are decimal ASCII values and can be separated by
 | Name           | Syntax                                                | Description                     |
 |----------------|-------------------------------------------------------|---------------------------------|
 | BUFFER-POINTER | `B-P` _channel_ _index_                               | Set r/w pointer within buffer   |
-
-XXX SD2IEC: B-P supports _index_hi_
 
 ### Reading and Writing Blocks
 
@@ -435,7 +497,11 @@ The utility loader command instructs the unit to load a file into its RAM and ex
 
 ## Burst API
 
-XXX burst commands
+XXX TODO
+
+* bust name stupid: burst instruction set vs. burst serial protocol
+* CHGUTL ("U0>") commands are part of burst instruction set, but unrelated to "raw disk access"
+
 * only support drives 0 and 1
 
 | Name           | Syntax                                                | Description                     |
@@ -512,12 +578,14 @@ The following two commands are 1571-specific:
 
 ### 1581
 
-The 1581 (and CMD devices in 1581 emulation mode) supports its own "partitions", which occupy a contiguous sequence of blocks. They appear as files of type `CBM`, but cannot be read or written as files, but reserve blocks to be accessed by the block API (safe from `VALIDATE`), or to hold a sub-filesystem[^92] (if the partition occupies at least 3 full tracks) by formatting it after changing into it. This way, partitions can even be nested.
+The 1581 (and CMD devices in 1581 emulation mode) supports its own "partitions", which occupy a contiguous sequence of blocks. They appear as files of type `CBM`, but cannot be read or written as files, but reserve blocks to be accessed by the block API (safe from `VALIDATE`), or to hold a sub-filesystem[^92] (if the partition starts and ends at track boundaries and is at least 3 tracks in size) by formatting it after changing into it. This way, partitions can even be nested.
 
 | Name           | Syntax                                                | Description                     |
 |----------------|-------------------------------------------------------|---------------------------------|
 | PARTITION      | `/`[_drv_][`:`_name_]                                 | Select partition |
 | PARTITION      | `/`[_drv_]`:`_name_`,`_track_ _sector_ _count_lo_ _count_hi_ `,C` | Create partition |
+
+There is no syntax to access files in a different partition, it is only possible to change into partitions, and to change back to the root (by omitting the partition name).
 
 ### C65
 
@@ -528,61 +596,20 @@ The disk drive built into the unreleased C65 supports the following commands:
 | USER           | `U0>D`_val_                                           | Set directory sector interleave |
 | USER           | `U0>L`_flag_                                          | Large REL file support on/off   |
 
-### Commodore RAMDOS
-
-XXX
-
-* ftp://www.zimmers.net/pub/cbm/manuals/peripherals/1764_Ram_Expansion_Module_Users_Guide.pdf
-* https://github.com/xlar54/ramdos2crt-master/blob/master/src/c128devpack/ramdos12.src
-
-### SD2IEC
-
-`X` commands:
-	* `XW`: make current pa permanent
-	* SD2IEC specific, changing -> see there
-
-#### Command Channel
-
-
-##### Status
-
-XXX move most of this to the end
-
-The status information that is sent from channel 15 is a `CR`-delimited ASCII-encoded string with a uniform encoding:
-
-_code_`,`_string_`,`_a_`,`_b_[`,`_c_]
-
-* _code_ is a two-digit decimal error code.
-* _string_ is a short English-language version of the error code.
-* _a_ and _b_ are two additional at least two-digit decimal numbers[^4] that depend on the type of error ("`00`" if unused).
-* _c_ is the single-digit decimal number drive that caused the status message. Devices with only a single drive don't usually return this[^5].
-
-A status code of 0 will return the string "`00, OK,00,00`" (or "`00, OK,00,00,0`" on dual-drive devices, assuming the last command was performed on drive 0).
-
-XXX "details later"
-
-Reading the status will clear it. Keeping on reading will keep returning status messages.
-
-The following BASIC program will read a single status message:
-
-	10 OPEN 1,8,15
-	20 GET#1,A$: PRINT A$;: IF A$<>CHR$(13) GOTO 20
-	30 CLOSE 1
-
-XXX here's more info on error messages...
+## Status Codes
 
 The first decimal digit encodes the category of the error.
 
-| First Digit | Description                  |
-|-------------|------------------------------|
-| 0, 1        | No error, informational only |
-| 2           | Physical disk error          |
-| 3           | Error parsing the command    |
-| 4           | Controller error (CMD only)  |
-| 5           | Relative file related error  |
-| 6           | File error                   |
-| 7           | Generic disk or device error |
-| 8, 9        | unused                       |
+| First Digit | Description                     |
+|-------------|---------------------------------|
+| 0, 1        | No error, informational only    |
+| 2           | Physical disk error             |
+| 3           | Error parsing the command       |
+| 4           | Controller error (CMD addition) |
+| 5           | Relative file related error     |
+| 6           | File error                      |
+| 7           | Generic disk or device error    |
+| 8, 9        | unused                          |
 
 Note that a program cannot rely on any of these strings, just on the codes.
 
@@ -598,44 +625,14 @@ The full list of error messages can be found in practically every disk drive use
 * `73,CBM DOS V2.6 1541,00,00`: This status is returned after the RESET of a device (and after the command "`UI`"). The actual message is specific to the device and can be used to detect the type and sometimes the ROM version[^6].
 
 
-##### Commands
-
-All commands are byte streams that are mostly ASCII, but with some binary arguments in some cases. There are two different ways to send them:
-
-They can be sent as a byte stream to channel 15, terminated an `EOI` or `UNLISTEN` event[^7]. The follwing BASIC code send the command "`I`" to drive 8 this way:
-
-    OPEN 1,8,15
-    PRINT#1, "I";
-    CLOSE 1
-
-(On layer 3, this will send `LISTEN 8`/`SECOND 15`/"`I`"/`UNLISTEN`.)
-
-Alternatively, channel 15 can be opened as a named channel with the command as the name. This does not actually perform an open operation, and a closing would be a no-op. It just allows shorter code, e.g. in BASIC:
-
-	OPEN 1,8,15,"I"
-	CLOSE 1
-
-(On layer 3, this will send `LISTEN 8`/`OPEN 15`/"`I`"/`UNLISTEN`/`LISTEN 8`/`CLOSE 15`/`UNLISTEN`.)
-
-In both cases, commands that don't contain binary arguments can also be terminated by the `CR` character.
-
-## Extra: Printers
-
-XXX
-
-* printers use the secondary address to pre-select a character set
-* 0 Print data in Uppercase/Graphics mode
-* 7 Print data in Upper/lowercase
-
-
 ## Next Up
 
-XXX
+Part 4 of the series of articles on the Commodore Peripheral Bus family will cover Standard Serial (IEC).
+
+> This article series is an Open Source project. Corrections, clarifications and additions are **highly** appreciated. I will regularly update the articles from the repository at [https://github.com/mist64/cbmbus_doc](https://github.com/mist64/cbmbus_doc).
 
 
 ## References
-
-XXX
 
 * http://www.softwolves.pp.se/idoc/alternative/vc1541_de/
 * Schramm, K.: [Die Floppy 1541](https://spiro.trikaliotis.net/Book#vic1541). Haar bei München: Markt-und-Technik-Verlag, 1985. ISBN 3-89090-098-4
@@ -646,12 +643,15 @@ XXX
 * CBM\ 2040-3040-4040-8050\ Disk\ Drive\ Manual.pdf
 * commodore_vic_1541_floppy_drive_users_manual.pdf
 * ftp://www.zimmers.net/pub/cbm/manuals/peripherals/1764_Ram_Expansion_Module_Users_Guide.pdf
+* https://github.com/xlar54/ramdos2crt-master/blob/master/src/c128devpack/ramdos12.src
 * https://www.lyonlabs.org/commodore/onrequest/cmd/CMD_Hard_Drive_Users_Manual.pdf
 * cmd_fd-2000_manual.pdf
 * https://www.sd2iec.de/gitweb/?p=sd2iec.git;a=blob;f=README;hb=HEAD
 * http://commodore64.se/wiki/index.php/1541_tricks#Utility_loader_.28.22.26.22_command.29
 * ftp://www.zimmers.net/pub/cbm/manuals/printers/MPS-801_Printer_Users_Manual.pdf
 
+
+<!--
 
 ## limitations
 
@@ -663,7 +663,6 @@ XXX
 	* CMD drives
 		* read back OK
 
-<--
 10 open 1,8,15,"ui"
 20 get#1,a$:?a$;:ifa$<>chr$(13)goto20
 30 close 1
@@ -678,27 +677,7 @@ XXX
 110 get#2,a$:?asc(a$+chr$(0)),st
 120 next
 run
--->
 
-<!---
-
-## Notes
-
-* max 40/58? char commands
-* modify mode ("M")
-* not specifying drive -> last one used?
-* the autostart plug is called "power-on diag sense loader" (1540/1571 source)
-
-* added value:
-	* explains the *levels*
-	* integrates all extensions
-* Q
-	* bust name stupid: burst instruction set vs. burst serial protocol
-	* CHGUTL ("U0>") commands are part of burst instruction set, but unrelated to "raw disk access"
-
-
-
-XXX U0 on 1540/1541?
 
 10 open 1,8,15,"ui"
 20 get#1,a$:?a$;:ifa$<>chr$(13)goto20
@@ -730,8 +709,6 @@ run
 60 close 10
 run
 
-
-
 --->
 
 [^1]: This is a limitation of the layer 2 protocol: It is impossible for a device to send a 0-byte stream of bytes.
@@ -740,9 +717,7 @@ run
 
 [^3]: All single-drive Commodore devices except the 1571 (revision 5 ROM only), 1541-C, 1541-II and 1581 have a [bug](https://groups.google.com/forum/#!topic/comp.sys.cbm/TKKl8a-3EPA) that can currupt the filesystem when using the overwrite feature.
 
-[^4]: The two arguments always have to be at least two digits, and on most Commodore drives, they are always two digits. CMD drives support larger track and sector numbers, so while arguments less than 100 will be two digits wide, they can also return three-digit arguments.
-
-XXX 8250/1001 has 154 logical tracks
+[^4]: The two arguments are always 0-prefixed so they are at least two digits, but on devices with track or sector numbers above 99 (like the Commodore 8250 as well as CMD hard disks), they can be three digits.
 
 [^5]: The SFD-1001 is the exception to this: It is single-drive device that shares its firmware with the dual-drive CBM 8250.
 
@@ -754,7 +729,7 @@ XXX 8250/1001 has 154 logical tracks
 
 [^9]: On disks that do not use Commodore's native "GCR" bit encoding (e.g. CBM 8280, D9060/D9090, 1581, the C65 drive and all drives by CMD), the physical layout doesn't match the logical layout, i.e. the medium may have a different sector size or track/sector(/head) numbering. On the CMD HD, the track and sector numbers are interpreted as a linear block address, and the constraint of 255 tracks and 256 sectors of 256 bytes limits the maximum partition size to just under 16 MB.
 
-[^10]: The feature has existed in all Commodore drives [since the release of the 1540](https://github.com/mist64/cbmsrc/blob/master/DOS_1540/utlodr), but they only started documenting it with the 1551 drive, and never documented the actual file format or the algorithm for the required checksum. The 1540, early 1541 drives, the 8250/8050/4040 with DOS V2.7 as well as the D9060/D9090 hard disks supported the also undocumented "boot clip": a device that grounds certain pins on the data connector and will force the unit to execute the first file on disk. All this hints at this mostly being a feature that was used in-house.
+[^10]: The feature has existed in all Commodore drives [since the release of the 1540](https://github.com/mist64/cbmsrc/blob/master/DOS_1540/utlodr), but they only started documenting it with the 1551 drive, and never documented the actual file format or the algorithm for the required checksum. The 1540, early 1541 drives, the 8250/8050/4040 with DOS V2.7 as well as the D9060/D9090 hard disks supported the also undocumented "boot clip": a device that grounds certain pins on the data connector and will force the unit to execute the first file on disk ("power-on diag sense loader"). All this hints at this mostly being a feature that was used in-house.
 
 [^11]: `U1` and `U2` were added in a firmware update to the Commodore 4040 drive because of bugs in `B-R` and `B-W` in version 2.1. They were probably added as `USER` commands as opposed to proper commands (or fixing the broken commands) in order to keep the changes to the new ROM version contained to one ROM chip. Later drives retained this feature.
 
