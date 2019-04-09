@@ -66,11 +66,11 @@ Channel 15 is a "meta" channel. When writing to it, the device interprets the by
 
 There are several independent sets of API:
 
-* **File API**: This allows high-level access to files. No knowledge of the underlying data structures is needed. All devices support it.
+* **File Access API**: This allows high-level access to files. No knowledge of the underlying data structures is needed. All devices support it.
 
-* **Block API**: This allows reading and writing individual logical blocks (256 bytes) of a medium. This can (optionally) be done ignorant of but still compatible with the filesystem's metadata, i.e. to allow custom blocks to coexist with a healthy filesystem on a single medium. This API is optional. RAM-disks and network-backed devices don't support it.
+* **Block Access API**: This allows reading and writing individual logical blocks (256 bytes) of a medium. This can (optionally) be done ignorant of but still compatible with the filesystem's metadata, i.e. to allow custom blocks to coexist with a healthy filesystem on a single medium. This API is optional. RAM-disks and network-backed devices don't support it.
 
-* **Internal API**: This allows reading and writing memory in the unit's interface controller, as well as executing code in its context. It is highly device-specific, but allows for implementing optimized or specialized code for existing functionality, or a device-side implementation of custom disk formats.
+* **Code Execution API**: This allows reading and writing memory in the unit's interface controller, as well as executing code in its context. It is highly device-specific, but allows for implementing optimized or specialized code for existing functionality, or a device-side implementation of custom disk formats.
 
 * **Burst API**: XXX
 
@@ -78,7 +78,7 @@ There are several independent sets of API:
 
 * **Misc**: XXX
 
-## File-Level API
+## File Access API
 
 Every medium has its own independent filesystem. A filesystem has a name, a two-character ID, and contains an unsorted set of files. All files have a unique **name** as well as a file **type**, and have to be at least one byte in size[^1]. Some devices maintain a last-changed timestamp with files, and some support nested subdirectories in order to group files.
 
@@ -280,7 +280,7 @@ Devices with subdirectory support add the following:
 
 The syntax to go up one level includes the "`←`" (left arrow) character, which is CBM-ASCII code `0x5f` (underscore in US-ASCII).
 
-## Block API
+## Block Access API
 
 Commodore DOS also allows accessing the disk on a lower level. The block API works with 256-byte-sized logical blocks that are identified by a logical track (1-255) and a logical sector (0-255)[^9].
 
@@ -330,6 +330,8 @@ The "`B-A`" and "`B-F`" commands allow marking a block as allocated or free in t
 
 Using the `U1`/`U2` commands together with `B-A` and `B-F` allow using free blocks on the disk for custom use without interfering with the filesystem's data structures. `B-A` will return the track and sector number of the next free block in case the one passed as an argument was already allocated. Together with the knowledge that the first block on disk is track 1, sector 0, it is possible to allocate blocks for custom use without any knowledge of the disk layout.
 
+Similarly, a disk can be fully dumped by iterating over all tracks (starting with 1) and sectors (starting with 0) and skipping to sector 0 of the next track whenever an "ILLEGAL TRACK OR SECTOR" error is encountered.
+
 ### "Random Access Files"
 
 The `B-R` and `B-W` commands have deceptive names and are part of a rarely used and practically deprecated feature: "Random Access Files".
@@ -345,11 +347,39 @@ While sequential files only allow sequential access to the file's data, and rela
 
 (As with `U1`/`U2`, the _medium_ number is ignored on devices that support partitioning.)
 
-## Memory-Level API
+## Code Execution API
+
+The code execution API provides all the tools to change the detailed behavior of a device as far as replacing the code that runs on it. Of course, code that uses these APIs is completely specific to one kind of device.
+
+### Allocating Specific Buffers
+
+Specifying a number after the "`#`" character in the channel name will allocate the buffer with the specified number. This practically allocates a specific memory area in the device. This is the mapping on a 1541, for example:
+
+| Buffer | Memory Area     |
+|--------|-----------------|
+| 0      | `$0300`-`$03ff` |
+| 1      | `$0400`-`$04ff` |
+| 2      | `$0500`-`$05ff` |
+| 3      | `$0600`-`$06ff` |
+| 4      | `$0700`-`$07ff` |
+
+On a 1541, buffer 2, which is located from `$0500` to `$05ff` in RAM, is the designated "user buffer". which is most likely to not be used by the device's operating system.
+
+### Block Execute
+
+With an explicit buffer allocated, one can have the device read a block into the buffer and execute it (by calling the base address) using the `B-E` command:
+
+| Name           | Syntax                                                | Description                     |
+|----------------|-------------------------------------------------------|---------------------------------|
+| BLOCK-EXECUTE  | `B-E` _channel_ _medium_ _track_ _sector_             | Load and execute a block        |
+
+The code will run in the context of the "interface CPU". (Some older Commodore devices had two CPUs, one for the Commodore Peripheral Bus interface, and one as the disk controller.) This CPU is usually a 6502 derivative, but executing code is highly device-specific in any case.
+
+The operating system's code will resume after the executed code returns.
 
 ### Memory Commands
 
-The memory commands allow reading and writing device memory as well as executing code in the context of the interface CPU. This CPU is usually a 6502 derivative, but executing code is highly device-specific in any case.
+The memory commands allow reading and writing device memory as well as executing code at an arbitrary location.
 
 The resulting bytes from the "`M-R`" command will be delivered through channel 15 in place of the status string.
 
@@ -361,17 +391,7 @@ The arguments are binary-encoded bytes.
 | MEMORY-READ    | `M-R` _addr_lo_ _addr_hi_ _count_                     | Read RAM                        |
 | MEMORY-EXECUTE | `M-E` _addr_lo_ _addr_hi_                             | Execute code                    |
 
-XXX
-
-* When specifying a number, a particular buffer will be allocated, if available. This is useful for allocating a specific memory area in the device in order to upload code for execution. The mapping from buffer number to RAM address is device-specific - but so is the uploaded code: On a Commodore 1541, for example, buffer 2, which is located from `$0500` to `$05ff` in RAM, is the "user buffer". The "`U3`"-"`U8`" command channel commands are shortcuts to execute code in this buffer.
-
-### Block Execute
-
-XXX
-
-| Name           | Syntax                                                | Description                     |
-|----------------|-------------------------------------------------------|---------------------------------|
-| BLOCK-EXECUTE  | `B-E` _channel_ _track_ _sector_                      | Load and execute a block        |
+`M-R` and `M-W` allow accessing the operating system's internal data structures, for example. The combination of `M-W` and `M-E` can be used to upload code from the computer and execute it. In case the drive's operating system does not completely get taken over, it is advisable to allocate a specific buffer before uploading code, so that the existing code won't overwrite the new code.
 
 ### Utility Loader Command
 
