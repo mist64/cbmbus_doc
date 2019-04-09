@@ -2,7 +2,7 @@
 
 In the [series about the variants of the Commodore Peripheral Bus family](https://www.pagetable.com/?p=1018), this article covers the common layer 4: The "Commodore DOS" interface to disk drives.
 
-Commodore DOS provides file as well as direct block access APIs, and is supported by all floppy disk and hard disk drives for the Commodore 8 bit family (such as the well-known 1541), independently of the connectors and byte transfer protocols on the lower layers of the protocol stack.
+Commodore DOS is supported by all floppy disk and hard disk drives for the Commodore 8 bit family (such as the well-known 1541), independently of the connectors and byte transfer protocols on the lower layers of the protocol stack. The protocol specifies APIs for file access, for direct block access as well as executing code on the device. While all classic drives supported all three, some support additional APIs.
 
 ![](docs/cbmbus/layer4.png =601x251)
 
@@ -13,26 +13,19 @@ From a device's point of view, the layer below, layer 3 ("TALK/LISTEN") defines 
 * A device can send byte streams from channels.
 * A device can receive byte streams into channels.
 
-The Commodore DOS API defines the meaning of channel numbers, channel names and the data traveling over channels in the context of disk drives. This article covers the common feature set of Commodore DOS since version 2.0, extensions will be described at the end of the article.
-
-Contrary to the other articles of the series, this one is only meant as a conceptual overview of the design and not as a complete reference. The respective user manuals of Commodore and CMD disk drives are already very good references.
-
+The Commodore DOS API defines the meaning of channel numbers, channel names and the data traveling over channels in the context of disk drives.
 
 ## Concepts
 
-XXX
-* describe three APIs:
-	* level 1: file level API - for built-in data structures
-	* level 2: block level API - for custom optimized data structures
-		* There is a set of lower-level APIs that allows reading and writing individual blocks (of 256 bytes) and marking them as allocated or free in the disk's metadata. For certain use cases, this does not require an understanding of any of the disk's internal data structures.
-	* level 3: code execution - meant to extend the functionality
-	* burst
-
 ### Units and Drives
 
-What is usually called a disk drive and is associated with a primary address is actually a **unit**, because a unit can have more than one drive in its enclosure, like two mechanisms for two diskettes. Drives are numbered starting with 0, and there is no upper limit to the number of drives.
+What is usually called a disk drive and is associated with a primary address is actually a **unit**, because a unit can have more than one drive in its enclosure, like two mechanisms for two diskettes.
 
-XXX partitions
+A unit can one one or more of what Unix calls a "block device": A sequence of blocks that have a block numbering independent of the other block devices, which can be used for direct block access, or for use with a filesystem. These block devices are numbered, starting from one.
+
+A simple one-drive unit like the Commodore 1541 only has a single block device "0". A dual-drive unit like the Commodore 8250 has two, named "0" and "1", one for each disk drive.
+
+Some devices with multiple megabytes of storage, like the floppy and hard disk drives by Creative Micro Devices (CMD), support partitioning: Each partition is a block device. The partitions are numbered starting with "1", while "0" is a shortcut for the currently active partition.
 
 ### XXX Communication Mechanisms
 
@@ -61,6 +54,7 @@ While the underlying layers of the bus specifies channel numbers (secondary addr
 * command channel
 	* 15
 	* not named
+	* "meta"/"out of band communication"
 	* send: command
 		* some commands include a data channel number for context
 	* read: status
@@ -85,31 +79,7 @@ _code_`,`_string_`,`_a_`,`_b_[`,`_c_]
 
 A status code of 0 will return the string "`00, OK,00,00`" (or "`00, OK,00,00,0`" on dual-drive devices, assuming the last command was performed on drive 0).
 
-The first decimal digit encodes the category of the error.
-
-| First Digit | Description                  |
-|-------------|------------------------------|
-| 0, 1        | No error, informational only |
-| 2           | Physical disk error          |
-| 3           | Error parsing the command    |
-| 4           | Controller error (CMD only)  |
-| 5           | Relative file related error  |
-| 6           | File error                   |
-| 7           | Generic disk or device error |
-| 8, 9        | unused                       |
-
-Note that a program cannot rely on any of these strings, just on the codes.
-
-The full list of error messages can be found in practically every disk drive users manual, here are just some examples:
-
-* `00, OK,00,00`: There was no error.
-* `01, FILES SCRATCHED,03,00`: Informational: 3 files have been deleted ("scratched").
-* `23,READ ERROR,18,00`: There was a checksum error when trying to read track 18, sector 0.
-* `31,SYNTAX ERROR,00,00`: The command sent was not understood.
-* `51,OVERFLOW IN RECORD,00,00`: More data was written into a REL file record that fits.
-* `65,NO BLOCK,17,01`: When trying to allocate a block using the `B-A` command, the given block was already allocated. Track 17, sector 1 is the next free block.
-* `66,ILLEGAL TRACK OR SECTOR,99,00`: A user command or data structures on disk referenced track 99, sector 00, which does not exist.
-* `73,CBM DOS V2.6 1541,00,00`: This status is returned after the RESET of a device (and after the command "`UI`"). The actual message is specific to the device and can be used to detect the type and sometimes the ROM version[^6].
+XXX "details later"
 
 Reading the status will clear it. Keeping on reading will keep returning status messages.
 
@@ -121,7 +91,7 @@ The following BASIC program will read a single status message:
 
 ##### Commands
 
-All commands are byte streams that are mostly ASCII/PETSCII, but with some binary arguments in some cases. There are two different ways to send them:
+All commands are byte streams that are mostly ASCII, but with some binary arguments in some cases. There are two different ways to send them:
 
 They can be sent as a byte stream to channel 15, terminated an `EOI` or `UNLISTEN` event[^7]. The follwing BASIC code send the command "`I`" to drive 8 this way:
 
@@ -140,6 +110,17 @@ Alternatively, channel 15 can be opened as a named channel with the command as t
 
 In both cases, commands that don't contain binary arguments can also be terminated by the `CR` character.
 
+### APIs
+
+XXX
+* describe three APIs:
+	* level 1: file level API - for built-in data structures
+	* level 2: block level API - for custom optimized data structures
+		* There is a set of lower-level APIs that allows reading and writing individual blocks (of 256 bytes) and marking them as allocated or free in the disk's metadata. For certain use cases, this does not require an understanding of any of the disk's internal data structures.
+	* level 3: code execution - meant to extend the functionality
+	* burst
+	* time
+
 
 ## File-Level API
 
@@ -155,6 +136,8 @@ There are four file types (`SEQ`, `PRG`, `USR` and `REL`) that fall into two cat
 **Sequential files** only allow linear access, i.e. it is impossible to position the read or write pointer. They can be appended to though. There are three types of sequential files: `SEQ`, `PRG` and `USR`. They are treated the same by DOS, but the user convention is to store executable programs in PRG files and data into SEQ files.
 
 **Relative files** (`REL`) have a fixed record size of 1-254 bytes and allow positioning the read/write pointer to any record and thus allow random access.
+
+XXX needs DOS 2+
 
 While the interface to DOS often requres to specify the file type, it is not part of a file's identifier, i.e. there can not be two files with the same name but just a different type.
 
@@ -233,6 +216,8 @@ All arguments for these commands are text. Except for the duplicate command, all
 | COPY           | `C`[_drv_a_]`:`_target_name_`=`[_drv_b_]`:`_source_name_[,...] | Copy/concatenate files |
 | COPY           | `C`_dst_drv_`=`_src_drv_                              | Copy all files between disk     |
 | DUPLICATE      | `D:`_dst_drv_``=``_src_drv_                           | Duplicate disk                  |
+
+XXX format will always write the native format
 
 * CMD
  
@@ -519,6 +504,37 @@ XXX RAMLink
 	* `XW`: make current pa permanent
 	* SD2IEC specific, changing -> see there
 
+## Error Messages
+
+XXX here's more info on error messages...
+
+The first decimal digit encodes the category of the error.
+
+| First Digit | Description                  |
+|-------------|------------------------------|
+| 0, 1        | No error, informational only |
+| 2           | Physical disk error          |
+| 3           | Error parsing the command    |
+| 4           | Controller error (CMD only)  |
+| 5           | Relative file related error  |
+| 6           | File error                   |
+| 7           | Generic disk or device error |
+| 8, 9        | unused                       |
+
+Note that a program cannot rely on any of these strings, just on the codes.
+
+The full list of error messages can be found in practically every disk drive users manual, here are just some examples:
+
+* `00, OK,00,00`: There was no error.
+* `01, FILES SCRATCHED,03,00`: Informational: 3 files have been deleted ("scratched").
+* `23,READ ERROR,18,00`: There was a checksum error when trying to read track 18, sector 0.
+* `31,SYNTAX ERROR,00,00`: The command sent was not understood.
+* `51,OVERFLOW IN RECORD,00,00`: More data was written into a REL file record that fits.
+* `65,NO BLOCK,17,01`: When trying to allocate a block using the `B-A` command, the given block was already allocated. Track 17, sector 1 is the next free block.
+* `66,ILLEGAL TRACK OR SECTOR,99,00`: A user command or data structures on disk referenced track 99, sector 00, which does not exist.
+* `73,CBM DOS V2.6 1541,00,00`: This status is returned after the RESET of a device (and after the command "`UI`"). The actual message is specific to the device and can be used to detect the type and sometimes the ROM version[^6].
+
+
 ## Extra: Printers
 
 XXX
@@ -587,6 +603,7 @@ run
 * max 40/58? char commands
 * modify mode ("M")
 * not specifying drive -> last one used?
+* the autostart plug is called "power-on diag sense loader" (1540/1571 source)
 
 * added value:
 	* explains the *levels*
@@ -594,6 +611,8 @@ run
 * Q
 	* bust name stupid: burst instruction set vs. burst serial protocol
 	* CHGUTL ("U0>") commands are part of burst instruction set, but unrelated to "raw disk access"
+
+
 
 XXX U0 on 1540/1541?
 
@@ -638,6 +657,8 @@ run
 [^3]: All single-drive Commodore devices except the 1571 (revision 5 ROM only), 1541-C, 1541-II and 1581 have a [bug](https://groups.google.com/forum/#!topic/comp.sys.cbm/TKKl8a-3EPA) that can currupt the filesystem when using the overwrite feature.
 
 [^4]: The two arguments always have to be at least two digits, and on most Commodore drives, they are always two digits. CMD drives support larger track and sector numbers, so while arguments less than 100 will be two digits wide, they can also return three-digit arguments.
+
+XXX 8250/1001 has 154 logical tracks
 
 [^5]: The SFD-1001 is the exception to this: It is single-drive device that shares its firmware with the dual-drive CBM 8250.
 
