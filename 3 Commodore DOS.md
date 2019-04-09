@@ -61,40 +61,47 @@ There are several independent sets of API:
 
 ## File-Level API
 
-Every medium has its own independent filesystem. A filesystem has a name, a two-character ID, and contains an unsorted set of files. All files have a unique **name** as well as a file **type**, and have to be at least one byte in size[^1].
+Every medium has its own independent filesystem. A filesystem has a name, a two-character ID, and contains an unsorted set of files. All files have a unique **name** as well as a file **type**, and have to be at least one byte in size[^1]. Optionally, the device can support nested subdirectories in order to group files.
 
 DOS does not specify a maximum size for disk or file names, but the limit for all Commodore and CMD devices is 16 characters. There is also no specified character encoding: Names consist of 8 bit characters, and DOS does not interpret them. Names have very few limitations:
 
-* The comma, colon and `CR` (carriage return) characters are illegal in disk or file names (because of the encoding of channel names and commands).
-* The code `0xa0` (Unicode/ISO 8859-1 non-breaking space, CBM-ASCII shifted SPACE) is illegal in file names (it is used as the terminating character on disk).
+* The comma, colon and `CR` (carriage return) characters are illegal in disk, file and directory names (because of the syntax of channel names and commands).
+* The slash character is illegal for directory names (because of the syntax of path specifiers).
+* The code `0xa0` (Unicode/ISO 8859-1 non-breaking space, CBM-ASCII shifted SPACE) is illegal in file and directory names (it is used as the terminating character on disk).
 
-There are three file type categories: sequential files, relative files and disk sections.
+There are two file type categories: sequential files and relative files.
 
 **Sequential files** only allow linear access, i.e. it is impossible to position the read or write pointer. They can be appended to though. There are three types of sequential files: `SEQ`, `PRG` and `USR`. They are treated the same by DOS, but the user convention is to store executable programs in PRG files and data into SEQ files.
 
 **Relative files** (`REL`) have a fixed record size of 1-254 bytes and allow positioning the read/write pointer to any record and thus allow random access. (Early Commodore drives with DOS 1.x and some modern solutions don't support this.)
 
-**Disk sections** (`CBM`) occupy a contiguous sequence of blocks. They cannot be read or written as files, but reserve blocks to be accessed by the block API, or to hold a sub-filesystem[^92]. (Only the Commodore 1581 and CMD drives' 1581 emulation modes support this.)
+(Commodore manuals sometimes also mention "random access files", but this is merely a reference to a set of direct block access commands; this is not associated with a filename.)
 
 While the interface to DOS often requres to specify the file type, it is not part of a file's identifier, i.e. there can not be two files with the same name but just a different type.
 
 ### Paths
 
-XXX
+Paths specify a subdirectory on a medium:
+
+[_medium_][`/`_dirname_[`/`...]`/`]
+
+There can be an arbitrary number of _dirname_ specifiers. Both the medium and the subdirectory names are optional. Omitting the medium will select medium 0, and omitting the subdirectory names will select the current subdirectory.
+
+Examples:
+
+* "" - the current directory on medium 0
+* "`2`" – the current directory on medium 2
+* "`2/FOO/`" – the subdirectory `FOO` on medium 2
+* "`/FOO/`" – the subdirectory `FOO` on medium 0
+* "`2/FOO/BAR/`" – the subdirectory `BAR` inside the subdirectory `FOO` on medium 2
+
+Subdirectories are only supported by CMD devices and some modern solutions. On Commodore drives, paths only consist of the (optional) medium name.
 
 ### Wildcards
 
 Some interfaces features permit using wildcard characters:
 * A question mark ("`?`") matches any character.
-* An asterisk ("`*`") matches zero or more characters. Characters in the pattern after the asterisk are ignored.
-
-XXX 1581/CMD Syntax Additions:
-* partitions
-	* Partition numbers can be used in place of drive numbers in all file specifiers and commands. Partition 0 is the current partition.
-* directories
-* more options for directory listings
-	* partition directory
-
+* An asterisk ("`*`") matches zero or more characters. Characters in the pattern after the asterisk are ignored, so an asterisk can only match characters at the end of the name.
 
 ### Named Channels
 
@@ -138,6 +145,9 @@ Just using "`$`" as the name will return the complete directory contents of driv
 The [format of the data returned is tokenized Microsoft BASIC](https://www.pagetable.com/?p=273).
 
 XXX only works on channel 0
+
+* XXX more options for directory listings
+	* partition directory
 
 ### Filesystem Commands
 
@@ -276,6 +286,11 @@ The argument encoding is the same as for direct access.
 | BLOCK-FREE     | `B-F` _drive_ _track_ _sector_                        | Free a block in the BAM         |
 
 ### 1581-style partitions
+
+XXX non-canonical feature
+
+**Disk sections** (`CBM`, "1581 partitions") occupy a contiguous sequence of blocks. They cannot be read or written as files, but reserve blocks to be accessed by the block API, or to hold a sub-filesystem[^92]. (Only the Commodore 1581 and CMD drives' 1581 emulation modes support this.)
+
 
 In addition to all generic 1571 commands, the 1581 adds support for partitions. They occupy any number of contiguous sectors, are treated as files by the root filesystem (type `CBM`) and can be arbitrarily nested.
 
