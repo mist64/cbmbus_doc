@@ -314,8 +314,10 @@ The `U1` and `U2` commands allow reading a block into the buffer and writing the
 
 | Name           | Syntax                                                | Description                     |
 |----------------|-------------------------------------------------------|---------------------------------|
-| U1/UA          | `U1` _channel_ _track_ _sector_                       | Raw read of a block             |
-| U2/UB          | `U2` _channel_ _track_ _sector_                       | Raw write of a block            |
+| U1/UA          | `U1` _channel_ _medium_ _track_ _sector_              | Raw read of a block             |
+| U2/UB          | `U2` _channel_ _medium_ _track_ _sector_              | Raw write of a block            |
+
+(On devices that support partitions, the _medium_ number is ignored, and the current partition at the time of allocating the buffer is used instead.)
 
 ### Block Availability Map Commands
 
@@ -323,8 +325,8 @@ The "`B-A`" and "`B-F`" commands allow marking a block as allocated or free in t
 
 | Name           | Syntax                                                | Description                     |
 |----------------|-------------------------------------------------------|---------------------------------|
-| BLOCK-ALLOCATE | `B-A` _medium_ _track_ _sector_                       | Allocate a block in the BAM     |
-| BLOCK-FREE     | `B-F` _medium_ _track_ _sector_                       | Free a block in the BAM         |
+| BLOCK-ALLOCATE | `B-A` _medium_ _medium_ _track_ _sector_              | Allocate a block in the BAM     |
+| BLOCK-FREE     | `B-F` _medium_ _medium_ _track_ _sector_              | Free a block in the BAM         |
 
 Using the `U1`/`U2` commands together with `B-A` and `B-F` allow using free blocks on the disk for custom use without interfering with the filesystem's data structures. `B-A` will return the track and sector number of the next free block in case the one passed as an argument was already allocated. Together with the knowledge that the first block on disk is track 1, sector 0, it is possible to allocate blocks for custom use without any knowledge of the disk layout.
 
@@ -338,8 +340,10 @@ While sequential files only allow sequential access to the file's data, and rela
 
 | Name           | Syntax                                                | Description                     |
 |----------------|-------------------------------------------------------|---------------------------------|
-| BLOCK-READ     | `B-R` _channel_ _track_ _sector_                      | Read block                      |
-| BLOCK-WRITE    | `B-W` _channel_ _track_ _sector_                      | Write block                     | 
+| BLOCK-READ     | `B-R` _channel_ _medium_ _track_ _sector_             | Read block                      |
+| BLOCK-WRITE    | `B-W` _channel_ _medium_ _track_ _sector_             | Write block                     | 
+
+(As with `U1`/`U2`, the _medium_ number is ignored on devices that support partitioning.)
 
 ## Memory-Level API
 
