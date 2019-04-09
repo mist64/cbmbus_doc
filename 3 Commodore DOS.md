@@ -30,6 +30,8 @@ Commodore DOS has been in existence since the Commodore 2040 drive from 1978, an
 | Partitions       | no   | no   | no        | no      | yes       | yes      |
 | Subdirectories   | no   | no   | no        | no      | yes       | yes      |
 
+Commodore drives up to the 1581 will be called "first-generation" further on.
+
 ## Concepts
 
 Commodore DOS calls a device (with its own primary address) connected to the bus a **unit**.
@@ -100,19 +102,20 @@ While the interface to DOS often requres to specify the file type, it is not par
 
 Paths specify a subdirectory on a medium:
 
-[_medium_][`/`_dirname_[`/`...]`/`]
+[_medium_][[`/`]`/`_dirname_[`/`...]`/`]
 
-There can be an arbitrary number of _dirname_ specifiers. Both the medium and the subdirectory names are optional. Omitting the medium will select medium 0, and omitting the subdirectory names will select the current subdirectory.
+There can be an arbitrary number of _dirname_ specifiers. Both the medium and the subdirectory names are optional. Omitting the medium will select medium 0, and omitting the subdirectory names will select the current subdirectory. Two slashes at the beginning mean the first directory name is relative to the root, otherwise it is relative to the current directory.
 
 Examples:
 
 * "" - the current directory on medium 0
 * "`1`" – the current directory on medium 1
-* "`1/FOO/`" – the subdirectory `FOO` on medium 1
-* "`/FOO/`" – the subdirectory `FOO` on medium 0
-* "`1/FOO/BAR/`" – the subdirectory `BAR` inside the subdirectory `FOO` on medium 1
+* "`1/FOO/`" – the subdirectory `FOO` of the current directory on medium 1
+* "`1//FOO/`" – the subdirectory `FOO` in the root on medium 1
+* "`/FOO/`" – the subdirectory `FOO` of the current directory on medium 0
+* "`1//FOO/BAR/`" – the subdirectory `BAR` inside the subdirectory `FOO` in the root of medium 1
 
-Subdirectories are not supported by first-generation devices, so on these devices, paths only consist of the (optional) medium name:
+On devices that do not support subdirectories, paths only consist of the (optional) medium name:
 
 * "" - medium 0
 * "`0`" – medium 0
@@ -215,69 +218,67 @@ The list can be filtered by partition _type_:
 
 ### Filesystem Commands
 
-The filesystem commands deal with creating, fixing and modifying the filesystem. There is also a command that does a block-for-block disk copy for units with more than one drive.
-
-On multi-drive units, the copy command can also copy files between drives, while on single-drive units, it can only duplicate files. In either case, it can concatenate several files into one.
-
-All arguments for these commands are text. Except for the duplicate command, all drive numbers are optional and default to 0.
+There are many command-channel commands that deal with creating, fixing and modifying the filesystem. There is also a command that does a block-for-block disk copy for units with more than one drive.
 
 | Name           | Syntax                                                | Description                     |
 |----------------|-------------------------------------------------------|---------------------------------|
-| INITIALIZE     | `I`[_drv_]                                            | Force reading disk metadata     |
-| VALIDATE       | `V`[_drv_]                                            | Re-build block availability map |
-| NEW            | `N`[_drv_]`:`_name_[,_id_]                            | Low-level or quick format       |
-| RENAME         | `R`[_drv_]`:`_new_name_`=`_old_name_                  | Rename file                     |
-| SCRATCH        | `S`[_drv_]`:`_pattern_[`,`...]                        | Delete files                    |
-| COPY           | `C`[_drv_a_]`:`_target_name_`=`[_drv_b_]`:`_source_name_[,...] | Copy/concatenate files |
-| COPY           | `C`_dst_drv_`=`_src_drv_                              | Copy all files between disk     |
-| DUPLICATE      | `D:`_dst_drv_``=``_src_drv_                           | Duplicate disk                  |
+| INITIALIZE     | `I`[_medium_]                                         | Force reading disk metadata     |
+| VALIDATE       | `V`[_medium_]                                         | Re-build block availability map |
+| NEW            | `N`[_medium_]`:`_name_[,_id_]                         | Low-level or quick format       |
+| RENAME         | `R`[_path_]`:`_new_name_`=`_old_name_                 | Rename file                     |
+| SCRATCH        | `S`[_path_]`:`_pattern_[`,`...]                       | Delete files                    |
+| COPY           | `C`[_path_a_]`:`_target_name_`=`[_path_b_]`:`_source_name_[,...] | Copy/concatenate files |
+| COPY           | `C`_dst_medium_`=`_src_medium_                        | Copy all files between disk     |
+| DUPLICATE      | `D:`_dst_medium_``=``_src_medium_                     | Duplicate disk                  |
 
-XXX format will always write the native format
+(Unless otherwise mentioned, arguments for all commands are ASCII.)
 
-* CMD
+The `INITIALIZE` command is only useful on first-generation devices, where it works around the risk of not invalidating the cache after swapping a disk.
+
+The `VALIDATE` command is a simple check-disk function that will make sure the "block availability map" is consistent with other on-disk data structures. It is recommended on a disk that contains a file that has not been closed after writing.
+
+The `NEW` command will create a new filesystem. On removable media if an "ID" is specified, it will do a low-level format before. There is no way to specify the disk format in drives that support multiple formats. A Commodore 8250, which can also disks in 8050 format, will always write the 8250 format.
+
+On units with multiple drives or partitioning support, the `COPY` command can also copy files between media, while on all other units, it can only duplicate files. In either case, it can concatenate several files into one.
+
+The `DUPLICATE` command and the `COPY` variant that copies all files are only supported on units with multiple drives. They do not work on partitions.
+
+There are two more commands that got introduced by CMD:
  
 | Name           | Syntax                                                | Description                     |
 |----------------|-------------------------------------------------------|---------------------------------|
-| LOCK           | `L`[_drv_]`:`_name_                                   | Toggle file write protect       |
+| LOCK           | `L`[_path_]`:`_name_                                  | Toggle file write protect       |
 | WRITE PROTECT  | `W-`{`0`&#x7c;`1`}                                    | Set/unset device write protect  |
+| RENAME-HEADER  | `R-H`[_medium_]`:`_new_name_                           | Rename a filesystem             |
 
-XXX footnote: JiffyDOS supports "L" on the client-side.
-
-* C65
+The unreleased C65 disk drive does not support these CMD additions, but adds three commands of its own:
 
 | Name           | Syntax                                                | Description                     |
 |----------------|-------------------------------------------------------|---------------------------------|
-| FILE LOCK      | `F-L`[_drv_]`:`_name_[`,`...]                         | Enable file write-protect       |
-| FILE UNLOCK    | `F-U`[_drv_]`:`_name_[`,`...]                         | Disable file write-protect      |
-| FILE RESTORE   | `F-R`[_drv_]`:`_name_[`,`...]                         | Restore a deleted file          |
+| FILE LOCK      | `F-L`[_path_]`:`_name_[`,`...]                        | Enable file write-protect       |
+| FILE UNLOCK    | `F-U`[_path_]`:`_name_[`,`...]                        | Disable file write-protect      |
+| FILE RESTORE   | `F-R`[_path_]`:`_name_[`,`...]                        | Restore a deleted file          |
 
-* 1541U
-
-    @m:d64	mount .d64 file (1541ultimate) 
-    @md:d64	create empty d64 image file (1541ultimate)
-
-### CMD-style partitions
-
-Independently of 1581 partitions, CMD devices have "native" partitions that cannot be nested. There is a global partition table on disk.
+Devices with partitioning support add the following commands:
 
 | Name           | Syntax                                                | Description                     |
 |----------------|-------------------------------------------------------|---------------------------------|
 | CHANGE PARTITION | `CP` _num_                                          | Make a partition the default    |
 | GET PARTITION  | `GP` _num_                                            | Get information about partition |
 | RENAME-PARTITION | `R-P:`_new_name_`=`_old_name_                       | Rename a partition              |
-| RENAME-HEADER  | `R-H`[_drv_]`:`_new_name_                             | Rename a filesystem             |
 
-### Sub-Directories
+There are no commands to create or delete partitions. These functions have to be done through tools that know the internals of the specific device.
 
-CMD devices also add subdirectory support.
+Devices with subdirectory support add the following:
 
 | Name           | Syntax                                                | Description                     |
 |----------------|-------------------------------------------------------|---------------------------------|
-| CHANGE DIRECTORY | `CD`[_drv_]`:`_name_                                | Change the current sub-directory|
-| MAKE DIRECTORY | `MD`[_drv_]`:`_name_                                  | Create a sub-directory          |
-| REMOVE DIRECTORY | `RD`[_drv_]`:`_name_                                | Delete a sub-directory          |
+| CHANGE DIRECTORY | `CD`[_path_]`:`_name_                               | Change the current sub-directory|
+| CHANGE DIRECTORY | `CD`[_medium_]`←`                                   | Change sub-directory up         |
+| MAKE DIRECTORY | `MD`[_path_]`:`_name_                                 | Create a sub-directory          |
+| REMOVE DIRECTORY | `RD`[_path_]`:`_name_                               | Delete a sub-directory          |
 
-* XXX SD2IEC: "CD:" can mount a D64
+The syntax to go up one level includes the "`←`" character, which is CBM-ASCII code `0x5f` (underscore in US-ASCII).
 
 ## Block-Level API
 
