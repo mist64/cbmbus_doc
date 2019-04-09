@@ -37,42 +37,50 @@ Communication to Commodore DOS happens through 15 data channels and one command 
 | 15      | commands/status   |
 | 16-31   | illegal           |
 
-(While the underlying layers of the bus specifies channel numbers (secondary addressed) from 0 to 31, Commodore DOS does not support numbers 16-31.)
+(While the underlying layers of the bus specifies channel numbers (secondary addresses) from 0 to 31, Commodore DOS does not support the numbers 16-31.)
 
-Channels 0 to 14 need to be associated with a name and are used for the transfer of actual data like file contents and block contents. (0 and 1 are special-cased and will be discussed later.)
+Channels 0 to 14 need to be associated with a name and are used for the transfer of raw data like file and block contents. (0 and 1 are special-cased and will be discussed later.)
 
-Channel 15 is a "meta" channel. When writing to it, the device interprets the byte stream as commands in a unified format. This is either commands regarding the data channels (out of band communication), or global commands. When reading from it, the byte stream from the device is usually status information in a unified format, and sometimes raw response data to a command.
+Channel 15 is a "meta" channel. When writing to it, the device interprets the byte stream as commands in a unified format. This is either a command regarding a data channel (out of band communication), or a global command. When reading from it, the byte stream from the device is usually status information in a unified format, and sometimes raw response data to a command.
 
 ### APIs
 
-XXX
-* describe three APIs:
-	* level 1: file level API - for built-in data structures
-	* level 2: block level API - for custom optimized data structures
-		* There is a set of lower-level APIs that allows reading and writing individual blocks (of 256 bytes) and marking them as allocated or free in the disk's metadata. For certain use cases, this does not require an understanding of any of the disk's internal data structures.
-	* level 3: code execution - meant to extend the functionality
-	* burst
-	* time
+There are several independent sets of API:
 
+* **File API**: This allows high-level access to files. No knowledge of the underlying data structures is needed. All devices support it.
+
+* **Block API**: This allows reading and writing individual logical blocks (256 bytes) of a medium. This can (optionally) be done ignorant of but still compatible with the filesystem's metadata, i.e. to allow custom blocks to coexist with a healthy filesystem on a single medium. This API is optional. RAM-disks and network-backed devices don't support it.
+
+* **Internal API**: This allows reading and writing memory in the unit's interface controller, as well as executing code in its context. It is highly device-specific, but allows for implementing optimized or specialized code for existing functionality, or a device-side implementation of custom disk formats.
+
+* **Burst API**: XXX
+
+* **Time API**: XXX
+
+* **Misc**: XXX
 
 ## File-Level API
 
-Every drive has its own independent filesystem. A filesystem has a name, a two-character ID, and contains an unsorted set of files. All files have a unique **name** and a file **type**, and have to be at least one byte in size[^1].
+Every medium has its own independent filesystem. A filesystem has a name, a two-character ID, and contains an unsorted set of files. All files have a unique **name** as well as a file **type**, and have to be at least one byte in size[^1].
 
-DOS does not specify a maximum size for disk or file names, but the limit for all Commodore devices is 16 characters. There is also no specified character encoding: Names consist of 8 bit characters, and DOS does not interpret them. Names have very few limitations:
+DOS does not specify a maximum size for disk or file names, but the limit for all Commodore and CMD devices is 16 characters. There is also no specified character encoding: Names consist of 8 bit characters, and DOS does not interpret them. Names have very few limitations:
 
 * The comma, colon and `CR` (carriage return) characters are illegal in disk or file names (because of the encoding of channel names and commands).
-* The code `0xa0` (ISO 8859-1 non-breaking space, PETSCII shifted SPACE) is illegal in file names (it is used as the terminating character on disk).
+* The code `0xa0` (Unicode/ISO 8859-1 non-breaking space, CBM-ASCII shifted SPACE) is illegal in file names (it is used as the terminating character on disk).
 
-There are four file types (`SEQ`, `PRG`, `USR` and `REL`) that fall into two categories: sequential and relative.
+There are three file type categories: sequential files, relative files and disk sections.
 
 **Sequential files** only allow linear access, i.e. it is impossible to position the read or write pointer. They can be appended to though. There are three types of sequential files: `SEQ`, `PRG` and `USR`. They are treated the same by DOS, but the user convention is to store executable programs in PRG files and data into SEQ files.
 
-**Relative files** (`REL`) have a fixed record size of 1-254 bytes and allow positioning the read/write pointer to any record and thus allow random access.
+**Relative files** (`REL`) have a fixed record size of 1-254 bytes and allow positioning the read/write pointer to any record and thus allow random access. (Early Commodore drives with DOS 1.x and some modern solutions don't support this.)
 
-XXX needs DOS 2+
+**Disk sections** (`CBM`) occupy a contiguous sequence of blocks. They cannot be read or written as files, but reserve blocks to be accessed by the block API, or to hold a sub-filesystem[^92]. (Only the Commodore 1581 and CMD drives' 1581 emulation modes support this.)
 
 While the interface to DOS often requres to specify the file type, it is not part of a file's identifier, i.e. there can not be two files with the same name but just a different type.
+
+### Paths
+
+XXX
 
 ### Wildcards
 
@@ -185,15 +193,6 @@ While a relative file is open, a command on the command channel is used to posit
 
 XXX SD2IEC: works on sequential files if stored on FAT
 
-### 1581-style partitions
-
-In addition to all generic 1571 commands, the 1581 adds support for partitions. They occupy any number of contiguous sectors, are treated as files by the root filesystem (type `CBM`) and can be arbitrarily nested.
-
-| Name           | Syntax                                                | Description                     |
-|----------------|-------------------------------------------------------|---------------------------------|
-| PARTITION      | `/`[_drv_][`:`_name_]                                 | Select partition |
-| PARTITION      | `/`[_drv_]`:`_name_`,`_track_ _sector_ _count_lo_ _count_hi_ `,C` | Create partition |
-
 ### CMD-style partitions
 
 Independently of 1581 partitions, CMD devices have "native" partitions that cannot be nested. There is a global partition table on disk.
@@ -253,7 +252,7 @@ The `B-R` and `B-W` commands are deceptive: The names suggest they are general-p
 
 Commodore DOS specifies that all devices have logical blocks that are 256 bytes in size and are addressed by an 8 bit track number (starting from 1) and an 8 bit sector number (starting from 1)[^9].
 
-All arguments are decimal ASCII values and can be separated by a space, a comma or a code `0x1d` (ASCII "Group Separator", PETSCII "Cursor Right"). The command name and the first argument have to be separated by any of the above or a colon.
+All arguments are decimal ASCII values and can be separated by a space, a comma or a code `0x1d` (ASCII "Group Separator", CBM-ASCII "Cursor Right"). The command name and the first argument have to be separated by any of the above or a colon.
 
 | Name           | Syntax                                                | Description                     |
 |----------------|-------------------------------------------------------|---------------------------------|
@@ -262,7 +261,6 @@ All arguments are decimal ASCII values and can be separated by a space, a comma 
 | BUFFER-POINTER | `B-P` _channel_ _index_                               | Set r/w pointer within block    |
 | BLOCK-READ     | `B-R` _channel_ _track_ _sector_                      | Read block                      |
 | BLOCK-WRITE    | `B-W` _channel_ _track_ _sector_                      | Write block                     |
-| BLOCK-EXECUTE  | `B-E` _channel_ _track_ _sector_                      | Load and execute a block        |
 
 XXX SD2IEC: B-P supports _index_hi_
 
@@ -277,6 +275,23 @@ The argument encoding is the same as for direct access.
 | BLOCK-ALLOCATE | `B-A` _drive_ _track_ _sector_                        | Allocate a block in the BAM     |
 | BLOCK-FREE     | `B-F` _drive_ _track_ _sector_                        | Free a block in the BAM         |
 
+### 1581-style partitions
+
+In addition to all generic 1571 commands, the 1581 adds support for partitions. They occupy any number of contiguous sectors, are treated as files by the root filesystem (type `CBM`) and can be arbitrarily nested.
+
+| Name           | Syntax                                                | Description                     |
+|----------------|-------------------------------------------------------|---------------------------------|
+| PARTITION      | `/`[_drv_][`:`_name_]                                 | Select partition |
+| PARTITION      | `/`[_drv_]`:`_name_`,`_track_ _sector_ _count_lo_ _count_hi_ `,C` | Create partition |
+
+XXX
+
+* used to protect a range of sectors from VALIDATE
+* can host a sub-filesystem
+	* at least 120 blocks
+	* occupies full tracks (starts at sector 0, size multiple of sectors/track)
+	* this requires knowledge of the logical disk layout
+	* only the 1581 and CMD's 1581 emulation supports all of this this anyway
 
 ## Memory-Level API
 
@@ -293,6 +308,14 @@ The arguments are binary-encoded bytes.
 | MEMORY-WRITE   | `M-W` _addr_lo_ _addr_hi_ _count_ _data_              | Write RAM                       |
 | MEMORY-READ    | `M-R` _addr_lo_ _addr_hi_ _count_                     | Read RAM                        |
 | MEMORY-EXECUTE | `M-E` _addr_lo_ _addr_hi_                             | Execute code                    |
+
+### Block Execute
+
+XXX
+
+| Name           | Syntax                                                | Description                     |
+|----------------|-------------------------------------------------------|---------------------------------|
+| BLOCK-EXECUTE  | `B-E` _channel_ _track_ _sector_                      | Load and execute a block        |
 
 ### Utility Loader Command
 
@@ -630,7 +653,7 @@ run
 
 --->
 
-[^1]: This is a limitation of the layer 2 protocol: It is impossible to send a 0-byte stream of bytes.
+[^1]: This is a limitation of the layer 2 protocol: It is impossible for a device to send a 0-byte stream of bytes.
 
 [^2]: Most devices only have a single drive, so in practice, drive numbers are rarely specified.
 
@@ -659,3 +682,4 @@ XXX 8250/1001 has 154 logical tracks
 
 [^90]: No other literature calls it _media_. Commodore calls it _drives_ (because they are actual drives with their own mechanics), and CMD calls it _partitions_ (because they are parts of one large drive). I have decided to introduce a common name for the concept, since the syntax for paths and commands does not make a distinction between the two.
 
+[^92]: Commodore calls them _sub-directories_, not to be confused with CMD-style subdirectories.
