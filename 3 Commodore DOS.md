@@ -138,7 +138,7 @@ There are several independent sets of API:
 
 * **Code Execution API**: This allows reading and writing memory in the unit's interface controller, as well as executing code in its context. It is highly device-specific, but allows for implementing optimized or specialized code for existing functionality, or a device-side implementation of custom disk formats.
 
-* **Burst API**: XXX
+* **Burst API**: This is a set of commands that mostly provides low-level access to the disk controller in order to allow reading and writing physical sectors – mostly to support foreign disk formats. The API also contains commands that initiate device memory and file access using the a variant of the "Serial" layer 2 ("Burst Transfer").
 
 * **Settings API**: Later devices support a canonical set of global settings commands.
 
@@ -639,7 +639,7 @@ Part 4 of the series of articles on the Commodore Peripheral Bus family will cov
 * COMMODORE 1541 DISK DRIVE USER'S GUIDE, 1541d10a.txt
 * COMMODORE 1571 Disk Drive User's Guide, 1571-users-manual-1.0.txt
 * COMMODORE 1581 Disk Drive User's Guide, 1581-manual.txt
-* [Burst Mode Commands](http://the-cbm-files.tripod.com/diskdrive/1571-6.txt)
+* [Herne's 1571 Disk Drive Guides: Burst Mode Commands](http://the-cbm-files.tripod.com/diskdrive/1571-6.txt)
 * [Manual for CBM 8061 8" disk drive](Manual for CBM 8061 8" disk drive)
 * [CBM D9060/D9090/8250/8050/4040/4031 Bedienungshandbuch](http://www.cbmhardware.de/floppy/cbm4031/cbm4031.pdf)
 * [User's Manual for CBM 5 1/4-inch Dual Floppy Disk Drives](http://www.classiccmp.org/cini/pdf/Commodore/CBM%202040-3040-4040-8050%20Disk%20Drive%20Manual.pdf)
