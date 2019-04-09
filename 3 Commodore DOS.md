@@ -377,20 +377,20 @@ Nevertheless, when uploading a complete block into the buffer and then writing i
 
 ### Block Availability Map Commands
 
-The "`B-A`" and "`B-F`" commands allow marking a block as allocated or free in the "block availability map" (BAM). Allocating a block makes sure the filesystem won't use it. The `V` (validate) command will re-build the BAM from the filesystems metadata and undo any "`B-A`" commands.
+The "`B-A`" and "`B-F`" commands allow marking a block as allocated or free in the "block availability map" (BAM). Allocating a block makes sure the filesystem won't use it. The `V` (validate) command will re-build the BAM from the filesystem's metadata and undo any "`B-A`" commands.
 
 | Name           | Syntax                                                | Description                     |
 |----------------|-------------------------------------------------------|---------------------------------|
 | BLOCK-ALLOCATE | `B-A` _medium_ _medium_ _track_ _sector_              | Allocate a block in the BAM     |
 | BLOCK-FREE     | `B-F` _medium_ _medium_ _track_ _sector_              | Free a block in the BAM         |
 
-Using the `U1`/`U2` commands together with `B-A` and `B-F` allow using free blocks on the disk for custom use without interfering with the filesystem's data structures. `B-A` will return the track and sector number of the next free block in case the one passed as an argument was already allocated. Together with the knowledge that the first block on disk is track 1, sector 0, it is possible to allocate blocks for custom use without any knowledge of the disk layout.
+Using the `U1`/`U2` commands together with `B-A` and `B-F` allows using free blocks on the disk for custom use without interfering with the filesystem's data structures. `B-A` will return the track and sector number of the next free block in case the one passed as an argument was already allocated. Together with the knowledge that the first block on disk is track 1, sector 0, it is possible to allocate blocks for custom use without any knowledge of the disk layout.
 
-Similarly, a disk can be fully dumped by iterating over all tracks (starting with 1) and sectors (starting with 0) and skipping to sector 0 of the next track whenever an "ILLEGAL TRACK OR SECTOR" error is encountered.
+Similarly, a disk can be fully dumped by iterating over all tracks (starting with 1) and sectors (starting with 0) and skipping to sector 0 of the next track whenever an "ILLEGAL TRACK OR SECTOR" (66) error is encountered.
 
 ### "Random Access Files"
 
-The `B-R` and `B-W` commands have deceptive names and are part of a rarely used and practically deprecated feature: "Random Access Files".
+The `B-R` (block read) and `B-W` (block write) commands have deceptive names and are part of a rarely used and deeply confusing feature: "Random Access Files".
 
 While sequential files only allow sequential access to the file's data, and relative files restrict seeking within the file in record-size steps, the "Random Access File" API calls are meant to give the user a way to build files with arbitrary access patterns.
 
@@ -447,13 +447,13 @@ The arguments are binary-encoded bytes.
 | MEMORY-READ    | `M-R` _addr_lo_ _addr_hi_ _count_                     | Read RAM                        |
 | MEMORY-EXECUTE | `M-E` _addr_lo_ _addr_hi_                             | Execute code                    |
 
-`M-R` and `M-W` allow accessing the operating system's internal data structures, for example. The combination of `M-W` and `M-E` can be used to upload code from the computer and execute it. In case the drive's operating system does not completely get taken over, it is advisable to allocate a specific buffer before uploading code, so that the existing code won't overwrite the new code.
+`M-R` and `M-W` allow accessing the operating system's internal data structures, for example. The combination of `M-W` and `M-E` can be used to upload code from the computer and execute it. In case the drive's operating system does not completely get taken over, it is advisable to allocate a specific buffer before uploading code, so that the operating system won't overwrite the new code.
 
 ### USER Commands
 
-The `USER` commands were meant to give the user a compact command interface that calls uploaded code or code in expansion ROM (if available).
+The `USER` commands are meant to give the user a compact command interface that calls uploaded code or code in expansion ROM (if available).
 
-The commands `U1` to `U9` and `U:` (and their synonyms `U1` to `U:`) execute code through a jump table. There is a default jump table that can be replaced using a device-specific `M-W` command, and reset to the default using `U0`.
+The commands `U1` to `U9` and `U:` (and their synonyms `UA` to `UJ`) execute code through a jump table. There is a default jump table that can be replaced using a device-specific `M-W` command, and reset to the default using `U0`.
 
 | Name           | Syntax                                                | Description                     |
 |----------------|-------------------------------------------------------|---------------------------------|
@@ -476,7 +476,7 @@ Here are the locations for the 1541:
 | `U7`/`UG` | $050C   |
 | `U8`/`UH` | $050F   |
 
-The commands `U9` and `U:` execute a soft and a hard reset, respectively. In both cases, the status will read back code 73, the power-on message.
+The commands `U9` and `U:` execute a soft and a hard reset, respectively. In both cases, the status will read back code 73, the power-on message, which is useful for detecting the type of device.
 
 ### Utility Loader Command
 
@@ -484,7 +484,7 @@ The utility loader command instructs the unit to load a file into its RAM and ex
 
 | Name           | Syntax                                                | Description                     |
 |----------------|-------------------------------------------------------|---------------------------------|
-| UTILITY LOADER | `&`[[_drv_]`:`]_name_                                 | Load and execute program        |
+| UTILITY LOADER | `&`[[_path_]`:`]_name_                                | Load and execute program        |
 
 
 ## Burst API
@@ -526,9 +526,9 @@ CMD devices added the following commands:
 
 | Name           | Syntax                                                | Description                     |
 |----------------|-------------------------------------------------------|---------------------------------|
+| SWAP           | `S-`{`8`&#x7c;`9`&#x7c;`D`}                           | Change primary address          |
 | GET DISKCHANGE | `G-D`                                                 | Query disk change (FD only)     |
 | SCSI COMMAND   | `S-C` _scsi_dev_num_ _buf_ptr_lp_ _buf_ptr_hi_ _num_bytes_ | Send SCSI Command (HD only) |
-| SWAP           | `S-`{`8`&#x7c;`9`&#x7c;`D`}                           | Change primary address          |
 
 ## Real-Time Clock API
 
@@ -553,7 +553,7 @@ There is a number of features that was only supported on one or a few devices an
 
 ### 1541 + 1571
 
-For the 1541, the timing of the layer 2 Serial protocol was slowed down to support the C64's unique timing properties. Since the 1541 replaced the 1540, it came with a mode to switch back to the faster VIC-20 Serial protocol[^12]. This is only supported by th 1541 and 1571 series.
+For the 1541, the timing of the layer 2 Serial protocol was slowed down to support the C64's unique timing properties. Since the 1541 replaced the 1540, it came with a mode to switch back to the faster VIC-20 Serial protocol[^12]. This is only supported by the 1541 and 1571 series.
 
 | Name           | Syntax                                                | Description                     |
 |----------------|-------------------------------------------------------|---------------------------------|
@@ -576,14 +576,14 @@ One use case for a 1581 partition is to reserve blocks for the block API that ar
 
 | Name           | Syntax                                                | Description                     |
 |----------------|-------------------------------------------------------|---------------------------------|
-| PARTITION      | `/`[_drv_][`:`_name_]                                 | Select partition |
-| PARTITION      | `/`[_drv_]`:`_name_`,`_track_ _sector_ _count_lo_ _count_hi_ `,C` | Create partition |
+| PARTITION      | `/`[_medium_][`:`_name_]                                 | Select partition |
+| PARTITION      | `/`[_medium_]`:`_name_`,`_track_ _sector_ _count_lo_ _count_hi_ `,C` | Create partition |
 
 There is no syntax to access files in a different partition, it is only possible to change into partitions, and to change back to the root (by omitting the partition name).
 
 ### C65
 
-The disk drive built into the unreleased C65 supports the following commands:
+The disk drive built into the unreleased C65 supports the following additional commands:
 
 | Name           | Syntax                                                | Description                     |
 |----------------|-------------------------------------------------------|---------------------------------|
@@ -594,6 +594,8 @@ The disk drive built into the unreleased C65 supports the following commands:
 | USER           | `U0>L`_flag_                                          | Large REL file support on/off   |
 
 ## Status Codes
+
+Finally, here is some more information on the status codes and messages the unit sends through command channel.
 
 The first decimal digit encodes the category of the error.
 
@@ -616,7 +618,7 @@ The full list of error messages can be found in practically every disk drive use
 * `31,SYNTAX ERROR,00,00`: The command sent was not understood.
 * `51,OVERFLOW IN RECORD,00,00`: More data was written into a REL file record than fits.
 * `65,NO BLOCK,17,01`: When trying to allocate a block using the `B-A` command, the given block was already allocated. Track 17, sector 1 is the next free block.
-* `66,ILLEGAL TRACK OR SECTOR,99,00`: A user command or data structures on disk referenced track 99, sector 00, which does not exist.
+* `66,ILLEGAL TRACK OR SECTOR,99,00`: A user command referenced track 99, sector 00, which does not exist.
 * `73,CBM DOS V2.6 1541,00,00`: This status is returned after the RESET of a device (and after the command "`UI`"). The actual message is specific to the device and can be used to detect the type and sometimes the ROM version[^6].
 
 Note that the strings are meant for the user and not necessarily consistent between devices. A program should only every interpret the status codes and its arguments.
@@ -630,75 +632,22 @@ Part 4 of the series of articles on the Commodore Peripheral Bus family will cov
 
 ## References
 
-* http://www.softwolves.pp.se/idoc/alternative/vc1541_de/
 * Schramm, K.: [Die Floppy 1541](https://spiro.trikaliotis.net/Book#vic1541). Haar bei München: Markt-und-Technik-Verlag, 1985. ISBN 3-89090-098-4
-* Inside Commodore DOS
-* http://the-cbm-files.tripod.com/diskdrive/1571-6.txt
-* 8061UsersManual.pdf
-* cbm4031.pdf
-* CBM\ 2040-3040-4040-8050\ Disk\ Drive\ Manual.pdf
-* commodore_vic_1541_floppy_drive_users_manual.pdf
-* ftp://www.zimmers.net/pub/cbm/manuals/peripherals/1764_Ram_Expansion_Module_Users_Guide.pdf
-* https://github.com/xlar54/ramdos2crt-master/blob/master/src/c128devpack/ramdos12.src
-* https://www.lyonlabs.org/commodore/onrequest/cmd/CMD_Hard_Drive_Users_Manual.pdf
-* cmd_fd-2000_manual.pdf
-* https://www.sd2iec.de/gitweb/?p=sd2iec.git;a=blob;f=README;hb=HEAD
-* http://commodore64.se/wiki/index.php/1541_tricks#Utility_loader_.28.22.26.22_command.29
-* ftp://www.zimmers.net/pub/cbm/manuals/printers/MPS-801_Printer_Users_Manual.pdf
-
-
-<!--
-
-## limitations
-
-
-10 open 1,8,15,"ui"
-20 get#1,a$:?a$;:ifa$<>chr$(13)goto20
-30 close 1
-40 open 1,8,15,"s:test"
-50 get#1,a$:?a$;:ifa$<>chr$(13)goto50
-60 close 1
-70 open2,8,2,"test,p,w"
-75 print#2,"ab";
-80 close2
-90 open2,8,2,"test,p,r"
-100 fori=1to10
-110 get#2,a$:?asc(a$+chr$(0)),st
-120 next
-run
-
-
-10 open 1,8,15,"ui"
-20 get#1,a$:?a$;:ifa$<>chr$(13)goto20
-30 close 1
-40 open 1,8,15,"s:test"
-50 get#1,a$:?a$;:ifa$<>chr$(13)goto50
-60 close 1
-70 open2,8,2,"test,p,w"
-rem 75 print#2,"ab";
-80 close2
-90 open2,8,2,"test,p,r"
-100 fori=1to10
-110 get#2,a$:?asc(a$+chr$(0)),st
-120 next
-run
-
-
-10 open 1,8,15,"ui"
-100 fori=1to10
-110 get#1,a$:?asc(a$+chr$(0)),st
-120 next
-run
-
-10 open15,8,15
-20 open2,8,2,"#"
-30 print#15, "b-r 2 0 123 0"
-40 dos
-50 close 2
-60 close 10
-run
-
---->
+* Neufeld, Gerald G.: [Inside Commodore DOS](https://www.pagetable.com/?p=630). Northridge, Calif: Datamost, 1985. ISBN 0-8359-3091-2.
+* [1541 Tricks](http://commodore64.se/wiki/index.php/1541_tricks)
+* [VC 1541 Floppy Disk Bedienungshandbuch](http://www.softwolves.pp.se/idoc/alternative/vc1541_de/)
+* COMMODORE 1541 DISK DRIVE USER'S GUIDE, 1541d10a.txt
+* COMMODORE 1571 Disk Drive User's Guide, 1571-users-manual-1.0.txt
+* COMMODORE 1581 Disk Drive User's Guide, 1581-manual.txt
+* [Burst Mode Commands](http://the-cbm-files.tripod.com/diskdrive/1571-6.txt)
+* [Manual for CBM 8061 8" disk drive](Manual for CBM 8061 8" disk drive)
+* [CBM D9060/D9090/8250/8050/4040/4031 Bedienungshandbuch](http://www.cbmhardware.de/floppy/cbm4031/cbm4031.pdf)
+* [User's Manual for CBM 5 1/4-inch Dual Floppy Disk Drives](http://www.classiccmp.org/cini/pdf/Commodore/CBM%202040-3040-4040-8050%20Disk%20Drive%20Manual.pdf)
+* [Commodore 1764 RAM Expansion Module User's Guide](ftp://www.zimmers.net/pub/cbm/manuals/peripherals/1764_Ram_Expansion_Module_Users_Guide.pdf)
+* [Commodore RAMDOS Source](https://github.com/xlar54/ramdos2crt-master/blob/master/src/c128devpack/ramdos12.src)
+* [CMD Hard Drive User's Manual](https://www.lyonlabs.org/commodore/onrequest/cmd/CMD_Hard_Drive_Users_Manual.pdf)
+* [CMD FD Series User's Manual](http://www.zimmers.net/anonftp/pub/cbm/manuals/cmd/CMD_FD2000_Manual.zip)
+* [SD2IEC README](https://www.sd2iec.de/gitweb/?p=sd2iec.git;a=blob;f=README;hb=HEAD)
 
 [^1]: This is a limitation of the layer 2 protocol: It is impossible for a device to send a 0-byte stream of bytes.
 
