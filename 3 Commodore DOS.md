@@ -224,7 +224,7 @@ For `SEQ`, `PRG` and `USR`, the following modes are possible:
 
 The default mode is "`R`".
 
-(Commodore DOS does not generally allow changing the file pointer on sequential files, but some modern solutions like SD2IEC allow the `P` command meant for relative files even in this case – see below.)
+(Commodore DOS does not generally allow changing the file pointer on sequential files, but some modern solutions like SD2IEC allow the `P` command meant for relative files even in this case.)
 
 #### Relative Files
 
@@ -268,7 +268,7 @@ The syntax of the _timestamp_ argument works like this:
 
 The [format of the data returned is tokenized Microsoft BASIC](https://www.pagetable.com/?p=273) that can be displayed on-screen easily, but is a little tricky to parse.
 
-Devices that support partitions also introduce the following syntax to list partitions:
+Devices that support partitions also introduce the following syntax for listing partitions:
 
 `$=P`[`:*`][`=`_type_]
 
@@ -352,13 +352,13 @@ Commodore DOS also allows accessing the disk on a lower level. The block API wor
 
 ### The Buffer
 
-In order to use the block API, a block-sized buffer has to be allocated inside the device by opening a channel (2-14) with the following syntax:
+In order to use the block API, a block-sized buffer has to be allocated inside the device by opening a channel (2-14) with the following name:
 
 `#`[_buffer_number_]
 
 The buffer number is only useful for a use case around code execution and will be covered later.
 
-Without an explicit number, the next free buffer in the device's RAM will be allocated. It will stay allocated as long as the named channel is open.
+Without an explicit number, the next free buffer in the device's RAM will be allocated. It will stay allocated until the channel is closed.
 
 Reading from the channel gets a byte from the buffer, and writing to the channel put a byte into the buffer. Every buffer comes with a "buffer pointer" that points to the next byte to be read or written. When creating a buffer, the buffer pointer is set to 1 instead of 0, so reading or writing would skip the first byte in the buffer. (The reason for this is the `B-R`/`B-W` API described later.)
 
@@ -373,6 +373,8 @@ All arguments in the buffer API are decimal ASCII values and can be separated by
 ### Reading and Writing Blocks
 
 The `U1` and `U2` commands allow reading a block into the buffer and writing the buffer into a block. The arguments are the channel number, the track and the sector. After reading a block, the buffer pointer is reset to 0, so that the 256 bytes of the bock can be read from the start.
+
+Nevertheless, when uploading a complete block into the buffer and then writing it to disk, it is necessary to set the block pointer to 0 before sending any data because of the block pointer's default value of 1.
 
 | Name           | Syntax                                                | Description                     |
 |----------------|-------------------------------------------------------|---------------------------------|
