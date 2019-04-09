@@ -299,13 +299,13 @@ There are many command-channel commands that deal with creating, fixing and modi
 
 The `INITIALIZE` command is only useful on classic 5.25" devices. These had trouble detecting the user swapping a disk, so this command makes sure the disk metadata cache is invalidated.
 
-The `VALIDATE` command is a simple check-disk function that will make sure the "block availability map" is consistent with other on-disk data structures. It is recommended on a disk that contains a file that has not been closed after writing.
+The `VALIDATE` command is a simple check-disk function that will make sure the "block availability map" is consistent with other on-disk data structures. It is recommended on a disk that contains a file that has not been closed after writing, but it needs to be avoided on disks that contain manually allocated blocks.
 
 The `NEW` command will create a new filesystem. On removable media if an "ID" is specified, it will do a low-level format before. There is no way to specify the disk format in drives that support multiple formats. For instance, a Commodore 8250, which can also read and write existing disks in 8050 format, will always write the 8250 format. (The Burst API allows more fine-grained formatting settings.)
 
 On units with multiple media, the `COPY` command can also copy files between media, while on all other units, it can only duplicate files. In either case, it can concatenate several files into one.
 
-The `DUPLICATE` command and the `COPY` variant that copies all files are only supported on units with multiple drives. They do not work on partitions.
+The `DUPLICATE` command and the `COPY` variant that copies all files are only supported on units with multiple drives, they do not work on partitions.
 
 There are two more commands that got introduced by CMD:
  
@@ -314,14 +314,6 @@ There are two more commands that got introduced by CMD:
 | LOCK           | `L`[_path_]`:`_name_                                  | Toggle file write protect       |
 | WRITE PROTECT  | `W-`{`0`&#x7c;`1`}                                    | Set/unset device write protect  |
 | RENAME-HEADER  | `R-H`[_medium_]`:`_new_name_                           | Rename a filesystem             |
-
-The unreleased C65 disk drive does not support these CMD additions, but adds three commands of its own:
-
-| Name           | Syntax                                                | Description                     |
-|----------------|-------------------------------------------------------|---------------------------------|
-| FILE LOCK      | `F-L`[_path_]`:`_name_[`,`...]                        | Enable file write-protect       |
-| FILE UNLOCK    | `F-U`[_path_]`:`_name_[`,`...]                        | Disable file write-protect      |
-| FILE RESTORE   | `F-R`[_path_]`:`_name_[`,`...]                        | Restore a deleted file          |
 
 Devices with partitioning support add the following commands:
 
@@ -344,7 +336,7 @@ Devices with subdirectory support add the following:
 | MAKE DIRECTORY | `MD`[_path_]`:`_name_                                 | Create a sub-directory          |
 | REMOVE DIRECTORY | `RD`[_path_]`:`_name_                               | Delete a sub-directory          |
 
-The syntax to go up one level includes the "`←`" (left arrow) character, which is CBM-ASCII code `0x5f` (underscore in US-ASCII).
+The syntax to go up one level contains the "`←`" (left arrow) character, which is CBM-ASCII code `0x5f` (underscore in US-ASCII).
 
 ## Block Access API
 
@@ -360,7 +352,7 @@ The buffer number is only useful for a use case around code execution and will b
 
 Without an explicit number, the next free buffer in the device's RAM will be allocated. It will stay allocated until the channel is closed.
 
-Reading from the channel gets a byte from the buffer, and writing to the channel put a byte into the buffer. Every buffer comes with a "buffer pointer" that points to the next byte to be read or written. When creating a buffer, the buffer pointer is set to 1 instead of 0, so reading or writing would skip the first byte in the buffer. (The reason for this is the `B-R`/`B-W` API described later.)
+Reading from the channel gets a byte from the buffer, and writing to the channel puts a byte into the buffer. Every buffer comes with a "buffer pointer" that points to the next byte to be read or written. When creating a buffer, the buffer pointer is set to 1 instead of 0, so reading or writing would skip the first byte in the buffer. (The reason for this is the `B-R`/`B-W` API described later.)
 
 The buffer pointer can be set to any position within the buffer with the `B-P` command.
 
@@ -402,7 +394,7 @@ The `B-R` and `B-W` commands have deceptive names and are part of a rarely used 
 
 While sequential files only allow sequential access to the file's data, and relative files restrict seeking within the file in record-size steps, the "Random Access File" API calls are meant to give the user a way to build files with arbitrary access patterns.
 
-`B-R` and `B-W` are block read/write commands like `U1`/`U2`, but they assume a certain data format of the blocks: The first byte is the block's buffer pointer. Before writing a block to disk, the current buffer pointer will be put into its first byte, signaling how many valid bytes are contained in the block. When reading, it marks the end of the buffer that cannot be read past[^8]. When reading with `B-R`, the buffer pointer is set to 1, so that the first byte of the payload will be read first.
+`B-R` and `B-W` are block read/write commands like `U1`/`U2`, but they assume a certain data format of the blocks: The first byte is the block's buffer pointer. Before writing a block to disk, the current buffer pointer will be put into its first byte, signaling how many valid bytes are contained in the block. When reading, it marks the end of the buffer that cannot be read past[^8] (an `EOI` condition will be signaled). When reading with `B-R`, the buffer pointer is set to 1, so that the first byte of the payload will be read first.
 
 | Name           | Syntax                                                | Description                     |
 |----------------|-------------------------------------------------------|---------------------------------|
@@ -484,7 +476,7 @@ Here are the locations for the 1541:
 | `U7`/`UG` | $050C   |
 | `U8`/`UH` | $050F   |
 
-The commands `U9` and `U:` execute a soft and a hard reset, respectively. In both cases, the status will read back code 73.
+The commands `U9` and `U:` execute a soft and a hard reset, respectively. In both cases, the status will read back code 73, the power-on message.
 
 ### Utility Loader Command
 
@@ -578,7 +570,9 @@ The following two commands are 1571-specific:
 
 ### 1581
 
-The 1581 (and CMD devices in 1581 emulation mode) supports its own "partitions", which occupy a contiguous sequence of blocks. They appear as files of type `CBM`, but cannot be read or written as files, but reserve blocks to be accessed by the block API (safe from `VALIDATE`), or to hold a sub-filesystem[^92] (if the partition starts and ends at track boundaries and is at least 3 tracks in size) by formatting it after changing into it. This way, partitions can even be nested.
+The 1581 has its own concept of "partitions" (which is also supported by CMD devices ine 1581 emulation mode). A 1581 partition occupies a contiguous sequence of blocks and appears as a file of type `CBM`, but cannot be read or written as a file.
+
+One use case for a 1581 partition is to reserve blocks for the block API that are safe from `VALIDATE`. But it is also possible to format the partition with a sub-filesystem[^92] (if the partition starts and ends at track boundaries and is at least 3 tracks in size). This way, partitions can even be nested.
 
 | Name           | Syntax                                                | Description                     |
 |----------------|-------------------------------------------------------|---------------------------------|
@@ -593,6 +587,9 @@ The disk drive built into the unreleased C65 supports the following commands:
 
 | Name           | Syntax                                                | Description                     |
 |----------------|-------------------------------------------------------|---------------------------------|
+| FILE LOCK      | `F-L`[_path_]`:`_name_[`,`...]                        | Enable file write-protect       |
+| FILE UNLOCK    | `F-U`[_path_]`:`_name_[`,`...]                        | Disable file write-protect      |
+| FILE RESTORE   | `F-R`[_path_]`:`_name_[`,`...]                        | Restore a deleted file          |
 | USER           | `U0>D`_val_                                           | Set directory sector interleave |
 | USER           | `U0>L`_flag_                                          | Large REL file support on/off   |
 
@@ -611,19 +608,18 @@ The first decimal digit encodes the category of the error.
 | 7           | Generic disk or device error    |
 | 8, 9        | unused                          |
 
-Note that a program cannot rely on any of these strings, just on the codes.
-
 The full list of error messages can be found in practically every disk drive users manual, here are just some examples:
 
 * `00, OK,00,00`: There was no error.
 * `01, FILES SCRATCHED,03,00`: Informational: 3 files have been deleted ("scratched").
 * `23,READ ERROR,18,00`: There was a checksum error when trying to read track 18, sector 0.
 * `31,SYNTAX ERROR,00,00`: The command sent was not understood.
-* `51,OVERFLOW IN RECORD,00,00`: More data was written into a REL file record that fits.
+* `51,OVERFLOW IN RECORD,00,00`: More data was written into a REL file record than fits.
 * `65,NO BLOCK,17,01`: When trying to allocate a block using the `B-A` command, the given block was already allocated. Track 17, sector 1 is the next free block.
 * `66,ILLEGAL TRACK OR SECTOR,99,00`: A user command or data structures on disk referenced track 99, sector 00, which does not exist.
 * `73,CBM DOS V2.6 1541,00,00`: This status is returned after the RESET of a device (and after the command "`UI`"). The actual message is specific to the device and can be used to detect the type and sometimes the ROM version[^6].
 
+Note that the strings are meant for the user and not necessarily consistent between devices. A program should only every interpret the status codes and its arguments.
 
 ## Next Up
 
@@ -726,8 +722,7 @@ run
 
 [^11]: `U1` and `U2` were added in a firmware update to the Commodore 4040 drive because of bugs in `B-R` and `B-W` in version 2.1. They were probably added as `USER` commands as opposed to proper commands (or fixing the broken commands) in order to keep the changes to the new ROM version contained to one ROM chip. Later drives retained this feature.
 
-[^12]: The command was piggy-backed onto `UI` in order to keep the changes between the 1540 an the 1541 contained to the second ROM chip.
-
+[^12]: The command was piggy-backed onto `UI` in order to keep the changes between the 1540 and the 1541 contained to the second ROM chip.
 
 [^90]: No other literature calls it _media_. Commodore calls it _drives_ (because they are actual drives with their own mechanics), and CMD calls it _partitions_ (because they are parts of one large drive). I have decided to introduce a common name for the concept, since the syntax for paths and commands does not make a distinction between the two.
 
