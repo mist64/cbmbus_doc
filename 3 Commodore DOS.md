@@ -80,7 +80,7 @@ Communication to Commodore DOS happens through 15 data channels and one command 
 
 Channels 0 to 14 need to be associated with a name and are used for the transfer of raw data like file and block contents. (0 and 1 are special-cased and will be discussed later.)
 
-Channel 15 is a "meta" channel. When writing to it, the device interprets the byte stream as commands in a unified format. It either controls something about a specific data channel (out of band communication), or is a global command. When reading from it, the byte stream from the device is usually status information in a unified format, and sometimes raw response data to a command.
+Channel 15 is a "meta" channel. When writing to it, the device interprets the byte stream as commands in a unified format. It either controls something about a specific data channel ([out of band communication](https://en.wikipedia.org/wiki/Out-of-band_data)), or is a global command. When reading from it, the byte stream from the device is usually status information in a unified format, and sometimes raw response data to a command.
 
 #### Commands
 
@@ -88,7 +88,7 @@ All commands are byte streams that are mostly ASCII, but with some binary argume
 
 There are two different ways to send them:
 
-They can be sent as a byte stream to channel 15, terminated an `EOI` or `UNLISTEN` event[^7]. The follwing BASIC code send the command "`I`" to drive 8 this way:
+They can be sent as a byte stream to channel 15, terminated an `EOI` or `UNLISTEN` event[^7]. The following BASIC code sends the command "`I`" to drive 8 this way:
 
     OPEN 1,8,15
     PRINT#1, "I";
@@ -118,7 +118,7 @@ _code_`,`_string_`,`_a_`,`_b_[`,`_c_]
 
 A status code of 0 will return the string "`00, OK,00,00`" (or "`00, OK,00,00,0`" on dual-drive devices, assuming the last command was performed on drive 0).
 
-Reading the status will clear it. Keeping on reading will keep returning status messages.
+Reading the status will clear it. So if the user keeps on reading the status channel, the device will keep sending "`00, OK,00,00`" messages.
 
 The following BASIC program will read a single status message:
 
@@ -146,23 +146,21 @@ There are several independent sets of API:
 
 ## File Access API
 
-Every medium has its own independent filesystem. A filesystem has a name, a two-character ID, and contains an unsorted set of files. All files have a unique **name** as well as a file **type**, and have to be at least one byte in size[^1]. Some devices maintain a last-changed timestamp with files, and some support nested subdirectories in order to group files.
+Every medium has its own independent filesystem. A filesystem has a name, a two-character ID[^97], and contains an unsorted set of files. All files have a unique **name** as well as a file **type**, and have to be at least one byte in size[^1]. Some devices maintain a last-changed timestamp with files, and some support nested subdirectories in order to group files.
 
-DOS does not specify a maximum size for disk or file names, but the limit for all Commodore and CMD devices is 16 characters. There is also no specified character encoding: Names consist of 8 bit characters, and DOS does not interpret them. Names have very few limitations:
+Commodore DOS does not specify a maximum size for disk or file names, but the limit for all Commodore and CMD devices is 16 characters. There is also no specified character encoding: Names consist of 8 bit characters, and DOS does not interpret them. Names have very few limitations:
 
 * The "`,`" (comma), "`:`" (colon), "`=`" (equals) and `CR` (carriage return) characters are illegal in disk, file and directory names (because of the syntax of channel names and commands).
 * The "`/`" (slash) character is illegal for directory names (because of the syntax of path specifiers).
 * The code `0xa0` (Unicode/ISO 8859-1 non-breaking space, CBM-ASCII shifted SPACE) is illegal in file and directory names (it is used as the terminating character on disk).
 
-There are two file type categories: sequential files and relative files.
+There are two categories of files: sequential and relative files.
 
-**Sequential files** only allow linear access, i.e. it is impossible to position the read or write pointer. They can be appended to though. There are three types of sequential files: `SEQ`, `PRG` and `USR`. They are treated the same by DOS, but the user convention is to store executable programs in PRG files and data into SEQ files.
+**Sequential files** only allow linear access, i.e. it is impossible to position the read or write pointer. They can be appended to though. There are three types of sequential files: `SEQ`, `PRG` and `USR`. They are treated the same by DOS, but the user convention is to store executable programs in `PRG` files and data into `SEQ` files.
 
-**Relative files** (`REL`) have a fixed record size of 1-254 bytes and allow positioning the read/write pointer to any record and thus allow random access. (Early Commodore drives with DOS 1.x and some modern solutions don't support this.)
+**Relative files** (`REL`) have a fixed record size of 1 to 254 bytes and allow positioning the read/write pointer to any record and thus allow random access. (Early Commodore drives with DOS 1.x and some modern solutions don't support this.)
 
-(Commodore manuals sometimes also mention "random access files", but this is merely a reference to a set of direct block access commands; this is not associated with a filename.)
-
-While the interface to DOS often requres to specify the file type, it is not part of a file's identifier, i.e. there can not be two files with the same name but just a different type.
+While the interface to DOS often requires to specify the file type, it is not part of a file's identifier, i.e. there can not be two files with the same name but just a different type.
 
 ### Paths
 
@@ -299,7 +297,7 @@ There are many command-channel commands that deal with creating, fixing and modi
 
 (Unless otherwise mentioned, arguments for all commands are ASCII.)
 
-The `INITIALIZE` command is only useful on classic devices, where it works around the risk of not invalidating the cache after swapping a disk.
+The `INITIALIZE` command is only useful on classic 5.25" devices, where it works around the risk of not invalidating the cache after swapping a disk.
 
 The `VALIDATE` command is a simple check-disk function that will make sure the "block availability map" is consistent with other on-disk data structures. It is recommended on a disk that contains a file that has not been closed after writing.
 
@@ -747,3 +745,5 @@ run
 [^95]: CMD devices have emulation modes for the 1541, 1571 and 1581 devices and don't support all new features in these modes.
 
 [^96]: The 1571 aimed to be perfectly backwards-compatible with the 1541, which is why all added commands were added as sub-commands to `U0`, in order to keep the new code contained behind a single vector, keeping the ROM layout as close to the 1541's as possible.
+
+[^97]: The user is supposed to make sure that disks have unique IDs. Classic 5,25" devices stored a copy of the ID with every sector on disk in order to detect disk changes.
