@@ -17,15 +17,19 @@ The Commodore DOS API defines the meaning of channel numbers, channel names and 
 
 ## Concepts
 
+Commodore DOS has been in existence since the Commodore 2040 drive from 1978. It remained fairly unchanged up to the Commodore 1581 from 1987. These are the **first-generation** devices. **Second-generation** devices are the floppy and hard disk drives by Creative Micro Devices (CMD) from the 1990s, with some existended features. Finally, there are **modern** Commodore DOS devices that have added some more features. This section gives an overview of the shared concepts and some of the optional features.
+
 Commodore DOS calls a device (with its own primary address) connected to the bus a **unit**.
 
 A unit can have one or more **media**[^90], a sequence of **blocks** that have a block numbering independent of the other media. A medium usually contains a **filesystem**, but it can also be used for direct block access independently of any filesystem. These media are numbered, starting from one.
 
-A simple one-drive unit like the Commodore 1541 only has a single medium "0". A dual-drive unit like the Commodore 8250 has two, named "0" and "1", one for each disk drive. Reference manuals of these kinds of units call these numbers the **drive** number.
+For first-generation devices, a simple one-drive unit like the Commodore 1541 only has a single medium "0". A dual-drive unit like the Commodore 8250 has two, named "0" and "1", one for each disk drive. Reference manuals of these kinds of units call these numbers the **drive number**.
 
-Later devices with multiple megabytes of storage, like the floppy and hard disk drives by Creative Micro Devices (CMD) as well as modern solutions such as SD2IEC, support partitioning: Each partition is a medium. The partitions are numbered starting with "1", while "0" is a always points to the currently active partition. Reference manuals of these kinds of units call these numbers the **partition** number.
+Second-generation and modern devices support partitioning: Each partition is a medium. The partitions are numbered starting with "1", while "0" always points to the currently active partition. Reference manuals of these kinds of units call these numbers the **partition number**.
 
-## Communication Mechanisms
+## API Basics
+
+### Channels
 
 Communication to Commodore DOS happens through 15 data channels and one command channel:
 
@@ -90,61 +94,86 @@ There can be an arbitrary number of _dirname_ specifiers. Both the medium and th
 Examples:
 
 * "" - the current directory on medium 0
-* "`2`" – the current directory on medium 2
-* "`2/FOO/`" – the subdirectory `FOO` on medium 2
+* "`1`" – the current directory on medium 1
+* "`1/FOO/`" – the subdirectory `FOO` on medium 1
 * "`/FOO/`" – the subdirectory `FOO` on medium 0
-* "`2/FOO/BAR/`" – the subdirectory `BAR` inside the subdirectory `FOO` on medium 2
+* "`1/FOO/BAR/`" – the subdirectory `BAR` inside the subdirectory `FOO` on medium 1
 
-Subdirectories are only supported by CMD devices and some modern solutions. On Commodore drives, paths only consist of the (optional) medium name.
+Subdirectories are not supported by first-generation devices, so on these devices, paths only consist of the (optional) medium name:
+
+* "" - medium 0
+* "`0`" – medium 0
+* "`1`" – medium 1
 
 ### Wildcards
 
 Some interfaces features permit using wildcard characters:
 * A question mark ("`?`") matches any character.
-* An asterisk ("`*`") matches zero or more characters. Characters in the pattern after the asterisk are ignored, so an asterisk can only match characters at the end of the name.
+* An asterisk ("`*`") matches zero or more characters. On first-generation units, characters in the pattern after the asterisk are ignored, so an asterisk can only match characters at the end of the name.
 
-### Named Channels
+### Opening Files
 
-Channels 0 to 14 need to be associated with names. Names are used to create channels for reading or writing a file, reading the directory listing and reading/writing blocks directly. Empty names are illegal.
-
-Channels 0 and 1 are special shortcuts to drive the cases below with less syntax:
-
-* Channel 0 is the `LOAD` channel: It forces a type of `PRG` and an access mode of "read". It works with regular files and the directory listing.
-* Channel 1 is the `SAVE` channel: It forces a type of `PRG` and an access mode of "write". It works with regular files only.
-
-### Files
+Files are read and written through named channels 0 through 14. Opening a named channel associates the channel with the filename. Closing it will dissociate the channel and, for files that were written to, make sure the file data on disk is consistent.
 
 A named channel can be used to open a file for reading or writing. The syntax for the channel's name is as follows:
 
-[[`@`][_drive_]`:`]_filename_[`,`_type_[`,`_access_]]
+[[`@`][_path_]`:`]_filename_[`,`_type_[`,`_mode_]]
 
-The core of the channel name is the name of the file to be accessed. If an existing file is opened, wildcards (see below) are allowed.
+The core of the channel name is the name of the file to be accessed. If an existing file is opened, wildcards are allowed.
 
 There are optional prefixes and suffixes.
 
-* By default, drive 0 is assumed. This can be overridden by a leading drive number, followed by a colon[^2].
+* The modifier flag "`@`" specifies that the file is supposed to be overwritten, if it is opened for writing and it already exists[^3] - the default is to return an error.
 
-* The modifier flag "`@`" specifies that the file is supposed to be overwritten, if it is opened for writing and it already exists[^3] - the default is to return an error. The use of "`@`", a drive number, or both, requires to add a colon character as a delimiter between the prefix and the filename.
-
-* By using the drive prefix (or just using a "`:`" prefix, it is possible to use filenames that start with "`$`" or "`#`". These letters would otherwise indicate special named channels (see next sections).
+* The _path_ component allows specifing a medium and/or a sequence of subdirectory names. It defaults to medium 0 and the current path.[^2]. The use of "`@`", a path, or both, requires adding a "`:`" character as a delimiter between the prefix and the filename.
 
 * The file type is one of "`S`" (`SEQ`), "`P`" (`PRG`),  "`U`" (`USR`), or "`L`" (`REL`). If the type is omitted, `PRG` is assumed.
 
-* The _access_ byte depends on the file type: For `SEQ`, `PRG` and `USR`, a file can be opened for reading, by specifying "`R`", for writing using "`W`" and for appending using "`A`". The default is for reading. For relative files, the access byte is the binary-encoded record size. For creating a relative file, it must be specified, for opening an existing one, it can be omitted. Relative files are always open for reading _and_ writing.
+* The _mode_ byte depends on the file type (see below).
 
-Sequential files can then be read from or written to, depending on the access type. Files opened for writing need to be closed again for all data structures on disk to be valid. Relative files allow reading and writing and do not have to be closed for the data on disk to be consistent. Positioning of the read/write pointer to a particular record is done using the command channel ("`P`" command, see below).
+(By specifying a path (even if empty, so it's just the "`:`" prefix), it is possible to use filenames that start with "`$`" or "`#`". These letters would otherwise indicate special named channels – see next sections.)
+
+#### Sequential Files
+
+For `SEQ`, `PRG` and `USR`, the following modes are possible:
+
+* `R` (read): Reading from the channel will return the file contents sequentially. The file pointer starts at the beginning of the file. When all files have been read, the unit signals this with an `EOI` condition.
+* `M`: (recovery read): This mode is a recovery feature that allows reading files that are marked as inconsistent (i.e. written to but never closed) in the filesystem's metadata. Normal read mode would refuse to open it.
+* `W` (write): The file will be created (if it doesn't exist or the "`@`" modifier has been specified), and writing to the channel will write the bytes into the file. The file has to be closed for it to be consistent. Creating a file and closing it without writing anything will result in a file that contains a single `CR` character[^93]. 
+* `A` (append): Same as writing, but the file has to exist and the file pointer starts at the end of the file.
+
+The default mode is "`R`".
+
+(Commodore DOS does not generally allow changing the file pointer on sequential files, but some modern solutions like SD2IEC allow the `P` command meant for relative files even in this case – see below.)
+
+#### Relative Files
+
+For relative files, the mode character is actually a binary-encoded byte that specifies the record size. For creating a relative file, it must be specified, for opening an existing one, it can be omitted. Relative files are always open for reading _and_ writing.
+
+Positioning of the read/write pointer to a particular record is done byt sending the "`P`" command on the command channel. The arguments are four binary-encoded bytes.
+
+| Name           | Syntax                                                | Description                     |
+|----------------|-------------------------------------------------------|---------------------------------|
+| POSITION       | `P` _channel_ _record_lo_ _record_hi_ _offset_        | Set record index in REL file    |
+
+Relative files do not have to be closed for the data on disk to be consistent.
+
+#### Channels 0 and 1
+
+While channels 2 through 14 can be used to open any kind of file in any mode, channels 0 and 1 are shortcuts that hardcode type and mode:
+
+* Channel 0 is the `LOAD` channel: It forces a type of `PRG` and an access mode of "read".
+* Channel 1 is the `SAVE` channel: It forces a type of `PRG` and an access mode of "write".
 
 ### Directory Listing
 
-The "`$`" name is used to read the directory listing. This is the syntax:
+Reading the directory listing is done by associating channel 0 with a name starting with `$` and reading from it. This is the syntax:
 
-`$`[[_drive_]`:`][_pattern_[`,`...][`=`_type_]]
+`$`[[_path_]`:`][_pattern_[`,`...][`=`_type_]]
 
-Just using "`$`" as the name will return the complete directory contents of drive 0. Specifying the drive number, followed by a colon, will override this. Additionally, one or more file name patterns can be appended to filter which directory entries are returned. Finally, specifying "`=`" followed by a single-character file type specifier, will only show files of a particular type.
+Just using "`$`" as the name will return the complete contents of the current directory contents of medium 0. Specifying the path, followed by a colon, will override this. Additionally, one or more file name patterns can be appended to filter which directory entries are returned. Finally, specifying "`=`" followed by a single-character file type specifier, will only show files of a particular type.
 
 The [format of the data returned is tokenized Microsoft BASIC](https://www.pagetable.com/?p=273).
-
-XXX only works on channel 0
 
 * XXX more options for directory listings
 	* partition directory
@@ -191,17 +220,6 @@ XXX footnote: JiffyDOS supports "L" on the client-side.
 
     @m:d64	mount .d64 file (1541ultimate) 
     @md:d64	create empty d64 image file (1541ultimate)
-
-
-### Command for Relative Files
-
-While a relative file is open, a command on the command channel is used to position the read/write pointer to a particular record. The arguments are four binary-encoded bytes.
-
-| Name           | Syntax                                                | Description                     |
-|----------------|-------------------------------------------------------|---------------------------------|
-| POSITION       | `P` _channel_ _record_lo_ _record_hi_ _offset_        | Set record index in REL file    |
-
-XXX SD2IEC: works on sequential files if stored on FAT
 
 ### CMD-style partitions
 
@@ -698,3 +716,5 @@ XXX 8250/1001 has 154 logical tracks
 [^90]: No other literature calls it _media_. Commodore calls it _drives_ (because they are actual drives with their own mechanics), and CMD calls it _partitions_ (because they are parts of one large drive). I have decided to introduce a common name for the concept, since the syntax for paths and commands does not make a distinction between the two.
 
 [^92]: Commodore calls them _sub-directories_, not to be confused with CMD-style subdirectories.
+
+[^93]: Again, this is because of a limitation of the layer 2 protocol when reading the file. In addition, all Commodore drives have a bug where files that contain only one or two bytes will read four bytes. CMD drives do not have this bug.
