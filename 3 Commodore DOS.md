@@ -400,7 +400,7 @@ Similarly, a disk can be fully dumped by iterating over all tracks (starting wit
 
 The `B-R` and `B-W` commands have deceptive names and are part of a rarely used and practically deprecated feature: "Random Access Files".
 
-While sequential files only allow sequential access to the file's data, and relative files restrict seeking within the file to record boundaries, the "Random Access File" API calls are meant to give the user a way to build files with arbitrary access patterns.
+While sequential files only allow sequential access to the file's data, and relative files restrict seeking within the file in record-size steps, the "Random Access File" API calls are meant to give the user a way to build files with arbitrary access patterns.
 
 `B-R` and `B-W` are block read/write commands like `U1`/`U2`, but they assume a certain data format of the blocks: The first byte is the block's buffer pointer. Before writing a block to disk, the current buffer pointer will be put into its first byte, signaling how many valid bytes are contained in the block. When reading, it marks the end of the buffer that cannot be read past[^8]. When reading with `B-R`, the buffer pointer is set to 1, so that the first byte of the payload will be read first.
 
