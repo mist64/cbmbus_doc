@@ -15,9 +15,13 @@ From a device's point of view, the layer below, layer 3 ("TALK/LISTEN") defines 
 
 The Commodore DOS API defines the meaning of channel numbers, channel names and the data traveling over channels in the context of disk drives.
 
-## Generations and Concepts
+## Features and Concepts
 
-Commodore DOS has been in existence since the Commodore 2040 drive from 1978. It remained fairly unchanged up to the Commodore 1581 from 1987. These are the **first-generation** devices. **Second-generation** devices are the floppy and hard disk drives by Creative Micro Devices (CMD) from the 1990s, with some extended features[^95]. Finally, there are **modern** Commodore DOS devices that have added some more features[^94]. This section gives an overview of the shared concepts and some of the optional features.
+Commodore DOS has been in existence since the Commodore 2040 drive from 1978.
+
+
+
+It remained fairly unchanged up to the Commodore 1581 from 1987. These are the **first-generation** devices. **Second-generation** devices are the floppy and hard disk drives by Creative Micro Devices (CMD) from the 1990s, with some extended features[^95]. Finally, there are **modern** Commodore DOS devices that have added some more features[^94]. This section gives an overview of the shared concepts and some of the optional features.
 
 Commodore DOS calls a device (with its own primary address) connected to the bus a **unit**.
 
@@ -26,6 +30,19 @@ A unit can have one or more **media**[^90], a sequence of **blocks** that have a
 For first-generation devices, a simple one-drive unit like the Commodore 1541 only has a single medium "0". A dual-drive unit like the Commodore 8250 has two, named "0" and "1", one for each disk drive. Reference manuals of these kinds of units call these numbers the **drive number**.
 
 Second-generation and modern devices support partitioning: Each partition is a medium. The partitions are numbered starting with "1", while "0" always points to the currently active partition. Reference manuals of these kinds of units call these numbers the **partition number**.
+
+## Features
+
+| Feature          | 2040 | 1541 | 1571/1581 | RAM-DOS | CMD HD/FD | SD2IEC   |
+|------------------|------|------|-----------|---------|-----------|----------|
+| Sequential files | yes  | yes  | yes       | yes     | yes       | yes      |
+| Relative files   | no   | yes  | yes       | yes     | yes       | yes      |
+| Block access     | yes  | yes  | yes       | no      | yes       | yes[^96] |
+| Code execution   | yes  | yes  | yes       | no      | yes       | no       |
+| Burst commands   | no   | no   | yes       | no      | yes       | ? XXX    |
+| Time             | no   | no   | no        | no      | yes       | yes      |
+| Partitions       | no   | no   | no        | no      | yes       | yes      |
+| Subdirectories   | no   | no   | no        | no      | yes       | yes      |
 
 ## API Basics
 
@@ -736,3 +753,5 @@ XXX 8250/1001 has 154 logical tracks
 [^94]: "Modern" devices mostly means the [SD2IEC](https://www.sd2iec.de) in native mode, not emulation devices like the [Pi1541](https://cbm-pi1541.firebaseapp.com).
 
 [^95]: CMD devices have emulation modes for the 1541, 1571 and 1581 devices and don't support all new features in these modes.
+
+[^96]: Direct block access is only supported for disk images, not for FAT filesystems.
