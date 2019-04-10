@@ -22,7 +22,7 @@ Layer 3, which is based on the IEEE-488 standard, provides interruptable communi
 * [Part 0: Overview and Introduction](https://www.pagetable.com/?p=1018)
 * [Part 1: IEEE-488](https://www.pagetable.com/?p=1023) [PET/CBM Series; 1977]
 * **Part 2: The TALK/LISTEN Layer** ← *this article*
-* Part 3: The Commodore DOS Layer *(coming soon)*
+* [Part 3: The Commodore DOS Layer](https://www.pagetable.com/?p=1038)
 * Part 4: Standard Serial (IEC) [VIC-20, C64; 1981] *(coming soon)*
 * Part 5: TCBM [C16, C116, Plus/4; 1984] *(coming soon)*
 * Part 6: JiffyDOS [1985] *(coming soon)*
