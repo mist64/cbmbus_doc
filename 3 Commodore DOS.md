@@ -35,16 +35,16 @@ The Commodore DOS API defines the meaning of channel numbers, channel names and 
 
 Commodore DOS has been in existence since the Commodore 2040 drive from 1978, and new firmware code for Commodore DOS devices is being developed to this day. The API has gotten some extensions in the meantime, so while this article covers the complete API, it important to understand that not all APIs are supported by all devices.
 
-| Feature          | 2040 | 1541 | 1571/1581 | RAMDOS | CMD HD/FD | SD2IEC   |
-|------------------|------|------|-----------|--------|-----------|----------|
-| Sequential files | yes  | yes  | yes       | yes    | yes       | yes      |
-| Relative files   | no   | yes  | yes       | yes    | yes       | yes      |
-| Block access     | yes  | yes  | yes       | no     | yes       | yes      |
-| Code execution   | yes  | yes  | yes       | no     | yes       | no       |
-| Burst commands   | no   | no   | yes       | no     | yes       | no       |
-| Time             | no   | no   | no        | no     | yes       | yes      |
-| Partitions       | no   | no   | no        | no     | yes       | yes      |
-| Subdirectories   | no   | no   | no        | no     | yes       | yes      |
+| Feature          | 2040 | 1541 | 1571/1581 | RAMDOS | CMD HD/FD | RAMLink | SD2IEC   |
+|------------------|------|------|-----------|--------|-----------|---------|----------|
+| Sequential files | yes  | yes  | yes       | yes    | yes       | yes     | yes      |
+| Relative files   | no   | yes  | yes       | yes    | yes       | yes     | yes      |
+| Block access     | yes  | yes  | yes       | no     | yes       | yes     | yes      |
+| Code execution   | yes  | yes  | yes       | no     | yes       | no[^99] | no       |
+| Burst commands   | no   | no   | yes       | no     | yes       | no      | no       |
+| Time             | no   | no   | no        | no     | yes       | yes     | yes      |
+| Partitions       | no   | no   | no        | no     | yes       | yes     | yes      |
+| Subdirectories   | no   | no   | no        | no     | yes       | yes     | yes      |
 
 (The 2040 is Commodore's first (dual) disk drive. A ROM update to 2.0 later added relative file support. The 1541, 1571 and 1581 are the well-known C64 drives. RAMDOS is a RAM-disk application by Commodore that shipped with the "REU" RAM extender. Creative Micro Devices (CMD) made floppy disk and hard disk drives in the 1990s. SD2IEC is a modern floppy/hard drive replacement for Commodore computers with a Serial bus.)
 
@@ -278,7 +278,7 @@ The list can be filtered by partition _type_. CMD devices support the following 
 * `4`: 1541 emulation partition (683 blocks)
 * `7`: 1571 emulation partition (1366 blocks)
 * `8`: 1581 emulation partition (3200 blocks, 1581-partition support)
-* `C`: 1581 CP/M emulation partition
+* `C`: 1581 CP/M emulation partition (CMD HD only)
 
 ### Filesystem Commands
 
@@ -288,10 +288,10 @@ There are many command-channel commands that deal with creating, fixing and modi
 |----------------|-------------------------------------------------------|---------------------------------|
 | INITIALIZE     | `I`[_medium_]                                         | Force reading disk metadata     |
 | VALIDATE       | `V`[_medium_]                                         | Re-build block availability map |
-| NEW            | `N`[_medium_]`:`_name_[,_id_]                         | Low-level or quick format       |
+| NEW            | `N`[_medium_]`:`_name_[`,`_id_[`,`_format_]           | Low-level or quick format       |
 | RENAME         | `R`[_path_]`:`_new_name_`=`_old_name_                 | Rename file                     |
 | SCRATCH        | `S`[_path_]`:`_pattern_[`,`...]                       | Delete files                    |
-| COPY           | `C`[_path_a_]`:`_target_name_`=`[_path_b_]`:`_source_name_[,...] | Copy/concatenate files |
+| COPY           | `C`[_path_a_]`:`_target_name_`=`[_path_b_]`:`_source_name_[`,`...] | Copy/concatenate files |
 | COPY           | `C`_dst_medium_`=`_src_medium_                        | Copy all files between disk     |
 | DUPLICATE      | `D:`_dst_medium_``=``_src_medium_                     | Duplicate disk                  |
 
@@ -301,7 +301,15 @@ The `INITIALIZE` command is only useful on classic 5.25" devices. These had trou
 
 The `VALIDATE` command is a simple check-disk function that will make sure the "block availability map" is consistent with other on-disk data structures. It is recommended on a disk that contains a file that has not been closed after writing, but it needs to be avoided on disks that contain manually allocated blocks.
 
-The `NEW` command will create a new filesystem. On removable media if an "ID" is specified, it will do a low-level format before. There is no way to specify the disk format in drives that support multiple formats. For instance, a Commodore 8250, which can also read and write existing disks in 8050 format, will always write the 8250 format. (The Burst API allows more fine-grained formatting settings.)
+The `NEW` command will create a new filesystem. On removable media if an "ID" is specified, it will do a low-level format before. While most devices that support multiple physical formats will always format with the highest-density one[^98], CMD FD devices support the _format_ agument (see the FD-2000 manual for a full discussion):
+
+| _format_ | Description                            |
+|----------|----------------------------------------|
+| `81`     | double-density, 1581-compatible        |
+| `HDN`    | high-density, one native partition     |
+| `EDN`    | enhanced-density, one native partition |
+
+(The Burst API allows more fine-grained formatting settings on supported devices.)
 
 On units with multiple media, the `COPY` command can also copy files between media, while on all other units, it can only duplicate files. In either case, it can concatenate several files into one.
 
@@ -491,7 +499,7 @@ The utility loader command instructs the unit to load a file into its RAM and ex
 
 XXX TODO
 
-* bust name stupid: burst instruction set vs. burst serial protocol
+* burst name stupid: burst instruction set vs. burst serial protocol
 * CHGUTL ("U0>") commands are part of burst instruction set, but unrelated to "raw disk access"
 
 * only support drives 0 and 1
@@ -570,7 +578,7 @@ The following two commands are 1571-specific:
 
 ### 1581
 
-The 1581 has its own concept of "partitions" (which is also supported by CMD devices ine 1581 emulation mode). A 1581 partition occupies a contiguous sequence of blocks and appears as a file of type `CBM`, but cannot be read or written as a file.
+The 1581 has its own concept of "partitions" (which is also supported by CMD devices in 1581 emulation mode). A 1581 partition occupies a contiguous sequence of blocks and appears as a file of type `CBM`, but cannot be read or written as a file.
 
 One use case for a 1581 partition is to reserve blocks for the block API that are safe from `VALIDATE`. But it is also possible to format the partition with a sub-filesystem[^92] (if the partition starts and ends at track boundaries and is at least 3 tracks in size). This way, partitions can even be nested.
 
@@ -590,6 +598,7 @@ The disk drive built into the unreleased C65 supports the following additional c
 | FILE LOCK      | `F-L`[_path_]`:`_name_[`,`...]                        | Enable file write-protect       |
 | FILE UNLOCK    | `F-U`[_path_]`:`_name_[`,`...]                        | Disable file write-protect      |
 | FILE RESTORE   | `F-R`[_path_]`:`_name_[`,`...]                        | Restore a deleted file          |
+| BLOCK-STATUS   | `B-S` _channel_ _medium_ _track_ _sector_             | Check if block is allocated     |
 | USER           | `U0>D`_val_                                           | Set directory sector interleave |
 | USER           | `U0>L`_flag_                                          | Large REL file support on/off   |
 
@@ -629,7 +638,6 @@ Part 4 of the series of articles on the Commodore Peripheral Bus family will cov
 
 > This article series is an Open Source project. Corrections, clarifications and additions are **highly** appreciated. I will regularly update the articles from the repository at [https://github.com/mist64/cbmbus_doc](https://github.com/mist64/cbmbus_doc).
 
-
 ## References
 
 * Schramm, K.: [Die Floppy 1541](https://spiro.trikaliotis.net/Book#vic1541). Haar bei München: Markt-und-Technik-Verlag, 1985. ISBN 3-89090-098-4
@@ -639,6 +647,7 @@ Part 4 of the series of articles on the Commodore Peripheral Bus family will cov
 * COMMODORE 1541 DISK DRIVE USER'S GUIDE, 1541d10a.txt
 * COMMODORE 1571 Disk Drive User's Guide, 1571-users-manual-1.0.txt
 * COMMODORE 1581 Disk Drive User's Guide, 1581-manual.txt
+* [C64DX SYSTEM SPECIFICATION](https://archive.org/details/C64DXakaC65SystemSpecificationsPreliminary1991Mar/page/n3)
 * [Herne's 1571 Disk Drive Guides: Burst Mode Commands](http://the-cbm-files.tripod.com/diskdrive/1571-6.txt)
 * [Manual for CBM 8061 8" disk drive](Manual for CBM 8061 8" disk drive)
 * [CBM D9060/D9090/8250/8050/4040/4031 Bedienungshandbuch](http://www.cbmhardware.de/floppy/cbm4031/cbm4031.pdf)
@@ -647,7 +656,14 @@ Part 4 of the series of articles on the Commodore Peripheral Bus family will cov
 * [Commodore RAMDOS Source](https://github.com/xlar54/ramdos2crt-master/blob/master/src/c128devpack/ramdos12.src)
 * [CMD Hard Drive User's Manual](https://www.lyonlabs.org/commodore/onrequest/cmd/CMD_Hard_Drive_Users_Manual.pdf)
 * [CMD FD Series User's Manual](http://www.zimmers.net/anonftp/pub/cbm/manuals/cmd/CMD_FD2000_Manual.zip)
+* [CMD RAMLink User's Manual](http://vintagecomputer.ca/files/CMD/CMD_RamLink_Users_Manual.pdf)
 * [SD2IEC README](https://www.sd2iec.de/gitweb/?p=sd2iec.git;a=blob;f=README;hb=HEAD)
+
+<!-- Notes
+
+* RAMLink has a parallel port to the CMD HD that works standalone.
+
+-->
 
 [^1]: This is a limitation of the layer 2 protocol: It is impossible for a device to send a 0-byte stream of bytes.
 
@@ -686,3 +702,7 @@ Part 4 of the series of articles on the Commodore Peripheral Bus family will cov
 [^96]: The 1571 aimed to be perfectly backwards-compatible with the 1541, which is why all added commands were added as sub-commands to `U0`, in order to keep the new code contained behind a single vector, keeping the ROM layout as close to the 1541's as possible.
 
 [^97]: The user is supposed to make sure that disks have unique IDs. Classic 5,25" devices stored a copy of the ID with every sector on disk in order to detect disk changes.
+
+[^98]: The SFD-1001 and the 8250 are double-sided drives that can read and write single-sided disks (formatted by a 8050), but formatting a disk only supports double-sided mode. The same is true for the 1571 in native mode, which can read and write single-sided 1541 disks, but will always format double-sided disks – although the 1571 can format single-sided disks while in 1541 emulation mode.
+
+[^99]: The CMD RAMLink comes with an extra 64 KB of buffer RAM that can be read and written (to emulate the 1541/1571/1581 job queue), but the DOS runs on the computer's CPU, so executing code on the device is not supported.
