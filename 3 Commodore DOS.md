@@ -205,7 +205,7 @@ There are optional prefixes and suffixes.
 
 * The modifier flag "`@`" specifies that the file is supposed to be overwritten, if it is opened for writing and it already exists[^3] - the default is to return an error.
 
-* The _path_ component allows specifing a medium and/or a sequence of subdirectory names. It defaults to medium 0 and the current path.[^2]. The use of "`@`", a path, or both, requires adding a "`:`" character as a delimiter between the prefix and the filename.
+* The _path_ component allows specifing a medium and/or a sequence of subdirectory names. It defaults to medium 0 and the current path. The use of "`@`", a path, or both, requires adding a "`:`" character as a delimiter between the prefix and the filename.
 
 * The file type is one of "`S`" (`SEQ`), "`P`" (`PRG`),  "`U`" (`USR`), or "`L`" (`REL`). If the type is omitted, `PRG` is assumed.
 
@@ -667,41 +667,35 @@ Part 4 of the series of articles on the Commodore Peripheral Bus family will cov
 
 [^1]: This is a limitation of the layer 2 protocol: It is impossible for a device to send a 0-byte stream of bytes.
 
-[^2]: Most devices only have a single drive, so in practice, drive numbers are rarely specified.
-
 [^3]: All single-drive Commodore devices except the 1571 (revision 5 ROM only), 1541-C, 1541-II and 1581 have a [bug](https://groups.google.com/forum/#!topic/comp.sys.cbm/TKKl8a-3EPA) that can currupt the filesystem when using the overwrite feature.
 
 [^4]: The two arguments are always 0-prefixed so they are at least two digits, but on devices with track or sector numbers above 99 (like the Commodore 8250 as well as CMD hard disks), they can be three digits.
 
-[^5]: The SFD-1001 is the exception to this: It is single-drive device that shares its firmware with the dual-drive CBM 8250.
+[^5]: The SFD-1001 is the exception to this: It is single-drive device, but it has the exact same firmware as the dual-drive CBM 8250.
 
-[^6]: The version is sometimes more of a compatibility level though and hints at the supported features. These strings are too inconsistent between devices for parsing, so in practice, the whole string has to be compared in order to detect a particular device.
+[^6]: The version is sometimes more of a compatibility level though and hints at the supported features. These strings are too inconsistent between devices for parsing, so in practice, the whole string has to be compared for detecting a particular device.
 
-[^7]: Commodore DOS breaks the layer 3 convention in this case. An `UNLISTEN` event does not signal the termination of a byte stream, it should merely pause it.
+[^7]: Commodore DOS breaks the layer 3 convention in this case. An `UNLISTEN` event should not signal the termination of a byte stream, it should merely pause it.
 
 [^8]: [Many]( http://mirror.thelifeofkenneth.com/sites/remotecpu.com/Commodore/Reference%20Material/Books/Commodore%20Peripheral%20Reference/1541%20Users%20Guide.pdf) [sources](https://spiro.trikaliotis.net/Book#vic1541) describe the "`B-R`" and "`B-W`" commands as buggy because their behavior didn't seem to make sense and the explanation seemed to have been missing from common forms of documentation. Where they are documented, they are called the "random access files" commands, for a third type of file (next to sequential and relative) that was based on the user keeping track of allocation and linking, but using the "first byte holds block pointer" format provided by these commands.
 
-[^9]: On disks that do not use Commodore's native "GCR" bit encoding (e.g. CBM 8280, D9060/D9090, 1581, the C65 drive and all drives by CMD), the physical layout doesn't match the logical layout, i.e. the medium may have a different sector size or track/sector(/head) numbering. On the CMD HD, the track and sector numbers are interpreted as a linear block address, and the constraint of 255 tracks and 256 sectors of 256 bytes limits the maximum partition size to just under 16 MB.
+[^9]: On disks that do not use Commodore's native "GCR" bit encoding (e.g. CBM 8280, D9060/D9090, 1581, the C65 drive and all drives by CMD), the physical layout does not match the logical layout, i.e. the medium may have a different sector size or track/sector(/head) numbering. On the CMD HD, the track and sector numbers are interpreted as a linear block address, and the constraint of 255 tracks and 256 sectors of 256 bytes limits the maximum partition size to just under 16 MB.
 
 [^10]: The feature has existed in all Commodore drives [since the release of the 1540](https://github.com/mist64/cbmsrc/blob/master/DOS_1540/utlodr), but they only started documenting it with the 1551 drive, and never documented the actual file format or the algorithm for the required checksum. The 1540, early 1541 drives, the 8250/8050/4040 with DOS V2.7 as well as the D9060/D9090 hard disks supported the also undocumented "boot clip": a device that grounds certain pins on the data connector and will force the unit to execute the first file on disk ("power-on diag sense loader"). All this hints at this mostly being a feature that was used in-house.
 
-[^11]: `U1` and `U2` were added in a firmware update to the Commodore 4040 drive because of bugs in `B-R` and `B-W` in version 2.1. They were probably added as `USER` commands as opposed to proper commands (or fixing the broken commands) in order to keep the changes to the new ROM version contained to one ROM chip. Later drives retained this feature.
+[^11]: `U1` and `U2` were added in a firmware update to the Commodore 4040 drive because of bugs in `B-R` and `B-W` in version 2.1. They were probably added as `USER` commands as opposed to proper commands (or fixing the broken commands) in order to keep the changes to the new ROM version contained to one ROM chip. Then later drives retained this feature for compatibility.
 
 [^12]: The command was piggy-backed onto `UI` in order to keep the changes between the 1540 and the 1541 contained to the second ROM chip.
 
-[^90]: No other literature calls it _media_. Commodore calls it _drives_ (because they are actual drives with their own mechanics), and CMD calls it _partitions_ (because they are parts of one large drive). I have decided to introduce a common name for the concept, since the syntax for paths and commands does not make a distinction between the two.
+[^90]: No other literature calls it _media_. In the Commodore context, they are _drives_ (because they are actual drives with their own mechanics), and in the CMD context, they are _partitions_ (because they are parts of one large drive). I have decided to introduce a common name for the concept, since the syntax for paths and commands does not make a distinction between the two.
 
 [^92]: Commodore calls them _sub-directories_, not to be confused with CMD-style subdirectories.
 
 [^93]: Again, this is because of a limitation of the layer 2 protocol when reading the file. In addition, all Commodore drives have a bug where a file that contains only one or two bytes will read back four bytes, i.e. with added garbage. CMD drives do not have this bug.
 
-[^94]: "Modern" devices mostly means the [SD2IEC](https://www.sd2iec.de) in native mode, not emulation devices like the [Pi1541](https://cbm-pi1541.firebaseapp.com).
+[^96]: The 1571 aimed to be perfectly backwards-compatible with the 1541, so in order to keep the ROM layout as close to the 1541's as possible, all added commands were added as sub-commands to `U0`, which kept the new code contained behind a single vector.
 
-[^95]: CMD devices have emulation modes for the 1541, 1571 and 1581 devices and don't support all new features in these modes.
-
-[^96]: The 1571 aimed to be perfectly backwards-compatible with the 1541, which is why all added commands were added as sub-commands to `U0`, in order to keep the new code contained behind a single vector, keeping the ROM layout as close to the 1541's as possible.
-
-[^97]: The user is supposed to make sure that disks have unique IDs. Classic 5,25" devices stored a copy of the ID with every sector on disk in order to detect disk changes.
+[^97]: On classic 5,25" devices, the user is supposed to make sure that disks have unique IDs. These devices stored a copy of the ID with every sector on disk in order to detect disk changes more reliably.
 
 [^98]: The SFD-1001 and the 8250 are double-sided drives that can read and write single-sided disks (formatted by a 8050), but formatting a disk only supports double-sided mode. The same is true for the 1571 in native mode, which can read and write single-sided 1541 disks, but will always format double-sided disks – although the 1571 can format single-sided disks while in 1541 emulation mode.
 
