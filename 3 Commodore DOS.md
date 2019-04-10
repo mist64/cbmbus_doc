@@ -518,7 +518,7 @@ The following table shows the commands and the binary encoding of their respecti
 
 All these commands require that all data transmission is done over a special layer 2 protocol called "Burst" Serial, which is only supported by "Fast Serial" devices. Part 7 of this series covers this protocol.
 
-This explains the inclusion of the "FASTLOAD" command, which does not fit the topic of low-level disk access: While the "Fast" Serial additions as supported by the C128 can transparently use a faster layer 2 protocol if a supported device is detected, the specialized "Burst" Serial protocol (which was introduced together with Fast Serial) cannot be used transparently, so the C128 KERNAL uses "FASTLOAD" to explicitly initiate a Burst transfer of the file if the device supports it.
+This explains the inclusion of the "FASTLOAD" command, which does not fit the topic of low-level disk access. The "Fast" Serial additions (as supported by the C128) can use a faster layer 2 protocol transparently to layers 3 and above, but the more specialized "Burst" Serial protocol (which was introduced together with Fast Serial) cannot be used transparently. Therefore the C128 KERNAL uses "FASTLOAD" to explicitly initiate a Burst transfer of the file if the device supports it.
 
 There are also variants of the `M-R` and `M-W` commands that use Burst transfer:
 
