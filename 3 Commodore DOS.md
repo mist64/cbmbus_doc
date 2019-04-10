@@ -497,18 +497,41 @@ The utility loader command instructs the unit to load a file into its RAM and ex
 
 ## Burst API
 
-XXX TODO
+The Burst API is a set of commands that mostly deal with low-level disk access, which were added to allow the user to read and write foreign MFM disks (1571, 1581, CMD FD), practically bypassing Commodore DOS.
 
-* burst name stupid: burst instruction set vs. burst serial protocol
-* CHGUTL ("U0>") commands are part of burst instruction set, but unrelated to "raw disk access"
+All Burst commands start with with "`U0`"[^96], followed by one or more binary-encoded bytes that specify the command and its arguments.
 
-* only support drives 0 and 1
+The following table shows the commands and the binary encoding of their respective first byte. "`_`" characters don't encode the command, but parts of the arguments.
 
-| Name           | Syntax                                                | Description                     |
-|----------------|-------------------------------------------------------|---------------------------------|
-| USER           | `U0>MR` _addr_hi_ _count_hi_                          | Read RAM (Burst protocol)       |
-| USER           | `U0>MW` _addr_hi_ _count_hi_                          | Write RAM (Burst protocol)      |
+| Code       | Command                 | Description                               |
+|------------|-------------------------|-------------------------------------------|
+| `____000_` | READ                    | Read logical or physical sectors          |
+| `____001_` | WRITE                   | Write logical or physical sectors         |
+| `____010_` | INQUIRE DISK            | Detect new disk                           |
+| `____011_` | FORMAT                  | Format tracks                             |
+| `____101_` | QUERY DISK FORMAT       | Detect disk format                        |
+| `___0110_` | INQUIRE STATUS          | Detect disk change etc.                   |
+| `___11101` | DUMP TRACK CACHE BUFFER | Force cache write back                    |
+| `___11111` | FASTLOAD                | Transfer file using Burst Serial protocol |
 
+(For the complete command and return value encodings, refer to the 1581 or CMD FD manuals.)
+
+All these commands require that all data transmission is done over a special layer 2 protocol called "Burst" Serial, which is only supported by "Fast Serial" devices. Part 7 of this series covers this protocol.
+
+This explains the inclusion of the "FASTLOAD" command, which does not fit the topic of low-level disk access: While the "Fast" Serial additions as supported by the C128 can transparently use a faster layer 2 protocol if a supported device is detected, the specialized "Burst" Serial protocol (which was introduced together with Fast Serial) cannot be used transparently, so the C128 KERNAL uses "FASTLOAD" to explicitly initiate a Burst transfer of the file if the device supports it.
+
+There are also variants of the `M-R` and `M-W` commands that use Burst transfer:
+
+| Name              | Syntax                       | Description                     |
+|-------------------|------------------------------|---------------------------------|
+| BURST MEMORY-READ | `U0>MR` _addr_hi_ _count_hi_ | Read RAM (Burst protocol)       |
+| BURST MEMORY-WRITE| `U0>MW` _addr_hi_ _count_hi_ | Write RAM (Burst protocol)      |
+
+The Burst API breaks the layering of the protocol stack by marrying the low-level disk access commands to a specific byte transfer protocol[^91] – both were new features of the 1571.
+
+The low-level disk access commands were added for reading and writing foreign-format 5.25" disks, mostly for use with the CP/M operating system, which was really only useful on the 1571, and to some extent, the 3.5" 1581. The CMD HD, for example, supported them for compatibility only. These commands should therefore be regarded as deprecated.
+
+Nevertheless, the remaining "FASTLOAD" and "BURST MEMORY-READ/WRITE" commands are generally useful for devices with a Fast/Burst Serial layer 2.
 
 ## Settings API
 
@@ -604,7 +627,7 @@ The disk drive built into the unreleased C65 supports the following additional c
 
 ## Status Codes
 
-Finally, here is some more information on the status codes and messages the unit sends through command channel.
+Finally, here is some more information on the status codes and messages the unit sends through the command channel.
 
 The first decimal digit encodes the category of the error.
 
@@ -630,7 +653,7 @@ The full list of error messages can be found in practically every disk drive use
 * `66,ILLEGAL TRACK OR SECTOR,99,00`: A user command referenced track 99, sector 00, which does not exist.
 * `73,CBM DOS V2.6 1541,00,00`: This status is returned after the RESET of a device (and after the command "`UI`"). The actual message is specific to the device and can be used to detect the type and sometimes the ROM version[^6].
 
-Note that the strings are meant for the user and not necessarily consistent between devices. A program should only every interpret the status codes and its arguments.
+Note that the strings are meant for the user and not necessarily consistent between devices. A program should only ever interpret the status codes and its arguments.
 
 ## Next Up
 
@@ -657,6 +680,7 @@ Part 4 of the series of articles on the Commodore Peripheral Bus family will cov
 * [CMD Hard Drive User's Manual](https://www.lyonlabs.org/commodore/onrequest/cmd/CMD_Hard_Drive_Users_Manual.pdf)
 * [CMD FD Series User's Manual](http://www.zimmers.net/anonftp/pub/cbm/manuals/cmd/CMD_FD2000_Manual.zip)
 * [CMD RAMLink User's Manual](http://vintagecomputer.ca/files/CMD/CMD_RamLink_Users_Manual.pdf)
+* [FD Burst Command Instruction Set](http://a1bert.kapsi.fi/Dev/burst/FD-bcis.txt)
 * [SD2IEC README](https://www.sd2iec.de/gitweb/?p=sd2iec.git;a=blob;f=README;hb=HEAD)
 
 <!-- Notes
@@ -671,7 +695,7 @@ Part 4 of the series of articles on the Commodore Peripheral Bus family will cov
 
 [^4]: The two arguments are always 0-prefixed so they are at least two digits, but on devices with track or sector numbers above 99 (like the Commodore 8250 as well as CMD hard disks), they can be three digits.
 
-[^5]: The SFD-1001 is the exception to this: It is single-drive device, but it has the exact same firmware as the dual-drive CBM 8250.
+[^5]: The SFD-1001 is the exception to this: It is a single-drive device, but it has the exact same firmware as the dual-drive CBM 8250.
 
 [^6]: The version is sometimes more of a compatibility level though and hints at the supported features. These strings are too inconsistent between devices for parsing, so in practice, the whole string has to be compared for detecting a particular device.
 
@@ -689,13 +713,15 @@ Part 4 of the series of articles on the Commodore Peripheral Bus family will cov
 
 [^90]: No other literature calls it _media_. In the Commodore context, they are _drives_ (because they are actual drives with their own mechanics), and in the CMD context, they are _partitions_ (because they are parts of one large drive). I have decided to introduce a common name for the concept, since the syntax for paths and commands does not make a distinction between the two.
 
+[^91]: The CMD RAMLink is compatible with as much of Commodore DOS as possible, but cannot support the Burst API, because it is not connected through a Commodore Serial bus.
+
 [^92]: Commodore calls them _sub-directories_, not to be confused with CMD-style subdirectories.
 
 [^93]: Again, this is because of a limitation of the layer 2 protocol when reading the file. In addition, all Commodore drives have a bug where a file that contains only one or two bytes will read back four bytes, i.e. with added garbage. CMD drives do not have this bug.
 
 [^96]: The 1571 aimed to be perfectly backwards-compatible with the 1541, so in order to keep the ROM layout as close to the 1541's as possible, all added commands were added as sub-commands to `U0`, which kept the new code contained behind a single vector.
 
-[^97]: On classic 5,25" devices, the user is supposed to make sure that disks have unique IDs. These devices stored a copy of the ID with every sector on disk in order to detect disk changes more reliably.
+[^97]: On classic 5,25" devices, the user is supposed to make sure that disks have unique IDs. These devices store a copy of the ID with every sector on disk in order to detect disk changes more reliably.
 
 [^98]: The SFD-1001 and the 8250 are double-sided drives that can read and write single-sided disks (formatted by a 8050), but formatting a disk only supports double-sided mode. The same is true for the 1571 in native mode, which can read and write single-sided 1541 disks, but will always format double-sided disks – although the 1571 can format single-sided disks while in 1541 emulation mode.
 
