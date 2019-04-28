@@ -12,3 +12,6 @@ done
 
 # Part 2
 convert -bordercolor black -border 1 /tmp/Layer\ 3/Layer\ 3.001.png ../docs/cbmbus/layer3.png
+
+# Part 3
+convert -crop 420x480+0+0\! -bordercolor black -border 1 /tmp/Serial\ Layers/Serial\ Layers.001.png  ../docs/cbmbus/serial_layers.png

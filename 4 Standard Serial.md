@@ -1,5 +1,11 @@
 # Commodore Peripheral Bus: Part 4: Standard Serial
 
+In the [series about the variants of the Commodore Peripheral Bus family](https://www.pagetable.com/?p=1018), this article covers the lowest two layers (electrical and byte transfer) of the "Serial" bus as found on the VIC-20/C64 and supported by all later members of the Commodore 8 bit series.
+
+![](docs/cbmbus/serial_layers.png =211x241)
+
+
+
 * Commodore calls it the serial bus
 * source calls it "serial4.0" (C64)
 * literature calls it serial IEC or IEC, but it's not an IEC standard
