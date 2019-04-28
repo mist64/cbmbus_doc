@@ -2,13 +2,37 @@
 
 In the [series about the variants of the Commodore Peripheral Bus family](https://www.pagetable.com/?p=1018), this article covers the lowest two layers (electrical and byte transfer) of the "Serial" bus as found on the VIC-20/C64 and supported by all later members of the Commodore 8 bit series.
 
-![](docs/cbmbus/serial_layers.png =211x241)
+![](docs/cbmbus/serial_layers.png =371x241)
+
+<hr/>
+
+> **_NOTE:_**  I am releasing one part every week, at which time links will be added to the bullet points below. The articles will also be announced on my Twitter account <a href="https://twitter.com/pagetable">@pagetable</a> and my Mastodon account <a href="https://mastodon.social/@pagetable">@pagetable&#64;mastodon.social</a>.
+
+<hr/>
+
+* [Part 0: Overview and Introduction](https://www.pagetable.com/?p=1018)
+* [Part 1: IEEE-488](https://www.pagetable.com/?p=1023) [PET/CBM Series; 1977]
+* [Part 2: The TALK/LISTEN Layer](https://www.pagetable.com/?p=1031)
+* [Part 3: The Commodore DOS Layer](https://www.pagetable.com/?p=1038)
+* **Part 4: Standard Serial (IEC) [VIC-20, C64; 1981]** ← *this article*
+* Part 5: TCBM [C16, C116, Plus/4; 1984] *(coming soon)*
+* Part 6: JiffyDOS [1985] *(coming soon)*
+* Part 7: Fast Serial [C128; 1986] *(coming soon)*
+* Part 8: CBDOS [C65; 1991] *(coming soon)*
+
+## Naming and Context
+
+To make sure we are talking about the same thing, let's clarify the naming. Commodore calls the three-wire protocol used e.g. by the Commodore C64 and the 1541 disk drives "Serial" in its reference documents. Later documentation called it "Standard Serial" to distinguish it from the later backwards-compatible "Fast Serial"[^1] protocol of the C128.
+
+This also matches the naming in [Commodore's source code](https://github.com/mist64/cbmsrc/tree/master/KERNAL_C64_03), where the protocol is called "serial"[^2].
+
+Commodore "Standard Serial" is a serial version of the PET's parallel IEEE-488 bus (covered in [part 1](https://www.pagetable.com/?p=1023)), which was standardized internationally as IEC-625. In Europe, IEEE-488 was therefore commonly referred to as the "IEC-Bus". The serial version was then often called "Serial IEC", even though the serial version was never standardized by IEC. Finally, the "serial" attribute was often dropped in European books and magazines, which is why "Standard Serial" is most often refered to as just the "IEC Bus".
+
+There are two extensions of Standard Serial: The already mentioned "Fast Serial" (C128), as well as the third party "JiffyDOS". They both share the same basic idea but are incompatible with each other. Both protocols are based on Standard Serial and completely backwards-compatible. If they detect that their peers also speak the improved protocol, they will then switch to it. Fast Serial and JiffyDOS will be covered in separate articles.
+
+## History
 
 
-
-* Commodore calls it the serial bus
-* source calls it "serial4.0" (C64)
-* literature calls it serial IEC or IEC, but it's not an IEC standard
 
 * overview, idea, motivation, features
 	* SAME: multiple devices, daisy-chained
@@ -106,3 +130,7 @@ In the [series about the variants of the Commodore Peripheral Bus family](https:
 	* file not found detection
 		* when drive becomes talker, it causes a "sender doesn't actually have any data" timeout
 
+
+[^1]: Correlated with, but not the same, and often confused with "Burst Mode".
+
+[^2]: The implementation file in the Commodore 64 KERNAL source is "`serial4.0`". The context of the version number is unknown, since no other versions have appeared. On the TED and the C128, the file is just called "`serial.src`".
