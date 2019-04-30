@@ -130,19 +130,19 @@ So when a line reads as 0, it is known that it is currently released by all part
 
 Like with IEEE-488, the basic byte transfer protocol of the Serial Bus is based on transmissions of byte streams from one sender to one or more receivers. Additional bus participants will remain silent. There are no fixed assignments of senders and receivers, the roles of sender and receiver are per transmission.
 
-During the transmission of a byte stream, the CLK line is exclusively operated by the sender, while the DATA line is operated by the sender and all receivers.
+During the transmission of a byte stream, the CLK line is exclusively operated by the sender, while the DATA line is operated by the sender in some steps, and by the receivers the other steps.
 
 #### 0: Initial State
 ![](docs/cbmbus/serial-01.png =601x131)
-In the initial state, the sender is holding the CLK line to indicate that it it is not ready to send. The receivers are holding the DATA line.
+In the initial state, the sender is holding the CLK line to indicate that it it is not ready to send. The receivers are holding the DATA line, meaning they are not ready to receive.
 
 #### 1: Sender is ready to send
 ![](docs/cbmbus/serial-02.png =601x131)
-Transmission of a byte begins with the sender indicating that it is ready to send. It does this by releasing the CLK line.
+Transmission of a new byte is initiated by the sender, indicating that it is ready to send by releasing the CLK line.
 
 #### 2: A is now ready to receive data
 ![](docs/cbmbus/serial-03.png =601x131)
-Transmission of a byte cannot begin until all receivers are ready to receive. So at some point the first receiver is done handling the previous byte it may have received and signals that it is ready for data by releasing DATA. The DATA wire is still pulled by the other receiver though, so its value is still 1.
+Transmission of the bits cannot begin until all receivers are ready to receive. So at some point the first receiver is done handling the previous byte it may have received and signals that it is ready for data by releasing DATA. The DATA wire is still pulled by the other receiver though, so its value is still 1.
 
 #### 3: All receivers are now ready to receive data
 ![](docs/cbmbus/serial-04.png =601x131)
@@ -156,25 +156,49 @@ For the transmission of the bits, the CLK line will indicate whether the data on
 
 #### 5: Sender puts data bit #0 onto the wire
 ![](docs/cbmbus/serial-06.png =601x131)
-The sender now puts the value of the first bit in to DATA.
+The sender now puts the value of the first bit into DATA.
 
 #### 6: Data is now valid – hold for 60 µs
 ![](docs/cbmbus/serial-07.png =601x131)
+After that, the sender releases CLK, signaling that the data in DATA is valid.
+
+There is no way for the receivers to signal "data accepted" for the bit. The sender must hold this state for at least 60 µs, and receivers must be able to accept the bit within this time.
 
 #### 7: Data is not valid
 ![](docs/cbmbus/serial-08.png =601x131)
+After the 60 µs, the sender pulls CLK again to signal that data is not valid, and releases the DATA line.
 
-#### 8-28: Repeat steps 5-7 for bits #1 to #7
+#### 8-27: Repeat steps 5-7 for bits #1 to #7
+The wires are in the same state as in step 4 again, before sending the bit. The seven remaining bits will be transmitted the same way.
 
-#### 29: Receiver A has accepted the byte
+#### 28: Data is not valid
+![](docs/cbmbus/serial-29.png =601x131)
+The last step of the last bit also has the sender pulling CLK and releasing DATA.
+
+From now on, the DATA line will be operated by the receivers again.
+
+#### 29: Receiver A is now busy again
 ![](docs/cbmbus/serial-30.png =601x131)
+Once all 8 bits have been transmitted, the receivers have to signal that they are busy, so that after accepting the data, the sender won't think the receivers are immediately ready for the next byte. So now, the first receiver pulls DATA, so DATA is 1.
+
+#### 30: Receiver B is now busy
+![](docs/cbmbus/serial-30.png =601x131)
+The other receiver also has to signal that it is busy by pulling DATA. The line was already 1 and will stay at 1. All wires are now in the initial state again. All steps are repeated as long as there is more data to be sent.
+
+Note that the protocol only specifies the triggers: For example, the receivers are to read the bit from DATA once CLK = 0, so it would be just as legal for the the sender to put the data on DIO as early as step 1 (the PET does this, Commodore disk drives don’t), or combining the DAV and DIO writes (3/4 and 9/10) in one step.
+
+Also, there is no ordering on which receiver pulls or releases its line first. The receivers don’t care about the other receivers, they only follow the protocol with the sender. The open collector property of the signal lines automatically combines the outputs of the different receivers.
 
 
+
+
+* XXX
+	* ready to receive means being able to make the timing for the whole byte
+	* receivers can stall between bytes, but not within a byte
 
 * transfering bytes
 	* two wires, CLK and DATA
 	* CLK is the sender's handshaking flag, DATA the receivers'
-	* everyone not involved will leave CLK and DATA alone
 	* protocol
 		* setup
 			* sender pulls CLK = I am interested in sending data, but I don't have any data yet
