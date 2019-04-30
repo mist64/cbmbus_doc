@@ -81,11 +81,15 @@ XXX
 
 ### Connectors and Pinout
 
-Both computers and devices use a [DIN](https://en.wikipedia.org/wiki/DIN_connector)-6 connector.
+Both computers and devices use female 6-pin [DIN](https://en.wikipedia.org/wiki/DIN_connector) 45322 connectors.
 
-<!--- XXX pic ![](docs/cbmbus/ieee-488_board_connector.svg =400x126) --->
+![](docs/cbmbus/serial_connector.svg =220x220)
 
-Since devices can be daisy-chained, most peripherals have two serial ports: One to connect to the previous device (or the computer), and one to connect to the next device, if any. Either port can be used for the previous or the next device in the chain.
+![](docs/cbmbus/serial_cable.jpg =300x207)
+
+Since devices can be daisy-chained, most peripherals have two serial ports to connect to both the previous device (or the computer) and to the next device, if any. Either port can be used for the previous or the next device in the chain, but some devices labeled them one way anyway.
+
+![](docs/cbmbus/serial_port_1541-II.jpg =300x171)
 
 <!--- XXX pic two ports on a 1541 --->
 
