@@ -130,6 +130,46 @@ So when a line reads as 0, it is known that it is currently released by all part
 
 Like with IEEE-488, the basic byte transfer protocol of the Serial Bus is based on transmissions of byte streams from one sender to one or more receivers. Additional bus participants will remain silent. There are no fixed assignments of senders and receivers, the roles of sender and receiver are per transmission.
 
+
+#### 0: Initial State: Receivers are busy
+![](docs/cbmbus/serial-01.png =601x131)
+
+#### 1: Sender is ready to send
+
+![](docs/cbmbus/serial-02.png =601x131)
+
+#### 2: A is now ready to receive data
+
+![](docs/cbmbus/serial-03.png =601x131)
+
+#### 3: All receivers are now ready to receive data
+
+![](docs/cbmbus/serial-04.png =601x131)
+
+#### 4: Data is not valid
+
+![](docs/cbmbus/serial-05.png =601x131)
+
+#### 5: Sender puts data bit #0 onto the wire
+
+![](docs/cbmbus/serial-06.png =601x131)
+
+#### 6: Data is now valid – hold for 60 µs
+
+![](docs/cbmbus/serial-07.png =601x131)
+
+#### 7: Data is not valid
+
+![](docs/cbmbus/serial-08.png =601x131)
+
+#### 8-28: Repeat steps 5-7 for bits #1 to #7
+
+#### 29: Receiver A has accepted the byte
+
+![](docs/cbmbus/serial-30.png =601x131)
+
+
+
 * transfering bytes
 	* two wires, CLK and DATA
 	* CLK is the sender's handshaking flag, DATA the receivers'
