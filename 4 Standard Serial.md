@@ -130,42 +130,43 @@ So when a line reads as 0, it is known that it is currently released by all part
 
 Like with IEEE-488, the basic byte transfer protocol of the Serial Bus is based on transmissions of byte streams from one sender to one or more receivers. Additional bus participants will remain silent. There are no fixed assignments of senders and receivers, the roles of sender and receiver are per transmission.
 
+During the transmission of a byte stream, the CLK line is exclusively operated by the sender, while the DATA line is operated by the sender and all receivers.
 
-#### 0: Initial State: Receivers are busy
+#### 0: Initial State
 ![](docs/cbmbus/serial-01.png =601x131)
+In the initial state, the sender is holding the CLK line to indicate that it it is not ready to send. The receivers are holding the DATA line.
 
 #### 1: Sender is ready to send
-
 ![](docs/cbmbus/serial-02.png =601x131)
+Transmission of a byte begins with the sender indicating that it is ready to send. It does this by releasing the CLK line.
 
 #### 2: A is now ready to receive data
-
 ![](docs/cbmbus/serial-03.png =601x131)
+Transmission of a byte cannot begin until all receivers are ready to receive. So at some point the first receiver is done handling the previous byte it may have received and signals that it is ready for data by releasing DATA. The DATA wire is still pulled by the other receiver though, so its value is still 1.
 
 #### 3: All receivers are now ready to receive data
-
 ![](docs/cbmbus/serial-04.png =601x131)
+Whenever the other receiver is ready to receive the next byte, it will also release DATA, so it will now read back as 0: All receivers are ready to receive data.
+
+During the actual transmission of the data, both the CLK and the DATA line are now operated by the sender.
 
 #### 4: Data is not valid
-
 ![](docs/cbmbus/serial-05.png =601x131)
+For the transmission of the bits, the CLK line will indicate whether the data on the DATA line is valid. So for the initial state, the sender pulls CLK, indicating that data is not valid.
 
 #### 5: Sender puts data bit #0 onto the wire
-
 ![](docs/cbmbus/serial-06.png =601x131)
+The sender now puts the value of the first bit in to DATA.
 
 #### 6: Data is now valid – hold for 60 µs
-
 ![](docs/cbmbus/serial-07.png =601x131)
 
 #### 7: Data is not valid
-
 ![](docs/cbmbus/serial-08.png =601x131)
 
 #### 8-28: Repeat steps 5-7 for bits #1 to #7
 
 #### 29: Receiver A has accepted the byte
-
 ![](docs/cbmbus/serial-30.png =601x131)
 
 
