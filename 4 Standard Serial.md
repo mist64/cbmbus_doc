@@ -22,13 +22,13 @@ In the [series about the variants of the Commodore Peripheral Bus family](https:
 
 ## Naming and Context
 
-To make sure we are talking about the same thing, let's clarify the naming. Commodore calls the three-wire protocol used e.g. by the Commodore C64 and the 1541 disk drives "Serial" in its reference documents. Later documentation called it "Standard Serial" to distinguish it from the later backwards-compatible "Fast Serial"[^1] protocol of the C128.
+To make sure we are talking about the same thing, let's clarify the naming. Commodore calls the three-wire protocol used e.g. by the Commodore C64 and the 1541 disk drives "Serial" in its reference documents. Later documentation calls it "Standard Serial" to distinguish it from the later backwards-compatible "Fast Serial"[^1] protocol of the C128.
 
 This also matches the naming in [Commodore's source code](https://github.com/mist64/cbmsrc/tree/master/KERNAL_C64_03), where the protocol is called "serial"[^2].
 
-Commodore "Standard Serial" is a serial version of the PET's parallel IEEE-488 bus (covered in [part 1](https://www.pagetable.com/?p=1023)), which was standardized internationally as IEC-625. In Europe, IEEE-488 was therefore commonly referred to as the "IEC-Bus". The serial version was then often called "Serial IEC", even though the serial version was never standardized by IEC. Finally, the "serial" attribute was often dropped in European books and magazines, which is why "Standard Serial" is most often refered to as just the "IEC Bus".
+Commodore "Standard Serial" is a serial version of the PET's parallel IEEE-488 bus (covered in [part 1](https://www.pagetable.com/?p=1023)), which was standardized internationally as IEC-625. In Europe, IEEE-488 was therefore commonly referred to as the "IEC bus". The serial version was then often called "Serial IEC", even though this variant was never standardized by IEC. Finally, the "serial" attribute was often dropped in European books and magazines, which is why "Standard Serial" is most often refered to as just the "IEC bus".
 
-There are two extensions of Standard Serial: The already mentioned "Fast Serial" (C128), as well as the third party "JiffyDOS". They both share the same basic idea but are incompatible with each other. Both protocols share the same cable with Standard Serial and are completely backwards-compatible. If they detect that their peers also speak the improved protocol, they will then switch to it. Fast Serial and JiffyDOS will be covered in separate articles.
+There are two extensions to Standard Serial: The already mentioned "Fast Serial" (C128), as well as the third party "JiffyDOS". They both share the same basic idea but are incompatible with each other. Both protocols also share the same cable with Standard Serial and are completely backwards-compatible. If they detect that their peers also speak the improved protocol, they will then switch to it. Fast Serial and JiffyDOS will be covered in separate articles.
 
 ## History and Development
 
@@ -42,7 +42,13 @@ The design goal was to retain all of the core properties of the IEEE-488 bus:
 * A device has **multiple channels** for different functions.
 * Data transmission is **byte stream** based.
 
+One property they could not keep was the relaxed timing requirement of IEEE-488: At most points in an IEEE-488 communication, any participant can stall for any amount of time.
+
 IEEE-488 has 16 data lines. The serial version reduces this to 5:
+
+* **Data**: Instead of transmitting 8 bits in parallel, they are sent serially, with a CLK and a DATA line.
+* **Handshake**: The function of the DAV and NRFD lines is taken over by the CLK and DATA lines. There is no NDAC signal, accepting data is based on timing.
+* **Management**: REN (already unsupported on the PET) is removed. EOI is removed, the information is now transmitted through a timing sidechannel. RESET (IFC), SRQ and ATN are retained. 
 
 | IEEE-488 Signal | Description        | Serial Signal |
 |-----------------|--------------------|---------------|
@@ -50,31 +56,18 @@ IEEE-488 has 16 data lines. The serial version reduces this to 5:
 | EOI             | End Or Identify    | (timing)      |
 | DAV             | Data Valid         | (CLK)         |
 | NRFD            | Not Ready For Data | (DATA)        |
-| NDAC            | No Data Accepted   | -             |
+| NDAC            | No Data Accepted   | (timing)      |
 | IFC             | Interface Clear    | RESET         |
 | SRQ             | Service Request    | SRQ           |
 | ATN             | Attention          | ATN           |
 | REN             | Remote Enable      | -             |
 
-* Instead of transmitting 8 bits in parallel, they are sent serially, with CLK and a DATA line.
-* The EOI line was removed. The information is now transmitted through a timing sidechannel.
-* The function of the DAV and NRFD lines was taken over by the existing CLK and DATA lines.
-* NDAC was removed. XXX
-* IFC/RESET, SRQ and ATN were retained.
-* REN (always connected to ground and thus already unsupported on the PET) was removed.
-
-
 <!---
 XXX
 * overview, idea, motivation, features
-	* SAME: multiple devices, daisy-chained
-	* SAME: byte oriented
-	* SAME: any device can send data to any set of devices (one-to-many)
-	* SAME: channels
 	* timing based on min/max delays, not strict implicit clock (like RS-232), can be implemented in software
 	* no way to do full asynchrounous (all handshake) with just 2 wires, timing requirements!
 	-> 3 wires total
-	-> one dedicated controller
 --->
 
 ## Layer 1: Electrical
@@ -105,7 +98,7 @@ This is the pinout:
 | 6   | RESET  | Reset              |
 
 * The CLK and DATA line carry the data and are used for handshaking.
-* ATN and SRQ are control lines. (SRQ is unused, see below)
+* ATN and SRQ are control lines. (SRQ is unused, see below.)
 * The RESET line resets all devices.
 
 ### Open Collector Logic
@@ -130,7 +123,7 @@ So when a line reads as 0, it is known that it is currently released by all part
 
 Like with IEEE-488, the basic byte transfer protocol of the Serial Bus is based on transmissions of byte streams from one sender to one or more receivers. Additional bus participants will remain silent. There are no fixed assignments of senders and receivers, the roles of sender and receiver are per transmission.
 
-During the transmission of a byte stream, the CLK line is exclusively operated by the sender, while the DATA line is operated by the sender in some steps, and by the receivers the other steps.
+For the transmission of a byte stream, just two wires, CLK and DATA are used. The CLK line is exclusively operated by the sender, while the DATA line is operated by the sender in some steps, and by the receivers in other steps.
 
 #### 0: Initial State
 ![](docs/cbmbus/serial-01.png =601x131)
@@ -185,11 +178,23 @@ Once all 8 bits have been transmitted, the receivers have to signal that they ar
 ![](docs/cbmbus/serial-30.png =601x131)
 The other receiver also has to signal that it is busy by pulling DATA. The line was already 1 and will stay at 1. All wires are now in the initial state again. All steps are repeated as long as there is more data to be sent.
 
-Note that the protocol only specifies the triggers: For example, the receivers are to read the bit from DATA once CLK = 0, so it would be just as legal for the the sender to put the data on DIO as early as step 1 (the PET does this, Commodore disk drives don’t), or combining the DAV and DIO writes (3/4 and 9/10) in one step.
+Note that the protocol only specifies the triggers: For example, the receivers are to read the bit from DATA once CLK = 0
+
+
+XXX , so it would be just as legal for the the sender to put the data on DIO as early as step 1 (the PET does this, Commodore disk drives don’t), or combining the DAV and DIO writes (3/4 and 9/10) in one step.
 
 Also, there is no ordering on which receiver pulls or releases its line first. The receivers don’t care about the other receivers, they only follow the protocol with the sender. The open collector property of the signal lines automatically combines the outputs of the different receivers.
 
+### End of Stream
 
+If there is no more data to be transmitted, the sequence stops at step 30 (which is the same as step 0). In this step, the sender can only control one wire, signaling one of two states: it is ready to send the next byte, or it has more data but is not ready to send the next byte. Therefore, the sender already signals the end of the stream to the receivers while transmitting the last byte. Because the number of wires are limited, it does this through a timing sidechannel[^3].
+
+
+XXX <!--- ![](docs/cbmbus/ieee-488.png =601x331) --->
+
+As a side effect of this, the Serial protocol does not allow empty streams - they would have to be at least one byte long.
+
+XXX Commodore's version of the bus uses timeouts to signal this condition (see below).
 
 
 * XXX
@@ -262,3 +267,5 @@ Also, there is no ordering on which receiver pulls or releases its line first. T
 [^1]: Correlated with, but not the same, and often confused with "Burst Mode".
 
 [^2]: The implementation file in the Commodore 64 KERNAL source is "`serial4.0`". The context of the version number is unknown, since no other versions have appeared. On the TED and the C128, the file is just called "`serial.src`".
+
+[^3] IEEE-488 also signals this during the last byte, by pulling the dedicated EOI line to 1 while the data is valid.
