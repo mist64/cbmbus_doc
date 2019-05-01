@@ -123,7 +123,17 @@ So when a line reads as 0, it is known that it is currently released by all part
 
 Like with IEEE-488, the basic byte transfer protocol of the Serial Bus is based on transmissions of byte streams from one sender to one or more receivers. Additional bus participants will remain silent. There are no fixed assignments of senders and receivers, the roles of sender and receiver are per transmission.
 
+### Sending Bytes
+
 For the transmission of a byte stream, just two wires, CLK and DATA are used. The CLK line is exclusively operated by the sender, while the DATA line is operated by the sender in some steps, and by the receivers in other steps.
+
+The CLK line is the sender's handshake, and outside of bit transmission, the DATA line is the receiver's handshake.
+
+The following animation shows a byte being sent to two receivers.
+
+![](docs/cbmbus/serial.gif =601x344)
+
+Let's go through it step by step:
 
 #### 0: Initial State
 ![](docs/cbmbus/serial-01.png =601x131)
@@ -141,7 +151,7 @@ Transmission of the bits cannot begin until all receivers are ready to receive. 
 ![](docs/cbmbus/serial-04.png =601x131)
 Whenever the other receiver is ready to receive the next byte, it will also release DATA, so it will now read back as 0: All receivers are ready to receive data.
 
-During the actual transmission of the data, both the CLK and the DATA line are now operated by the sender.
+During the actual transmission of the data, both CLK and DATA are now operated by the sender.
 
 #### 4: Data is not valid
 ![](docs/cbmbus/serial-05.png =601x131)
@@ -159,10 +169,10 @@ There is no way for the receivers to signal "data accepted" for the bit. The sen
 
 #### 7: Data is not valid
 ![](docs/cbmbus/serial-08.png =601x131)
-After the 60 µs, the sender pulls CLK again to signal that data is not valid, and releases the DATA line.
+After the 60 µs, the sender pulls CLK again to signal that the data is not valid, and releases the DATA line.
 
 #### 8-27: Repeat steps 5-7 for bits #1 to #7
-The wires are in the same state as in step 4 again, before sending the bit. The seven remaining bits will be transmitted the same way.
+The wires are in the same state again as in step 4, before sending the bit. The seven remaining bits will be transmitted the same way.
 
 #### 28: Data is not valid
 ![](docs/cbmbus/serial-29.png =601x131)
@@ -175,19 +185,16 @@ From now on, the DATA line will be operated by the receivers again.
 Once all 8 bits have been transmitted, the receivers have to signal that they are busy, so that after accepting the data, the sender won't think the receivers are immediately ready for the next byte. So now, the first receiver pulls DATA, so DATA is 1.
 
 #### 30: Receiver B is now busy
-![](docs/cbmbus/serial-30.png =601x131)
+![](docs/cbmbus/serial-31.png =601x131)
 The other receiver also has to signal that it is busy by pulling DATA. The line was already 1 and will stay at 1. All wires are now in the initial state again. All steps are repeated as long as there is more data to be sent.
 
-Note that the protocol only specifies the triggers: For example, the receivers are to read the bit from DATA once CLK = 0
-
-
-XXX , so it would be just as legal for the the sender to put the data on DIO as early as step 1 (the PET does this, Commodore disk drives don’t), or combining the DAV and DIO writes (3/4 and 9/10) in one step.
+Note that the protocol only specifies the triggers: For example, the receivers are to read the bit from DATA while CLK = 0, so it would be just as legal in step 7 for the the sender to hold CLK and release DATA in two steps (the 1541 does this, the C64 doesn't).
 
 Also, there is no ordering on which receiver pulls or releases its line first. The receivers don’t care about the other receivers, they only follow the protocol with the sender. The open collector property of the signal lines automatically combines the outputs of the different receivers.
 
 ### End of Stream
 
-If there is no more data to be transmitted, the sequence stops at step 30 (which is the same as step 0). In this step, the sender can only control one wire, signaling one of two states: it is ready to send the next byte, or it has more data but is not ready to send the next byte. Therefore, the sender already signals the end of the stream to the receivers while transmitting the last byte. Because the number of wires are limited, it does this through a timing sidechannel[^3].
+If there is no more data to be transmitted, the sequence stops at step 30 (which is the same as step 0). In this step, the sender can only control one wire, signaling either that it is ready to send the next byte, or it has more data but is not ready to send yet. Therefore, the sender already signals the end of the stream to the receivers while transmitting the last byte. Because the number of wires are limited, it does this through a timing sidechannel[^3].
 
 
 XXX <!--- ![](docs/cbmbus/ieee-488.png =601x331) --->
@@ -196,65 +203,50 @@ As a side effect of this, the Serial protocol does not allow empty streams - the
 
 XXX Commodore's version of the bus uses timeouts to signal this condition (see below).
 
+### Sending Commands
+
+## Timing
 
 * XXX
 	* ready to receive means being able to make the timing for the whole byte
 	* receivers can stall between bytes, but not within a byte
 
 * transfering bytes
-	* two wires, CLK and DATA
-	* CLK is the sender's handshaking flag, DATA the receivers'
-	* protocol
-		* setup
-			* sender pulls CLK = I am interested in sending data, but I don't have any data yet
-			* all receivers pull DATA = I am interested in accepting data
-			* this state can be held indefinitely
-		* ready to send:
-			* sender releases CLK = I am ready to send a byte
-			* all receivers release DATA = I am ready to receive a byte
-			* there is no time limit, any receiver that is busy can delay this indefinitely
-		* prepare sending byte
-			* sender pulls CLK = there is no valid bit on the DATA line
-		* for every bit (LSB first)
-			* sender sets/clears DATA
-			* sender releases CLK, pulls this for 60+ µs = there is a valid bit on the DATA line
-				* C64 holds CLK it for 42 ticks only, releases CLK and DATA at the same time
-				* 1541 holds CLK for 74 ticks -> $E976, releases first CLK then DATA
-			* sender pulls CLK, releases DATA = there is no valid bit on the DATA line
-			* XXX does it have to release DATA???
-		* byte ack
-			* receiver pulls DATA within 1000 µs (any receiver!) = byte received OK
-	* EOI
-		* if "prepare sending byte" takes 200+ µs, the following byte is the last one
-		* receiver pulls data for a short while to acknowledge
-			* TODO
-		* at the end of transmission
-			* sender releases CLK
-			* receivers release DATA
-	* sender doesn't actually have any data
-		* will release clock and do nothing
-		* receiver first thinks it's EOI, but it takes even longer
-		* receiver times out
-	
-	* comments:
-		* transfer cannot start until all receivers are ready
-		* any receiver can ACK
-			* no ACK means that all receivers died
-		* EOI is a timing sidechannel
-		* what are the timing requirements?
-			* receiver must be able to measure 200 µs reliably
-			* receiver must be able to accept bit within 60 µs
-			* receiver must be able to ack byte within 1000 µs
-			* TODO ...
-			* TODO otherwise...?
-		* it's impossible to ack every bit with just two wires in order to make the protocol completely timing independent
-		* problem!
-			* any receiver can ack a byte buy pulling DATA
-			* -> if one receiver is super fast and the other one is super slow, protocol may break
-			* XXX fixed by timing requirements?
-		* why use the clock at all, if we have strict timing requirements? we could just as well have "data valid" windows (Jiffy does this, and uses CLK for data as well)
+	* C64 holds CLK it for 42 ticks only, releases CLK and DATA at the same time
+	* 1541 holds CLK for 74 ticks -> $E976, releases first CLK then DATA
 
-![](docs/cbmbus/serial.gif =601x255)
+* byte ack
+	* receiver pulls DATA within 1000 µs (any receiver!) = byte received OK
+
+* EOI
+	* if "prepare sending byte" takes 200+ µs, the following byte is the last one
+	* receiver pulls data for a short while to acknowledge
+		* TODO
+	* at the end of transmission
+		* sender releases CLK
+		* receivers release DATA
+* sender doesn't actually have any data
+	* will release clock and do nothing
+	* receiver first thinks it's EOI, but it takes even longer
+	* receiver times out
+
+* comments:
+	* transfer cannot start until all receivers are ready
+	* any receiver can ACK
+		* no ACK means that all receivers died
+	* EOI is a timing sidechannel
+	* what are the timing requirements?
+		* receiver must be able to measure 200 µs reliably
+		* receiver must be able to accept bit within 60 µs
+		* receiver must be able to ack byte within 1000 µs
+		* TODO ...
+		* TODO otherwise...?
+	* it's impossible to ack every bit with just two wires in order to make the protocol completely timing independent
+	* problem!
+		* any receiver can ack a byte buy pulling DATA
+		* -> if one receiver is super fast and the other one is super slow, protocol may break
+		* XXX fixed by timing requirements?
+	* why use the clock at all, if we have strict timing requirements? we could just as well have "data valid" windows (Jiffy does this, and uses CLK for data as well)
 
 * ATN	
 		* XXX ATN in the middle of a byte transmission?
@@ -263,9 +255,22 @@ XXX Commodore's version of the bus uses timeouts to signal this condition (see b
 	* file not found detection
 		* when drive becomes talker, it causes a "sender doesn't actually have any data" timeout
 
+### Next Up
 
-[^1]: Correlated with, but not the same, and often confused with "Burst Mode".
+Part 5 of the series of articles on the Commodore Peripheral Bus family will cover layers 1 and 2 of the TCBM protocol as used on the TED series of computers (C16, C116, Plus/4).
+
+> This article series is an Open Source project. Corrections, clarifications and additions are **highly** appreciated. I will regularly update the articles from the repository at [https://github.com/mist64/cbmbus_doc](https://github.com/mist64/cbmbus_doc).
+
+### References
+
+XXX
+
+* https://codebase64.org/doku.php?id=base:how_the_vic_64_serial_bus_works
+* http://www.zimmers.net/anonftp/pub/cbm/programming/serial-bus.pdf
+
+
+[^1]: Related to, but not the same as, and often confused with "Burst Mode".
 
 [^2]: The implementation file in the Commodore 64 KERNAL source is "`serial4.0`". The context of the version number is unknown, since no other versions have appeared. On the TED and the C128, the file is just called "`serial.src`".
 
-[^3] IEEE-488 also signals this during the last byte, by pulling the dedicated EOI line to 1 while the data is valid.
+[^3]: IEEE-488 also signals this during the last byte, by pulling the dedicated EOI line to 1 while the data is valid.
