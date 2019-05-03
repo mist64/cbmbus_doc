@@ -26,9 +26,9 @@ To make sure we are talking about the same thing, let's clarify the naming. Comm
 
 This also matches the naming in [Commodore's source code](https://github.com/mist64/cbmsrc/tree/master/KERNAL_C64_03), where the protocol is called "serial"[^2].
 
-Commodore "Standard Serial" is a serial version of the PET's parallel IEEE-488 bus (covered in [part 1](https://www.pagetable.com/?p=1023)), which was standardized internationally as IEC-625. In Europe, IEEE-488 was therefore commonly referred to as the "IEC bus". The serial version was then often called "Serial IEC", even though this variant was never standardized by IEC. Finally, the "serial" attribute was often dropped in European books and magazines, which is why "Standard Serial" is most often refered to as just the "IEC bus".
+"Standard Serial" is based on the PET's parallel IEEE-488 bus (covered in [part 1](https://www.pagetable.com/?p=1023)), which was standardized internationally as IEC-625. In Europe, IEEE-488 was therefore commonly referred to as the "IEC bus". The serial version was then often called "Serial IEC", even though this variant was never standardized by IEC. Finally, the "serial" attribute was often dropped in European books and magazines, which is why "Standard Serial" is most often refered to as just the "IEC bus".
 
-There are two extensions to Standard Serial: The already mentioned "Fast Serial" (C128), as well as the third party "JiffyDOS". They both share the same basic idea but are incompatible with each other. Both protocols also share the same cable with Standard Serial and are completely backwards-compatible. If they detect that their peers also speak the improved protocol, they will then switch to it. Fast Serial and JiffyDOS will be covered in separate articles.
+There are two extensions to Standard Serial: The already mentioned "Fast Serial" (C128), as well as the third party "JiffyDOS". They both share the same basic idea but are incompatible with each other. Both protocols also share the same cable with Standard Serial and are completely backwards-compatible with it. If they detect that their peers also speak the improved protocol, they will then switch to it. Fast Serial and JiffyDOS will be covered in separate articles.
 
 ## History and Development
 
@@ -42,11 +42,9 @@ The design goal was to retain all of the core properties of the IEEE-488 bus:
 * A device has **multiple channels** for different functions.
 * Data transmission is **byte stream** based.
 
-One property they could not keep was the relaxed timing requirement of IEEE-488: At most points in an IEEE-488 communication, any participant can stall for any amount of time.
+One property they could not keep was the relaxed timing requirement of IEEE-488: At most points in an IEEE-488 communication, any participant can stall for any amount of time. This make it easy to implement the protocol completely in software, without any hardware that would guarantee strict timings. Serial on the other hand was designed with a dedicated hardware shift register in mind.
 
-XXX IEEE designed for CPUs, relaxed timing requirements. Serial for dedicated serial hardware.
-
-IEEE-488 has 16 data lines. The serial version reduces this to 5:
+For those who already have experience with IEEE-488, here is a short overview of how the serial version reduces the number of data lines from 16 to 5:
 
 * **Data**: Instead of transmitting 8 bits in parallel, they are sent serially, with a CLK and a DATA line.
 * **Handshake**: The function of the DAV and NRFD lines is taken over by the CLK and DATA lines. There is no NDAC signal, accepting data is based on timing.
@@ -178,7 +176,7 @@ The wires are in the same state again as in step 4, before sending the bit. The 
 
 #### 28: Data is not valid
 ![](docs/cbmbus/serial-29.png =601x131)
-The last step of the last bit also has the sender pulling CLK and releasing DATA.
+Like for the previous bits, the last step of the last bit has the sender pulling CLK and releasing DATA.
 
 From now on, the DATA line will be operated by the receivers again.
 
@@ -196,20 +194,43 @@ Also, there is no ordering on which receiver pulls or releases its line first. T
 
 ### End of Stream
 
-If there is no more data to be transmitted, the sequence stops at step 30 (which is the same as step 0). In this step, the sender can only control one wire, signaling either that it is ready to send the next byte, or it has more data but is not ready to send yet. Therefore, the sender already signals the end of the stream to the receivers while transmitting the last byte. Because the number of wires are limited, it does this through a timing sidechannel[^3].
+If there is no more data to be transmitted, the sequence stops at step 30 (which is the same as step 0). In this step, there is no way for the sender to signal the end of the stream, because it only controls one bit (0 = ready to send the next byte, 1 = it has more data but is not ready to send yet). Therefore, the sender already signals this during the transmission of the last byte. The number of wires for carrrying information are still limited, but it can do it through a timing sidechannel[^3].
 
-To indicate the end of the stream, the sender delays step 4 by at least 200 µs. That is, after the sender signaled that it has more data available, and after all receivers have signaled that they are ready for data, the sender doesn't immediately pull the CLK line to start transmission, but delays the process.
+#### 3a: Sender delays for 256 µs to signal EOI
+![](docs/cbmbus/serial-32.png =601x131)
+To indicate the end of the stream, the sender delays step 4 by at least 200 µs. That is, after the sender has signaled that it has more data available (CLK = 0), and after all receivers have signaled that they are ready for data (DATA = 0), the sender doesn't immediately pull the CLK line to start transmission:
 
-All receivers then need to pull the DATA line for at leasy 60 µs to acklownedge this. Transmission then proceeds normally.
+#### 4: Data is not valid
+![](docs/cbmbus/serial-33.png =601x131)
 
-XXX why?
+After the delay, it then pulls CLK, signaling that the data is not valid.
 
+#### 4a: Receiver A acknowledges EOI – hold for 60 µs
+![](docs/cbmbus/serial-34.png =601x131)
+
+All receivers have to acknowledge that they have understood the EOI signal. So the first receiver will
+do this by holding the DATA line for at least 60 µs.
+
+#### 4b: Receiver B acknowledges EOI – hold for 60 µs
+![](docs/cbmbus/serial-35.png =601x131)
+
+The other receiver also has to hold the DATA line for 60 µs.
+
+#### 4c: A has finished acknowledging EOI
+![](docs/cbmbus/serial-36.png =601x131)
+
+After the delay, the first receiver releases DATA agin. The wire is still pulled by the other receiver though, so its value is still 1.
+
+#### 4d: B has finished acknowledging EOI
+![](docs/cbmbus/serial-37.png =601x131)
+
+After its delay, the other receiver will also release DATA, so it will now read back as 0.
+
+So after the sender has signaled EOI, it will wait for the DATA line to become 1, and then 0 again, until resuming transmission at step 5.
 
 XXX <!--- ![](docs/cbmbus/ieee-488.png =601x331) --->
 
 As a side effect of this, the Serial protocol does not allow empty streams - they would have to be at least one byte long.
-
-XXX Commodore's version of the bus uses timeouts to signal this condition (see below).
 
 ### Sending Commands
 
