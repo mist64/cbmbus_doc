@@ -228,7 +228,7 @@ After its delay, the other receiver will also release DATA, so it will now read 
 
 So after the sender has signaled EOI, it will wait for the DATA line to become 1, and then 0 again, until resuming transmission at step 5.
 
-XXX <!--- ![](docs/cbmbus/ieee-488.png =601x331) --->
+![](docs/cbmbus/serial.png =601x301)
 
 As a side effect of this, the Serial protocol does not allow empty streams - they would have to be at least one byte long.
 
