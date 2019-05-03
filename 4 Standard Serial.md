@@ -44,6 +44,8 @@ The design goal was to retain all of the core properties of the IEEE-488 bus:
 
 One property they could not keep was the relaxed timing requirement of IEEE-488: At most points in an IEEE-488 communication, any participant can stall for any amount of time.
 
+XXX IEEE designed for CPUs, relaxed timing requirements. Serial for dedicated serial hardware.
+
 IEEE-488 has 16 data lines. The serial version reduces this to 5:
 
 * **Data**: Instead of transmitting 8 bits in parallel, they are sent serially, with a CLK and a DATA line.
@@ -196,6 +198,12 @@ Also, there is no ordering on which receiver pulls or releases its line first. T
 
 If there is no more data to be transmitted, the sequence stops at step 30 (which is the same as step 0). In this step, the sender can only control one wire, signaling either that it is ready to send the next byte, or it has more data but is not ready to send yet. Therefore, the sender already signals the end of the stream to the receivers while transmitting the last byte. Because the number of wires are limited, it does this through a timing sidechannel[^3].
 
+To indicate the end of the stream, the sender delays step 4 by at least 200 µs. That is, after the sender signaled that it has more data available, and after all receivers have signaled that they are ready for data, the sender doesn't immediately pull the CLK line to start transmission, but delays the process.
+
+All receivers then need to pull the DATA line for at leasy 60 µs to acklownedge this. Transmission then proceeds normally.
+
+XXX why?
+
 
 XXX <!--- ![](docs/cbmbus/ieee-488.png =601x331) --->
 
@@ -208,8 +216,6 @@ XXX Commodore's version of the bus uses timeouts to signal this condition (see b
 ## Timing
 
 * XXX
-	* ready to receive means being able to make the timing for the whole byte
-	* receivers can stall between bytes, but not within a byte
 
 * transfering bytes
 	* C64 holds CLK it for 42 ticks only, releases CLK and DATA at the same time
@@ -219,33 +225,31 @@ XXX Commodore's version of the bus uses timeouts to signal this condition (see b
 	* receiver pulls DATA within 1000 µs (any receiver!) = byte received OK
 
 * EOI
-	* if "prepare sending byte" takes 200+ µs, the following byte is the last one
-	* receiver pulls data for a short while to acknowledge
-		* TODO
 	* at the end of transmission
 		* sender releases CLK
 		* receivers release DATA
+* Timing
+	* ready to receive means being able to make the timing for the whole byte
+	* receivers can stall between bytes, but not within a byte
+	* receiver must be able to measure 200 µs reliably
+	* receiver must be able to accept bit within 60 µs
+	* receiver must be able to ack byte within 1000 µs
+	* TODO ...
+	* TODO otherwise...?
 * sender doesn't actually have any data
 	* will release clock and do nothing
 	* receiver first thinks it's EOI, but it takes even longer
 	* receiver times out
 
 * comments:
-	* transfer cannot start until all receivers are ready
-	* any receiver can ACK
-		* no ACK means that all receivers died
-	* EOI is a timing sidechannel
-	* what are the timing requirements?
-		* receiver must be able to measure 200 µs reliably
-		* receiver must be able to accept bit within 60 µs
-		* receiver must be able to ack byte within 1000 µs
-		* TODO ...
-		* TODO otherwise...?
-	* it's impossible to ack every bit with just two wires in order to make the protocol completely timing independent
-	* problem!
-		* any receiver can ack a byte buy pulling DATA
-		* -> if one receiver is super fast and the other one is super slow, protocol may break
-		* XXX fixed by timing requirements?
+	* limitations
+		* transfer cannot start until all receivers are ready
+		* signaling buys after a byte is also basically an ACK
+			* any receiver can ACK
+			* no ACK means that all receivers died
+			* -> if one receiver is super fast and the other one is super slow, protocol may break?? TODO
+			* XXX fixed by timing requirements?
+		* it's impossible to ack every bit with just two wires in order to make the protocol completely timing independent
 	* why use the clock at all, if we have strict timing requirements? we could just as well have "data valid" windows (Jiffy does this, and uses CLK for data as well)
 
 * ATN	
