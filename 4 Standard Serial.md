@@ -254,11 +254,35 @@ The controller sends the command data like any other transmission, and releases 
 
 The encoding of commands is part of the [layer 3 bus arbitrarion protocol](https://www.pagetable.com/?p=1031).
 
-### Initiating a Transmission
+### Initiating/Ending a Transmission and Bus Turnaround
 
-* idle bus: CLK and DATA released
+On an idle bus, CLK and DATA are released, so they read as 0. The initial state of the transmission of a byte has both lines pulled, so first, the sender has to pull CLK, then the receivers has to pull DATA. This is what happens at the beginning of a command transmission when the bus was idle. Similarly, at the end of the transmission, the sender releases CLK, and the receivers release DATA, so the bus is idle again.
 
-* talker must pull CLK to show its presence
+It becomes interesting when two transmissions follow each other immediately, and the sender and receiver roles are different between transmissions. The assignment of senders and receivers can only be changed by a command (during ATN = 1), which is a transmission with a potentially different set of senders and receivers anyway. So at the end of the command, there needs to be an orderly transision from the end state of the old to the initial state of the new transmission – a bus turnaround.
+
+#### A: End state of the original transmission
+![](docs/cbmbus/serial-39.png =601x131)
+
+In the last step of a command transmission – like in any transmission – the controller (the sender), is holding CLK, and the devices (the receivers) are holding DATA. (For simplicity, this visualization only has two devices on the bus.)
+ 
+#### B: Reversed roles
+![](docs/cbmbus/serial-40.png =601x131)
+
+The command reverses the roles of sender and receiver, so the previous receiver is now the new sender and is still holding DATA, and the previous sender is now the receiver and is still holding CLK. This needs to be reversed.
+
+#### C: New receiver switches lines
+![](docs/cbmbus/serial-41.png =601x131)
+
+First, the new receiver pulls DATA and lets go of CLK. DATA remains 1, but CLK is now released by both the sender and the receiver and will read back as 0.
+
+#### D: New sender switches lines
+![](docs/cbmbus/serial-42.png =601x131)
+
+Triggered by CLK being 0, the new sender pulls down CLK and releases DATA. Both lines now read back as 1, which is the initial state for byte transmission, and the correct lines are held by the respective bus participants.
+
+### Errors
+
+* sender must pull CLK to show its presence
 	* otherwise "I don't actually have any data" error, i.e. FNF
 * receiver must pull DATA to show its presence
 	* either listener after the command
@@ -266,12 +290,6 @@ The encoding of commands is part of the [layer 3 bus arbitrarion protocol](https
 	* if not within 256 µs, device not present
 * sender then releases CLK
 * receiver then releases DATA when it's actually ready
-
-* at the end of transmission
-	* sender releases CLK
-	* receivers release DATA
-
-### Errors
 
 * sender delays for > 512 µs = timeout
 * no receiver pulls DATA within 1000 µs at the end of the byte = timeout
