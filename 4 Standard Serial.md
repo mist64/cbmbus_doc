@@ -157,13 +157,15 @@ During the actual transmission of the data, both CLK and DATA are now operated b
 ![](docs/cbmbus/serial-05.png =601x131)
 For the transmission of the bits, the CLK line will indicate whether the data on the DATA line is valid. So for the initial state, the sender pulls CLK, indicating that data is not valid.
 
+Since both lines are now controlled by the sender, there is no back channel for the receivers, and they cannot acklowledge any state transition. So from now on, everything is based on timing. As a part of this, the CLK line has to be pulled for at least 60 µs until it is released again in step 6.
+ 
 #### 5: Sender puts data bit #0 onto the wire
 ![](docs/cbmbus/serial-06.png =601x131)
 The sender now puts the value of the first bit into DATA.
 
 #### 6: Data is now valid – hold for 60 µs
 ![](docs/cbmbus/serial-07.png =601x131)
-After that, the sender releases CLK, signaling that the data in DATA is valid.
+After that, the sender releases CLK, signaling that the data bit in DATA is valid.
 
 There is no way for the receivers to signal "data accepted" for the bit. The sender must hold this state for at least 60 µs, and receivers must be able to accept the bit within this time.
 
@@ -184,9 +186,13 @@ From now on, the DATA line will be operated by the receivers again.
 ![](docs/cbmbus/serial-30.png =601x131)
 Once all 8 bits have been transmitted, the receivers have to signal that they are busy, so that after accepting the data, the sender won't think the receivers are immediately ready for the next byte. So now, the first receiver pulls DATA, so DATA is 1.
 
+XXX any listener must react within 1000 µs
+
 #### 30: Receiver B is now busy
 ![](docs/cbmbus/serial-31.png =601x131)
 The other receiver also has to signal that it is busy by pulling DATA. The line was already 1 and will stay at 1. All wires are now in the initial state again. All steps are repeated as long as there is more data to be sent.
+
+XXX sender must wait 100 µs until releasing CLK
 
 Note that the protocol only specifies the triggers: For example, the receivers are to read the bit from DATA while CLK = 0, so it would be just as legal in step 7 for the the sender to hold CLK and release DATA in two steps (the 1541 does this, the C64 doesn't).
 
@@ -242,15 +248,36 @@ But there are also **command** transmissions, where one particiant can start a t
 
 Only so-called "controllers" may perform a command transmission, and on Commodore busses, there is always only one controller: the computer. All bus participants that are not controllers are called "devices".
 
-When the controller wants to send a command, it pulls the ATN ("Attention") line. All devices on the bus have to immediately (i.e. within less than a clock cycle – Commodore drives do this using a hardware circuit) respond by pulling DATA ("ATN Response Timing"), and participate in receiving the command byte stream.
+When the controller wants to send a command, it pulls the ATN ("Attention") line. All devices on the bus have to respond by pulling DATA ("ATN Response Timing") within 1000 µs, and participate in receiving the command byte stream.
 
 The controller sends the command data like any other transmission, and releases ATN afterwards. It does not signal EOI during the transmission of the last byte, since the release of ATN signals the end of the stream already.
 
 The encoding of commands is part of the [layer 3 bus arbitrarion protocol](https://www.pagetable.com/?p=1031).
 
-### Timing
+### Initiating a Transmission
 
-* XXX
+* idle bus: CLK and DATA released
+
+* talker must pull CLK to show its presence
+	* otherwise "I don't actually have any data" error, i.e. FNF
+* receiver must pull DATA to show its presence
+	* either listener after the command
+	* or all devices during ATN
+	* if not within 256 µs, device not present
+* sender then releases CLK
+* receiver then releases DATA when it's actually ready
+
+* at the end of transmission
+	* sender releases CLK
+	* receivers release DATA
+
+### Errors
+
+* sender delays for > 512 µs = timeout
+* no receiver pulls DATA within 1000 µs at the end of the byte = timeout
+* no device pulls DATA within 1000 µs after ATN – no devices present
+
+### Timing
 
 * transfering bytes
 	* C64 holds CLK it for 42 ticks only
@@ -259,9 +286,6 @@ The encoding of commands is part of the [layer 3 bus arbitrarion protocol](https
 * byte ack
 	* receiver pulls DATA within 1000 µs (any receiver!) = byte received OK
 
-* at the end of transmission
-	* sender releases CLK
-	* receivers release DATA
 
 * Timing
 	* ready to receive means being able to make the timing for the whole byte
