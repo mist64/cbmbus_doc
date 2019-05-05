@@ -234,21 +234,35 @@ As a side effect of this, the Serial protocol does not allow empty streams - the
 
 ### Sending Commands
 
-## Timing
+<!--- this is almost the same as in part 1 -->
+
+The assignment of senders and receivers to transmissions is the job of layer 3 (Bus Arbitration), described in [part 3](https://www.pagetable.com/?p=1031) of this series.
+
+But there are also **command** transmissions, where one particiant can start a transmission to *all* other participants at any time.
+
+Only so-called "controllers" may perform a command transmission, and on Commodore busses, there is always only one controller: the computer. All bus participants that are not controllers are called "devices".
+
+When the controller wants to send a command, it pulls the ATN ("Attention") line. All devices on the bus have to immediately (i.e. within less than a clock cycle – Commodore drives do this using a hardware circuit) respond by pulling DATA ("ATN Response Timing"), and participate in receiving the command byte stream.
+
+The controller sends the command data like any other transmission, and releases ATN afterwards. It does not signal EOI during the transmission of the last byte, since the release of ATN signals the end of the stream already.
+
+The encoding of commands is part of the [layer 3 bus arbitrarion protocol](https://www.pagetable.com/?p=1031).
+
+### Timing
 
 * XXX
 
 * transfering bytes
-	* C64 holds CLK it for 42 ticks only, releases CLK and DATA at the same time
-	* 1541 holds CLK for 74 ticks -> $E976, releases first CLK then DATA
+	* C64 holds CLK it for 42 ticks only
+	* 1541 holds CLK for 74 ticks -> $E976
 
 * byte ack
 	* receiver pulls DATA within 1000 µs (any receiver!) = byte received OK
 
-* EOI
-	* at the end of transmission
-		* sender releases CLK
-		* receivers release DATA
+* at the end of transmission
+	* sender releases CLK
+	* receivers release DATA
+
 * Timing
 	* ready to receive means being able to make the timing for the whole byte
 	* receivers can stall between bytes, but not within a byte
