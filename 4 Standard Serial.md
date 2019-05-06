@@ -312,13 +312,15 @@ The fact that it was now a pure software protocol also changed the quality of th
 
 #### C64
 
-The system architecture of the Commodore 64, which was the successor to the VIC-20, had the video chip halt the CPU for about 40 µs every ~500 µs, which would make it likely for the CPU to miss the 20 µs window in which a bit was valid. The Commodore engineers decided not to turn off the display during Serial Bus operations (to disable video DMA), as it is done for tape access.
+While the C64 contained a 6526 CIA I/O controller that had a working shift register, Commodore did not enable it for hardware-supported byte transfers, since the accompanying disk drive, the 1541, was not planned to be updated from the buggy 6522.
+
+TO make matter worse, the system architecture of the Commodore 64, which was the successor to the VIC-20, had the video chip halt the CPU for about 40 µs every ~500 µs, which would make it likely for the CPU to miss the 20 µs window in which a bit was valid. The Commodore engineers decided not to turn off the display during Serial Bus operations (to disable video DMA), as it is done for tape access.
 
 In theory, it would be possible to fit the 320 µs to transmit a byte within the predictable 500 µs window between DMAs, but it is the sender that decides when to start the transmission of a byte and controls the actual transmission speed.
 
-So the specification of the protocol was _changed_ to increase the hold time by 40 µs, to 60 µs – but only in some cases: It was acknowledged that computers like the C64 might need more time to see a bit on the bus, but devices were still required to make the 20 µs window. Therefore, all devices use 60 µs hold times when sending data, but controllers can use 20 µs[^6].
+So the specification of the protocol was _changed_ to increase the hold time by 40 µs, to 60 µs – but only in some cases: It was acknowledged that computers like the C64 might need more time to see a bit on the bus, but devices were still required to make the 20 µs window. Therefore, all devices use 60 µs hold times when sending data, but controllers can use 20 µs[^6]. This reduces the theoretical throughput from devices to controllers to below 1 KB/sec.
 
-So in practice, the Serial Bus implementation in the system software of the VIC-20 was still standards compliant. The 1540 disk drive was updated as the 1541 with the new (slower) timing, but an option to change the bus speed to VIC-20 mode ([Commodore DOS](https://www.pagetable.com/?p=1038) command "`UI-`").
+In practice, the Serial Bus implementation in the system software of the VIC-20 was still standards compliant. The 1540 disk drive was updated as the 1541 with the new (slower) timing, but an option to change the bus speed to VIC-20 mode ([Commodore DOS](https://www.pagetable.com/?p=1038) command "`UI-`").
 
 ### SRQ
 
@@ -338,14 +340,13 @@ In the original IEEE-4888 protocol, there is the dedicated NRFD ("not ready for 
 
 The bug would be fixed by reducing the allowed time to pull DATA to 100 µs, the same as the "between bytes time". In practice, this is not an issue though, because one-to-many communcation is extremely rarely used, and because Serial Bus devices tend to respond within 100 µs anyway.
 
+#### Data Valid Window vs. CLK/DATA
 
-#### Data Valid Window		
-		
-	* data valid window		
-		* it's impossible to ack every bit with just two wires in order to make the protocol completely timing independent
-		* why use the clock at all, if we have strict timing requirements? we could just as well have "data valid" windows (Jiffy does this, and uses CLK for data as well)
-		* they were probably hoping they could spped it up, keeping the same protocol later
+While the specification change between the VIC-20 and the C64 had to be minimal to keep as much compatibility as possible, the change between the original design and the VIC-20 had no compatibility requirements. On the VIC-20, the transmission of a byte through CLK and DATA followed the protocol of the 6522 VIA shift register, even though it was implemented in software.
 
+Instead, a modified protocol could have sent one bit on every _edge_ of CLK, doubling the data rate. They could also have sent two bits at a time, one in CLK and one in DATA with a strict timing of 20 µs per bit. This would only have required the receiver to commit to a 80 µs window of being able to receive data with a timing accuracy below 20 µs. This would have broken horribly on the C64 though, which cannot commit to this, but alternative protocols including JiffyDOS (part 6 of this series), are based on this strategy.
+
+The advantage of keeping the 6522 VIA shift register protocol was that they would be able to use fixed hardware in later devices and just switch to the original timing – optionally, if all devices supported it. The Fast Serial protocol of the C128 does indeed use the shift register of the 6526 CIA I/O controller, but does not use the same CLK/DATA protocol with it.
 
 ### Next Up
 
