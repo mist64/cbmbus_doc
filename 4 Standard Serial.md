@@ -1,6 +1,6 @@
 # Commodore Peripheral Bus: Part 4: Standard Serial
 
-In the [series about the variants of the Commodore Peripheral Bus family](https://www.pagetable.com/?p=1018), this article covers the lowest two layers (electrical and byte transfer) of the "Serial" bus as found on the VIC-20/C64 and supported by all Commodore home computers.
+In the [series about the variants of the Commodore Peripheral Bus family](https://www.pagetable.com/?p=1018), this article covers the lowest two layers (electrical and byte transfer) of the "Standard Serial" bus as found on the VIC-20/C64 as the main bus, but also supported by all other Commodore home computers.
 
 ![](docs/cbmbus/serial_layers.png =371x241)
 
@@ -22,17 +22,15 @@ In the [series about the variants of the Commodore Peripheral Bus family](https:
 
 ## Naming and Context
 
-To make sure we are talking about the same thing, let's clarify the naming. Commodore calls the three-wire protocol used e.g. by the Commodore C64 and the 1541 disk drives "Serial" in its reference documents. Later documentation calls it "Standard Serial" to distinguish it from the later backwards-compatible "Fast Serial"[^1] protocol of the C128.
+First let's clarify the naming. Commodore calls the three-wire protocol used e.g. by the Commodore C64 and the 1541 disk drives "Serial" in its reference documents. Later documentation calls it "Standard Serial" to distinguish it from the later backwards-compatible "Fast Serial"[^1] protocol of the C128. This also matches the naming in [Commodore's source code](https://github.com/mist64/cbmsrc/tree/master/KERNAL_C64_03), where the protocol is called "serial"[^2].
 
-This also matches the naming in [Commodore's source code](https://github.com/mist64/cbmsrc/tree/master/KERNAL_C64_03), where the protocol is called "serial"[^2].
+"Standard Serial" is based on the PET's parallel IEEE-488 bus (covered in [part 1](https://www.pagetable.com/?p=1023)), which was standardized internationally as IEC-625. In Europe, IEEE-488 was therefore commonly referred to as the "IEC bus". The serial version was then often called "Serial IEC", even though this variant was not an IEC standard. Finally, the "serial" attribute was often dropped in European books and magazines, which is why "Standard Serial" is most often refered to as just the "IEC bus".
 
-"Standard Serial" is based on the PET's parallel IEEE-488 bus (covered in [part 1](https://www.pagetable.com/?p=1023)), which was standardized internationally as IEC-625. In Europe, IEEE-488 was therefore commonly referred to as the "IEC bus". The serial version was then often called "Serial IEC", even though this variant was never standardized by IEC. Finally, the "serial" attribute was often dropped in European books and magazines, which is why "Standard Serial" is most often refered to as just the "IEC bus".
-
-There are two extensions to Standard Serial: The already mentioned "Fast Serial" (C128), as well as the third party "JiffyDOS". They both share the same basic idea but are incompatible with each other. Both protocols also share the same cable with Standard Serial and are completely backwards-compatible with it. If they detect that their peers also speak the improved protocol, they will then switch to it. Fast Serial and JiffyDOS will be covered in separate articles.
+There are two extensions to Standard Serial: The already mentioned "Fast Serial" (C128), as well as the third party "JiffyDOS". They both share the same basic idea but are incompatible with each other. Both protocols also use the same cable as Standard Serial and are completely backwards-compatible with it. If they detect that their peers also speak the improved protocol, they will then switch to it. Fast Serial and JiffyDOS will be covered in separate articles.
 
 ## History and Development
 
-Commodore had been using the standard IEEE-488 bus on the PET series of computers and its disk drives and printers. Unhappy with the price of the parallel connectors and cables, they developed a serial version of the protocol.
+Commodore had been using the standard IEEE-488 bus on the PET series of computers and its disk drives and printers. Unhappy with the price of the parallel connectors and cables, they developed a serial version of layers 1 and 2 of the protocol for the upcoming VIC-20 (1981).
 
 The design goal was to retain all of the core properties of the IEEE-488 bus:
 
@@ -42,13 +40,7 @@ The design goal was to retain all of the core properties of the IEEE-488 bus:
 * A device has **multiple channels** for different functions.
 * Data transmission is **byte stream** based.
 
-One property they could not keep was the relaxed timing requirement of IEEE-488: At most points in an IEEE-488 communication, any participant can stall for any amount of time. This make it easy to implement the protocol completely in software, without any hardware that would guarantee strict timings. Serial on the other hand was designed with a dedicated hardware shift register in mind.
-
-For those who already have experience with IEEE-488, here is a short overview of how the serial version reduces the number of data lines from 16 to 5:
-
-* **Data**: Instead of transmitting 8 bits in parallel, they are sent serially, with a CLK and a DATA line.
-* **Handshake**: The function of the DAV and NRFD lines is taken over by the CLK and DATA lines. There is no NDAC signal, accepting data is based on timing.
-* **Management**: REN (already unsupported on the PET) is removed. EOI is removed, the information is now transmitted through a timing sidechannel. RESET (IFC), SRQ and ATN are retained. 
+The challenge was to reduce the 16 data lines of IEEE-488 down to 5 within these constraints:
 
 | IEEE-488 Signal | Description        | Serial Signal |
 |-----------------|--------------------|---------------|
@@ -61,6 +53,12 @@ For those who already have experience with IEEE-488, here is a short overview of
 | SRQ             | Service Request    | SRQ           |
 | ATN             | Attention          | ATN           |
 | REN             | Remote Enable      | -             |
+
+* **Data**: Instead of transmitting 8 bits in parallel, they are sent serially, using a CLK and a DATA line.
+* **Handshake**: The function of the DAV and NRFD lines is taken over by the CLK and DATA lines. There is no NDAC signal, accepting data is based on timing.
+* **Management**: REN (already unsupported on the PET) is removed. EOI is removed, the information is now transmitted through a timing sidechannel. RESET (IFC), SRQ and ATN are retained. 
+
+One property they could not keep was the relaxed timing requirement of IEEE-488: At most points in an IEEE-488 communication, any participant can stall for any amount of time. This makes it easy to implement the protocol completely in software, without any hardware that would guarantee strict timings. Serial on the other hand was designed with a dedicated hardware shift register in mind.
 
 <!---
 XXX
@@ -117,7 +115,7 @@ This can be visualized with two (or more) hands that can pull the line to 1, and
 
 ![](docs/cbmbus/open_collector.gif =302x162)
 
-So when a line reads as 0, it is known that it is currently released by all participants, but if a line reads as 1, it is impossible to know who or even how many are currently pulling it.
+So when a line reads as 0, it is known that it is currently released by all participants, and if a line reads as 1, one or more participants are pulling it, but it is impossible to know who or even how many.
 
 ## Layer 2: Byte Transfer
 
@@ -125,7 +123,7 @@ Like with IEEE-488, the basic byte transfer protocol of the Serial Bus is based 
 
 ### Sending Bytes
 
-For the transmission of a byte stream, just two wires, CLK and DATA are used. The CLK line is exclusively operated by the sender, while the DATA line is operated by the sender in some steps, and by the receivers in other steps.
+For the transmission of a byte stream, just two wires, CLK and DATA are used. The CLK line is exclusively operated by the sender, while the DATA line is operated by the sender during the transmission of bits, and by the receivers between the transmission of bytes.
 
 The CLK line is the sender's handshake, and outside of bit transmission, the DATA line is the receiver's handshake.
 
@@ -157,7 +155,7 @@ During the actual transmission of the data, both CLK and DATA are now operated b
 ![](docs/cbmbus/serial-05.png =601x131)
 For the transmission of the bits, the CLK line will indicate whether the data on the DATA line is valid. So for the initial state, the sender pulls CLK, indicating that data is not valid.
 
-Since both lines are now controlled by the sender, there is no back channel for the receivers, and they cannot acklowledge any state transition. So from now on, everything is based on timing. As a part of this, the CLK line has to be pulled for at least 60 µs until it is released again in step 6.
+Since both lines are now controlled by the sender, there is no back channel for the receivers, and they cannot acklowledge any state transition. So from now on, everything is based on timing. As a part of this, the CLK line has to be pulled for at least 60 µs until it is released again in step 6, to make sure the receiver notices the state change.
  
 #### 5: Sender puts data bit #0 onto the wire
 ![](docs/cbmbus/serial-06.png =601x131)
@@ -174,7 +172,7 @@ There is no way for the receivers to signal "data accepted" for the bit. The sen
 After the 60 µs, the sender pulls CLK again to signal that the data is not valid, and releases the DATA line.
 
 #### 8-27: Repeat steps 5-7 for bits #1 to #7
-The wires are in the same state again as in step 4, before sending the bit. The seven remaining bits will be transmitted the same way.
+The wires are in the same state again as in step 4, before sending the bit. The seven remaining bits will be transmitted the same way: CLK=1 for 60 µs, then CLK=0 for 60 µs with a data bit on DATA, and so on.
 
 #### 28: Data is not valid
 ![](docs/cbmbus/serial-29.png =601x131)
@@ -184,7 +182,7 @@ From now on, the DATA line will be operated by the receivers again.
 
 #### 29: Receiver A is now busy again
 ![](docs/cbmbus/serial-30.png =601x131)
-Once all 8 bits have been transmitted, the receivers have to signal that they are busy, so that after accepting the data, the sender won't think the receivers are immediately ready for the next byte. So now, the first receiver pulls DATA, so DATA is 1.
+Once all 8 bits have been transmitted, the receivers have to signal that they are busy, so that after accepting the data, the sender won't think the receivers are immediately ready for the next byte[^2b]. So now, the first receiver pulls DATA, so DATA is 1.
 
 XXX any listener must react within 1000 µs
 
@@ -200,11 +198,11 @@ Also, there is no ordering on which receiver pulls or releases its line first. T
 
 ### End of Stream
 
-If there is no more data to be transmitted, the sequence stops at step 30 (which is the same as step 0). In this step, there is no way for the sender to signal the end of the stream, because it only controls one bit (0 = ready to send the next byte, 1 = it has more data but is not ready to send yet). Therefore, the sender already signals this during the transmission of the last byte. The number of wires for carrrying information are still limited, but it can do it through a timing sidechannel[^3]. (Consistent with IEEE-488, this event is called "EOI", "End Or Identify".)
+If there is no more data to be transmitted, the sequence stops at step 30 (which is the same state as step 0). In this step, there is no way for the sender to signal the end of the stream, because it only controls one bit (0 = ready to send the next byte, 1 = it has more data but is not ready to send yet). Therefore, the sender already signals this during the transmission of the last byte. The number of wires for carrying information is still limited, but it can do it through a timing sidechannel[^3]. (Consistent with IEEE-488, this event is called "EOI", "End Or Identify".)
 
 #### 3a: Sender delays for 256 µs to signal EOI
 ![](docs/cbmbus/serial-32.png =601x131)
-To indicate the end of the stream, the sender delays step 4 by at least 200 µs. That is, after the sender has signaled that it has more data available (CLK = 0), and after all receivers have signaled that they are ready for data (DATA = 0), the sender doesn't immediately pull the CLK line to start transmission:
+To indicate the end of the stream, the sender delays step 4 by at least 200 µs. That is, after the sender has signaled that it has more data available (CLK = 0), and after all receivers have signaled that they are ready for data (DATA = 0), the sender doesn't immediately pull the CLK line to start transmission.
 
 #### 4: Data is not valid
 ![](docs/cbmbus/serial-33.png =601x131)
@@ -222,6 +220,8 @@ do this by holding the DATA line for at least 60 µs.
 
 The other receiver also has to hold the DATA line for 60 µs.
 
+XXX what if only one does it?
+
 #### 4c: A has finished acknowledging EOI
 ![](docs/cbmbus/serial-36.png =601x131)
 
@@ -232,7 +232,7 @@ After the delay, the first receiver releases DATA agin. The wire is still pulled
 
 After its delay, the other receiver will also release DATA, so it will now read back as 0.
 
-So after the sender has signaled EOI, it will wait for the DATA line to become 1, and then 0 again, until resuming transmission at step 5.
+After the sender has signaled EOI, it will wait for the DATA line to become 1, and then 0 again, until resuming the transmission of the final byte at step 5.
 
 ![](docs/cbmbus/serial.png =601x301)
 
@@ -248,21 +248,21 @@ But there are also **command** transmissions, where one particiant can start a t
 
 Only so-called "controllers" may perform a command transmission, and on Commodore busses, there is always only one controller: the computer. All bus participants that are not controllers are called "devices".
 
-When the controller wants to send a command, it pulls the ATN ("Attention") line at any time. It can even do this in the middle of a byte transmission. It then pulls CLK and releases DATA, because it is now the sender.
+When the controller wants to send a command, it pulls the ATN ("Attention") line at any time, possibly even in the middle of a byte transmission. (The byte stream will not be resumed after the command.) It then pulls CLK and releases DATA, because it is now the sender.
 
-All devices on the bus have to respond to ATN by pulling DATA ("ATN Response Timing") within 1000 µs,  and also eventually release CLK, because they are now receivers. Devices usually implement this in hardware by automatically answering ATN=1 with DATA=1, so that they can participate in receiving the command even when the CPU is busy and cannot be interrupted.
+All devices on the bus have to respond to ATN by pulling DATA within 1000 µs ("ATN Response Timing"),  and also eventually release CLK, because they are now receivers. Devices usually implement this in hardware by automatically answering ATN=1 with DATA=1, so that they can participate in receiving the command even when the CPU is busy and cannot be interrupted.
 
 All devices then have to participate in receiving the command byte stream, but as in any transmission, any device can stall after step 1, signaling that it is not yet ready for data.
 
-The controller sends the command data like any other transmission, and releases ATN afterwards. It does not signal EOI during the transmission of the last byte, since the release of ATN signals the end of the stream already.
+The controller sends the command data like any other transmission, and releases ATN afterwards. It does not signal EOI during the transmission of the last byte, since the release of ATN already signals the end of the stream.
 
-The encoding of commands is part of the [layer 3 bus arbitrarion protocol](https://www.pagetable.com/?p=1031).
+The encoding of commands is part of the [layer 3 bus arbitration protocol](https://www.pagetable.com/?p=1031).
 
 ### Initiating/Ending a Transmission and Bus Turnaround
 
-On an idle bus, CLK and DATA are released, so they read as 0. The initial state of the transmission of a byte has both lines pulled, so first, the sender has to pull CLK, then the receivers has to pull DATA. This is what happens at the beginning of a command transmission when the bus was idle. Similarly, at the end of the transmission, the sender releases CLK, and the receivers release DATA, so the bus is idle again.
+On an idle bus, CLK and DATA are released, so they read as 0. The initial state of the transmission of a byte has both lines pulled, so first, the sender has to pull CLK, then the receivers have to pull DATA. This is what happens at the beginning of a command transmission when the bus is idle. Similarly, at the end of the transmission, the sender releases CLK, and the receivers release DATA, so the bus is idle again.
 
-It becomes interesting when two transmissions follow each other immediately, and the sender and receiver roles are different between transmissions. The assignment of senders and receivers can only be changed by a command (during ATN = 1), which is a transmission with a potentially different set of senders and receivers anyway. So at the end of the command, there needs to be an orderly transision from the end state of the old to the initial state of the new transmission – a bus turnaround.
+It becomes interesting when two transmissions follow each other immediately, and the sender and receiver roles are different between transmissions. The assignment of senders and receivers can only be changed by a command (during ATN = 1), which itself is a transmission with a potentially different set of senders and receivers anyway. So at the end of the command, there needs to be an orderly transition from the end state of the old transmission to the initial state of the new one – a bus turnaround.
 
 #### A: End state of the original transmission
 ![](docs/cbmbus/serial-39.png =601x131)
@@ -272,7 +272,7 @@ In the last step of a command transmission – like in any transmission – the
 #### B: Reversed roles
 ![](docs/cbmbus/serial-40.png =601x131)
 
-The command reverses the roles of sender and receiver, so the previous receiver is now the new sender and is still holding DATA, and the previous sender is now the receiver and is still holding CLK. This needs to be reversed.
+Let's assume the command has reversed the roles of sender and receiver, so the previous receiver is now the new sender and is still holding DATA, and the previous sender is now the receiver and is still holding CLK. This needs to be reversed.
 
 #### C: New receiver switches lines
 ![](docs/cbmbus/serial-41.png =601x131)
@@ -304,23 +304,25 @@ The design goal of Standard Serial was that its speed would be comparable to IEE
 
 The timing of the CPU-side of the original protocol was very relaxed. Timeouts were on the order of hundreds of µs.
 
+This design never shipped though.
+
 #### VIC-20
 
-Unfortunately, the Commodore engineers did not account for a bug in the 6522 shift register that was already documented[^5] by the time the Serial Bus was designed. In the last minute, they increased the hold times to 20 µs, which allowed them to implement the otherwise unchanged protocol in software both in the VIC-20 and the 1540. This reduced the theoretical throughput to 2 KB/sec.
+Unfortunately, the Commodore engineers did not account for a bug in the 6522 shift register that was already documented[^5] by the time the Serial Bus was designed. At the last minute, they increased the hold times to 20 µs, which allowed them to implement the otherwise unchanged protocol in software both in the VIC-20 and the 1540. This reduced the theoretical throughput to 2 KB/sec.
 
 The fact that it was now a pure software protocol also changed the quality of the timing constraints: While the protocol was originally designed to allow any participant to stall in most states, and to only require relatively relaxed timing, the critical byte transmission window now requires the CPU to commit to being undisturbed for 20 µs × 2 × 8 = 320 µs.
 
 #### C64
 
-While the C64 contained a 6526 CIA I/O controller that had a working shift register, Commodore did not enable it for hardware-supported byte transfers, since the accompanying disk drive, the 1541, was not planned to be updated from the buggy 6522.
+While the Commodore 64, which was the successor to the VIC-20, contained a 6526 CIA I/O controller that had a working shift register, Commodore did not enable it for hardware-supported byte transfers, since the accompanying disk drive, the 1541, was not planned to be updated from the buggy 6522 VIA.
 
-TO make matter worse, the system architecture of the Commodore 64, which was the successor to the VIC-20, had the video chip halt the CPU for about 40 µs every ~500 µs, which would make it likely for the CPU to miss the 20 µs window in which a bit was valid. The Commodore engineers decided not to turn off the display during Serial Bus operations (to disable video DMA), as it is done for tape access.
+To make matter worse, the system architecture of the C64 had the video chip halt the CPU for about 40 µs every ~500 µs, which would make it likely for the CPU to miss the 20 µs window in which a bit was valid. The Commodore engineers decided not to turn off the display during Serial Bus operations (to disable video DMA), as it is done for tape access.
 
 In theory, it would be possible to fit the 320 µs to transmit a byte within the predictable 500 µs window between DMAs, but it is the sender that decides when to start the transmission of a byte and controls the actual transmission speed.
 
 So the specification of the protocol was _changed_ to increase the hold time by 40 µs, to 60 µs – but only in some cases: It was acknowledged that computers like the C64 might need more time to see a bit on the bus, but devices were still required to make the 20 µs window. Therefore, all devices use 60 µs hold times when sending data, but controllers can use 20 µs[^6]. This reduces the theoretical throughput from devices to controllers to below 1 KB/sec.
 
-In practice, the Serial Bus implementation in the system software of the VIC-20 was still standards compliant. The 1540 disk drive was updated as the 1541 with the new (slower) timing, but an option to change the bus speed to VIC-20 mode ([Commodore DOS](https://www.pagetable.com/?p=1038) command "`UI-`").
+In practice, the Serial Bus implementation in the system software of the VIC-20 was still standards compliant. The 1540 disk drive was updated as the 1541 with the new (slower) timing, but an option to change the bus speed to VIC-20 mode ([Commodore DOS](https://www.pagetable.com/?p=1038) command "`UI-`"). Printers and plotters designed for the VIC-20 did not have to be updated to work with the C64, because they only received data and never sent any.
 
 ### SRQ
 
@@ -330,23 +332,23 @@ On the C128, the wire was reused in an unrelated way for the Fast Serial protoco
 
 ### Discussion
 
-While the open collector property of CLK and DATA allows several devices to signal their state over a single wire, the bus is nevertheless severley constrained in terms of wires. While the parallel IEEE-488 bus had practically no timing requirements, the serial version requires strict timing in most states.
+While the open collector property of CLK and DATA allows several devices to signal their state over a single wire, the bus is nevertheless severely constrained in terms of wires. While the parallel IEEE-488 bus has practically no timing requirements, the serial version requires strict timing in most states.
 
 #### Between Bytes Bug
 
-There is one bug in the specification that is caused by this property. After all bits of a byte have been sent, all receivers are required to pull DATA within 1000 µs to signal they are not ready for the next byte. All receivers share the same DATA line, and it will read back as soon as any receiver pulls it. So once the first receiver pulls it, the sender signal it is ready to send the next byte after a delay of 100 µs ("between bytes time"). It then waits for DATA to be 0 again, which can happen immediately once the same receiver releases it. Now, in the middle of the transmission of the byte, another receiver wakes up and pulls DATA, still within the legal 1000 µs, destroying the transmission.
+There is one bug in the specification that is caused by these timing complexities. After all bits of a byte have been sent, all receivers are required to pull DATA within 1000 µs to signal they are not ready for the next byte. All receivers share the same DATA line, and it will read back as soon as any receiver pulls it. So once the first receiver pulls it, the sender signals it is ready to send the next byte after a delay of 100 µs ("between bytes time"). It then waits for DATA to be 0 again, which can happen immediately once the same receiver releases it. Now, in the middle of the transmission of the byte, another receiver wakes up and pulls DATA, still within the legal 1000 µs, destroying the transmission.
 
-In the original IEEE-4888 protocol, there is the dedicated NRFD ("not ready for data") line that is pulled by all receivers before accepting the data, so all receivers have to release it until transmission can continue. On the Serial Bus, both the CLK and the DATA line are operated by the sender until the completion of the byte transmission, so there is no way for the receivers to communicate anything before that.
+In the original IEEE-4888 protocol, there is the dedicated NRFD ("not ready for data") line that is pulled by all receivers before accepting the data, so all receivers have to release it before transmission can continue. On the Serial Bus, both the CLK and the DATA line are operated by the sender until the completion of the byte transmission, so there is no way for the receivers to communicate anything before that.
 
 The bug would be fixed by reducing the allowed time to pull DATA to 100 µs, the same as the "between bytes time". In practice, this is not an issue though, because one-to-many communcation is extremely rarely used, and because Serial Bus devices tend to respond within 100 µs anyway.
 
 #### Data Valid Window vs. CLK/DATA
 
-While the specification change between the VIC-20 and the C64 had to be minimal to keep as much compatibility as possible, the change between the original design and the VIC-20 had no compatibility requirements. On the VIC-20, the transmission of a byte through CLK and DATA followed the protocol of the 6522 VIA shift register, even though it was implemented in software.
+While the specification change between the VIC-20 and the C64 had to be minimal to keep as much compatibility as possible, the change between the original design, which never shipped, and the VIC-20 had no compatibility requirements. On the VIC-20, the transmission of a byte through CLK and DATA followed the protocol of the 6522 VIA shift register, even though it was implemented in software.
 
 Instead, a modified protocol could have sent one bit on every _edge_ of CLK, doubling the data rate. They could also have sent two bits at a time, one in CLK and one in DATA with a strict timing of 20 µs per bit. This would only have required the receiver to commit to a 80 µs window of being able to receive data with a timing accuracy below 20 µs. This would have broken horribly on the C64 though, which cannot commit to this, but alternative protocols including JiffyDOS (part 6 of this series), are based on this strategy.
 
-The advantage of keeping the 6522 VIA shift register protocol was that they would be able to use fixed hardware in later devices and just switch to the original timing – optionally, if all devices supported it. The Fast Serial protocol of the C128 does indeed use the shift register of the 6526 CIA I/O controller, but does not use the same CLK/DATA protocol with it.
+The advantage of keeping the 6522 VIA shift register protocol was that they would be able to use a working shift register in later devices and just switch to the original timing – optionally, if all devices supported it. The Fast Serial protocol of the C128 does indeed use the shift register of the 6526 CIA I/O controller, but does not use the same CLK/DATA protocol with it.
 
 ### Next Up
 
@@ -366,13 +368,15 @@ XXX
 
 [^2]: The implementation file in the Commodore 64 KERNAL source is "`serial4.0`". The context of the version number is unknown, since no other versions have appeared. On the TED and the C128, the file is just called "`serial.src`".
 
+[^2b]: The specification states calls this action "data accepted", which makes no sense. "Data accepted" would mean that the sender can now remove the data from the bus, because all receivers have seen it. But at this point, there is no more data on the bus, there is nothing for the sender to remove, and the positive logic means that any receiver would be able to accept the data for all receivers.
+
 [^3]: IEEE-488 also signals this during the last byte, by pulling the dedicated EOI line to 1 while the data is valid.
 
-[^4]: It is nowhere documented what the planned hold times were. The software implementation of the VIC-20 uses 20 µs, and Jim Butterfield's "A brief history of the IEC-bus" states that this was "5 to 6" times slower than planned. 5 times slower would point to a planned hold time of 4 µs, and 6 times slower might account for the software implementation will take an extra cycle here and there. The 6522 documentation doesn't seem to say anything about the minimum cycle time for the shift register, but the docs of the successor, the 6526 CIA, state a minimum clock of Phi0/4, i.e. a hold time of 4 µs.
+[^4]: It is not documented what the planned hold times were. The software implementation of the VIC-20 uses 20 µs, and Jim Butterfield's "A brief history of the IEC-bus" states that this was "5 to 6" times slower than planned. 5 times slower would point to a planned hold time of 4 µs, and 6 times slower might account for the software implementation taking an extra cycle here and there. The 6522 documentation doesn't seem to say anything about the minimum cycle time for the shift register, but the docs of the successor, the 6526 CIA, state a minimum clock of Phi0/4, i.e. a hold time of 4 µs.
 
 [^5]: [Garth Wilson](http://forum.6502.org/viewtopic.php?t=342#p2310) posted a workaround in December 2000.
 
-[^6]: In practice, the C64 CLK it for 42 ticks and the 1541 for 74 ticks, for example.
+[^6]: In practice, the C64 holds CLK for 42 ticks and the 1541 for 74 ticks, for example.
 
 
 
