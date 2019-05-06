@@ -282,20 +282,21 @@ Triggered by CLK being 0, the new sender pulls down CLK and releases DATA. Both 
 
 ### Errors
 
-* sender must pull CLK to show its presence
-	* otherwise "I don't actually have any data" error, i.e. FNF
-* receiver must pull DATA to show its presence
-	* either listener after the command
-	* or all devices during ATN
-	* if not within 256 µs, device not present
-* sender then releases CLK
-* receiver then releases DATA when it's actually ready
+As discussed earlier, the sender has to pull CLK and the receiver has to pull DATA at the beginning of a transmission. If either of these events does not happen, it is an error condition, which will be detected through a 256 µs timeout.
+
+* If the receiver does not exist, DATA will not get pulled. This is a "DEVICE NOT PRESENT" error.
+* If the sender does not exist, CLK will not get pulled. This is also a "DEVICE NOT PRESENT" error.
+* There is a special case where a sender does not have any data and decides not to pull CLK: To distinguish this from the "DEVICE NOT PRESENT" error, it may only do this when asked to send data from a [layer 3](https://www.pagetable.com/?p=1031) "named channel", since it already revealed its existence when accepting the creation of the channel. This is used for the "FILE NOT FOUND" case for Commodore drives on [layer 4](https://www.pagetable.com/?p=1038).
+
+---
 
 * sender delays for > 512 µs = timeout
 * no receiver pulls DATA within 1000 µs at the end of the byte = timeout
 * no device pulls DATA within 1000 µs after ATN – no devices present
 
 ### Timing
+
+* controller can use tighter timing, because no device is a C64 :/
 
 * transfering bytes
 	* C64 holds CLK it for 42 ticks only
