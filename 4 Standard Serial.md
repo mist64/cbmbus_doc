@@ -60,14 +60,6 @@ The challenge was to reduce the 16 data lines of IEEE-488 down to 5 within these
 
 One property they could not keep was the relaxed timing requirement of IEEE-488: At most points in an IEEE-488 communication, any participant can stall for any amount of time. This makes it easy to implement the protocol completely in software, without any hardware that would guarantee strict timings. Serial on the other hand was designed with a dedicated hardware shift register in mind.
 
-<!---
-XXX
-* overview, idea, motivation, features
-	* timing based on min/max delays, not strict implicit clock (like RS-232), can be implemented in software
-	* no way to do full asynchrounous (all handshake) with just 2 wires, timing requirements!
-	-> 3 wires total
---->
-
 ## Layer 1: Electrical
 
 ### Connectors and Pinout
