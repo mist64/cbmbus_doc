@@ -248,7 +248,11 @@ But there are also **command** transmissions, where one particiant can start a t
 
 Only so-called "controllers" may perform a command transmission, and on Commodore busses, there is always only one controller: the computer. All bus participants that are not controllers are called "devices".
 
-When the controller wants to send a command, it pulls the ATN ("Attention") line. All devices on the bus have to respond by pulling DATA ("ATN Response Timing") within 1000 µs, and participate in receiving the command byte stream.
+When the controller wants to send a command, it pulls the ATN ("Attention") line at any time. It can even do this in the middle of a byte transmission. It then pulls CLK and releases DATA, because it is now the sender.
+
+All devices on the bus have to respond to ATN by pulling DATA ("ATN Response Timing") within 1000 µs,  and also eventually release CLK, because they are now receivers. Devices usually implement this in hardware by automatically answering ATN=1 with DATA=1, so that they can participate in receiving the command even when the CPU is busy and cannot be interrupted.
+
+All devices then have to participate in receiving the command byte stream, but as in any transmission, any device can stall after step 1, signaling that it is not yet ready for data.
 
 The controller sends the command data like any other transmission, and releases ATN afterwards. It does not signal EOI during the transmission of the last byte, since the release of ATN signals the end of the stream already.
 
@@ -333,9 +337,6 @@ As discussed earlier, the sender has to pull CLK and the receiver has to pull DA
 * ATN	
 		* XXX ATN in the middle of a byte transmission?
 
-* TALK/LISTEN level differences
-	* file not found detection
-		* when drive becomes talker, it causes a "sender doesn't actually have any data" timeout
 
 ### Next Up
 
