@@ -298,49 +298,54 @@ XXX step 4, sender delays for > 512 µs = timeout
 
 ### Timing
 
-* original Shift Register plan
-	* relaxed timings between bytes, opportunities to stall
-		* receiver must be able to measure 200 µs reliably
-		* receiver must be able to ack byte within 1000 µs
-	* tight timing when transfering the bits, but done in hardware
-	* CLK toggles every 4 µs, so one bit per 8 µs, one byte in 64 µs
-* VIA buggy, implementation in SW
-	* 4 µs became 20 µs
-	* ready to receive means being able to make the timing for the whole byte
-	* receivers can stall between bytes, but not within a byte
-	* receiver must be able to accept bit within 60 µs
-* C64:
-	* 20 µs became 60 µs
-	* exceptions: C64 can use tighter timing when talking to devices
-		* C64 holds CLK it for 42 ticks only
-		* 1541 holds CLK for 74 ticks -> $E976
+#### Original Design
 
-### Comments
-	* bug?
-		* after a byte, all receivers have to pull DATA within 1000 µs
-		* receiver B does it after almost 1000 µs
-		* receiver A does it immediately
-		* sender has to wait T(BB) = 100 µs, then releases CLK
-		* 900 µs to go until B wakes up = almost 8 bit
-		* receiver A releases DATA immediately
-		* sender pulls CLK, waits 60 µs, puts bit onto DATA, releases CLK
-		* BOOM
-		* receiver B pulls data, destroys communication
-		* solution: 1000 µs -> 100 µs.
-		* but: one-to-many practically never used
-		
-		
-	* data valid window		
-		* it's impossible to ack every bit with just two wires in order to make the protocol completely timing independent
-		* why use the clock at all, if we have strict timing requirements? we could just as well have "data valid" windows (Jiffy does this, and uses CLK for data as well)
-		* they were probably hoping they could spped it up, keeping the same protocol later
+The design goal of Standard Serial was that its speed would be comparable to IEEE-488. Byte transmission was supposed to be handled by a dedicated shift register, so that the CPU would perform the byte handshake, but the individual bits would be transfered automatically by the hardware. The VIC-20 and the 1540 disk drive, the first devices with the Standard Serial bus, each contained a 6522 VIA I/O controller that supported automatic serial transmission. The hold times for CLK=0 and CLK=1 were 4 µs each[^4], so a byte could be transfered in 8 µs. This would result in theoretical transmission speeds above 10 KB/sec.
 
+The timing of the CPU-side of the original protocol was very relaxed. Timeouts were on the order of hundreds of µs.
+
+#### VIC-20
+
+Unfortunately, the Commodore engineers did not account for a bug in the 6522 shift register that was already documented[^5] by the time the Serial Bus was designed. In the last minute, they increased the hold times to 20 µs, which allowed them to implement the otherwise unchanged protocol in software both in the VIC-20 and the 1540. This reduced the theoretical throughput to 2 KB/sec.
+
+The fact that it was now a pure software protocol also changed the quality of the timing constraints: While the protocol was originally designed to allow any participant to stall in most states, and to only require relatively relaxed timing, the critical byte transmission window now requires the CPU to commit to being undisturbed for 20 µs × 2 × 8 = 320 µs.
+
+#### C64
+
+The system architecture of the Commodore 64, which was the successor to the VIC-20, had the video chip halt the CPU for about 40 µs every ~500 µs, which would make it likely for the CPU to miss the 20 µs window in which a bit was valid. The Commodore engineers decided not to turn off the display during Serial Bus operations (to disable video DMA), as it is done for tape access.
+
+In theory, it would be possible to fit the 320 µs to transmit a byte within the predictable 500 µs window between DMAs, but it is the sender that decides when to start the transmission of a byte and controls the actual transmission speed.
+
+So the specification of the protocol was _changed_ to increase the hold time by 40 µs, to 60 µs – but only in some cases: It was acknowledged that computers like the C64 might need more time to see a bit on the bus, but devices were still required to make the 20 µs window. Therefore, all devices use 60 µs hold times when sending data, but controllers can use 20 µs[^6].
+
+So in practice, the Serial Bus implementation in the system software of the VIC-20 was still standards compliant. The 1540 disk drive was updated as the 1541 with the new (slower) timing, but an option to change the bus speed to VIC-20 mode ([Commodore DOS](https://www.pagetable.com/?p=1038) command "`UI-`").
 
 ### SRQ
 
 There is one more data line specified that hasn't been covered yet: The SRQ ("Service Request") line. In the IEEE-488 protocol, SRQ is basically an interrupt line that allows any device to signal the controller that it would like its attention. The controller would then use [layer 3](https://www.pagetable.com/?p=1031) commands to find out which device sent the request and handle it accordingly. The PET has the line connected and makes it available to software, but the KERNAL driver does not support it, and no Commodore devices make use of it. The Serial Bus inherited the SRQ line, but again, while it is connected and accessible by software (VIC-20, C64), neither the KERNAL nor any devices support it. On the Plus/4, the line is no longer connected to anything.
 
 On the C128, the wire was reused in an unrelated way for the Fast Serial protocol.
+
+### Discussion
+
+While the open collector property of CLK and DATA allows several devices to signal their state over a single wire, the bus is nevertheless severley constrained in terms of wires. While the parallel IEEE-488 bus had practically no timing requirements, the serial version requires strict timing in most states.
+
+#### Between Bytes Bug
+
+There is one bug in the specification that is caused by this property. After all bits of a byte have been sent, all receivers are required to pull DATA within 1000 µs to signal they are not ready for the next byte. All receivers share the same DATA line, and it will read back as soon as any receiver pulls it. So once the first receiver pulls it, the sender signal it is ready to send the next byte after a delay of 100 µs ("between bytes time"). It then waits for DATA to be 0 again, which can happen immediately once the same receiver releases it. Now, in the middle of the transmission of the byte, another receiver wakes up and pulls DATA, still within the legal 1000 µs, destroying the transmission.
+
+In the original IEEE-4888 protocol, there is the dedicated NRFD ("not ready for data") line that is pulled by all receivers before accepting the data, so all receivers have to release it until transmission can continue. On the Serial Bus, both the CLK and the DATA line are operated by the sender until the completion of the byte transmission, so there is no way for the receivers to communicate anything before that.
+
+The bug would be fixed by reducing the allowed time to pull DATA to 100 µs, the same as the "between bytes time". In practice, this is not an issue though, because one-to-many communcation is extremely rarely used, and because Serial Bus devices tend to respond within 100 µs anyway.
+
+
+#### Data Valid Window		
+		
+	* data valid window		
+		* it's impossible to ack every bit with just two wires in order to make the protocol completely timing independent
+		* why use the clock at all, if we have strict timing requirements? we could just as well have "data valid" windows (Jiffy does this, and uses CLK for data as well)
+		* they were probably hoping they could spped it up, keeping the same protocol later
+
 
 ### Next Up
 
@@ -361,3 +366,12 @@ XXX
 [^2]: The implementation file in the Commodore 64 KERNAL source is "`serial4.0`". The context of the version number is unknown, since no other versions have appeared. On the TED and the C128, the file is just called "`serial.src`".
 
 [^3]: IEEE-488 also signals this during the last byte, by pulling the dedicated EOI line to 1 while the data is valid.
+
+[^4]: It is nowhere documented what the planned hold times were. The software implementation of the VIC-20 uses 20 µs, and Jim Butterfield's "A brief history of the IEC-bus" states that this was "5 to 6" times slower than planned. 5 times slower would point to a planned hold time of 4 µs, and 6 times slower might account for the software implementation will take an extra cycle here and there. The 6522 documentation doesn't seem to say anything about the minimum cycle time for the shift register, but the docs of the successor, the 6526 CIA, state a minimum clock of Phi0/4, i.e. a hold time of 4 µs.
+
+[^5]: [Garth Wilson](http://forum.6502.org/viewtopic.php?t=342#p2310) posted a workaround in December 2000.
+
+[^6]: In practice, the C64 CLK it for 42 ticks and the 1541 for 74 ticks, for example.
+
+
+
