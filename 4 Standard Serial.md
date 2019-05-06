@@ -74,8 +74,6 @@ Since devices can be daisy-chained, most peripherals have two serial ports to co
 
 ![](docs/cbmbus/serial_port_1541-II.jpg =300x171)
 
-<!--- XXX pic two ports on a 1541 --->
-
 This is the pinout:
 
 | Pin | Signal | Description        |
@@ -174,15 +172,11 @@ From now on, the DATA line will be operated by the receivers again.
 
 #### 29: Receiver A is now busy again
 ![](docs/cbmbus/serial-30.png =601x131)
-Once all 8 bits have been transmitted, the receivers have to signal that they are busy, so that after accepting the data, the sender won't think the receivers are immediately ready for the next byte[^2b]. So now, the first receiver pulls DATA, so DATA is 1.
-
-XXX any listener must react within 1000 µs
+Once all 8 bits have been transmitted, the receivers have to signal within 1000 µs that they are busy, so that after accepting the data, the sender won't think the receivers are immediately ready for the next byte[^2b]. So now, the first receiver pulls DATA, so DATA is 1.
 
 #### 30: Receiver B is now busy
 ![](docs/cbmbus/serial-31.png =601x131)
-The other receiver also has to signal that it is busy by pulling DATA. The line was already 1 and will stay at 1. All wires are now in the initial state again. All steps are repeated as long as there is more data to be sent.
-
-XXX sender must wait 100 µs until releasing CLK
+The other receiver also has to signal that it is busy by pulling DATA. The line was already 1 and will stay at 1. All wires are now in the initial state again. After a minimum delay of 100 µs ("between bytes time"), the sender can start repeating the sequence as long as there is more data to be sent.
 
 Note that the protocol only specifies the triggers: For example, the receivers are to read the bit from DATA while CLK = 0, so it would be just as legal in step 7 for the the sender to hold CLK and release DATA in two steps (the 1541 does this, the C64 doesn't).
 
@@ -350,10 +344,8 @@ Part 5 of the series of articles on the Commodore Peripheral Bus family will cov
 
 ### References
 
-XXX
-
-* https://codebase64.org/doku.php?id=base:how_the_vic_64_serial_bus_works
-* http://www.zimmers.net/anonftp/pub/cbm/programming/serial-bus.pdf
+* [How The VIC/64 Serial Bus Works](https://codebase64.org/doku.php?id=base:how_the_vic_64_serial_bus_works) by Jim Butterfield
+* [IEC disected](http://www.zimmers.net/anonftp/pub/cbm/programming/serial-bus.pdf) by J. Derogee
 
 
 [^1]: Related to, but not the same as, and often confused with "Burst Mode".
@@ -369,6 +361,3 @@ XXX
 [^5]: [Garth Wilson](http://forum.6502.org/viewtopic.php?t=342#p2310) posted a workaround in December 2000.
 
 [^6]: In practice, the C64 holds CLK for 42 ticks and the 1541 for 74 ticks, for example.
-
-
-
