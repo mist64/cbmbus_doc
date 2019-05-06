@@ -315,21 +315,32 @@ XXX step 4, sender delays for > 512 µs = timeout
 		* C64 holds CLK it for 42 ticks only
 		* 1541 holds CLK for 74 ticks -> $E976
 
-* comments:
-	* limitations
-		* transfer cannot start until all receivers are ready
-		* signaling buys after a byte is also basically an ACK
-			* any receiver can ACK
-			* no ACK means that all receivers died
-			* -> if one receiver is super fast and the other one is super slow, protocol may break?? TODO
-			* XXX fixed by timing requirements?
+### Comments
+	* bug?
+		* after a byte, all receivers have to pull DATA within 1000 µs
+		* receiver B does it after almost 1000 µs
+		* receiver A does it immediately
+		* sender has to wait T(BB) = 100 µs, then releases CLK
+		* 900 µs to go until B wakes up = almost 8 bit
+		* receiver A releases DATA immediately
+		* sender pulls CLK, waits 60 µs, puts bit onto DATA, releases CLK
+		* BOOM
+		* receiver B pulls data, destroys communication
+		* solution: 1000 µs -> 100 µs.
+		* but: one-to-many practically never used
+		
+		
+	* data valid window		
 		* it's impossible to ack every bit with just two wires in order to make the protocol completely timing independent
-	* why use the clock at all, if we have strict timing requirements? we could just as well have "data valid" windows (Jiffy does this, and uses CLK for data as well)
+		* why use the clock at all, if we have strict timing requirements? we could just as well have "data valid" windows (Jiffy does this, and uses CLK for data as well)
+		* they were probably hoping they could spped it up, keeping the same protocol later
 
-* ATN	
-		* XXX ATN in the middle of a byte transmission?
 
 ### SRQ
+
+There is one more data line specified that hasn't been covered yet: The SRQ ("Service Request") line. In the IEEE-488 protocol, SRQ is basically an interrupt line that allows any device to signal the controller that it would like its attention. The controller would then use [layer 3](https://www.pagetable.com/?p=1031) commands to find out which device sent the request and handle it accordingly. The PET has the line connected and makes it available to software, but the KERNAL driver does not support it, and no Commodore devices make use of it. The Serial Bus inherited the SRQ line, but again, while it is connected and accessible by software (VIC-20, C64), neither the KERNAL nor any devices support it. On the Plus/4, the line is no longer connected to anything.
+
+On the C128, the wire was reused in an unrelated way for the Fast Serial protocol.
 
 ### Next Up
 
