@@ -200,7 +200,7 @@ Also, there is no ordering on which receiver pulls or releases its line first. T
 
 ### End of Stream
 
-If there is no more data to be transmitted, the sequence stops at step 30 (which is the same as step 0). In this step, there is no way for the sender to signal the end of the stream, because it only controls one bit (0 = ready to send the next byte, 1 = it has more data but is not ready to send yet). Therefore, the sender already signals this during the transmission of the last byte. The number of wires for carrrying information are still limited, but it can do it through a timing sidechannel[^3].
+If there is no more data to be transmitted, the sequence stops at step 30 (which is the same as step 0). In this step, there is no way for the sender to signal the end of the stream, because it only controls one bit (0 = ready to send the next byte, 1 = it has more data but is not ready to send yet). Therefore, the sender already signals this during the transmission of the last byte. The number of wires for carrrying information are still limited, but it can do it through a timing sidechannel[^3]. (Consistent with IEEE-488, this event is called "EOI", "End Or Identify".)
 
 #### 3a: Sender delays for 256 µs to signal EOI
 ![](docs/cbmbus/serial-32.png =601x131)
@@ -292,36 +292,28 @@ As discussed earlier, the sender has to pull CLK and the receiver has to pull DA
 * If the sender does not exist, CLK will not get pulled. This is also a "DEVICE NOT PRESENT" error.
 * There is a special case where a sender does not have any data and decides not to pull CLK: To distinguish this from the "DEVICE NOT PRESENT" error, it may only do this when asked to send data from a [layer 3](https://www.pagetable.com/?p=1031) "named channel", since it already revealed its existence when accepting the creation of the channel. This is used for the "FILE NOT FOUND" case for Commodore drives on [layer 4](https://www.pagetable.com/?p=1038).
 
----
+XXX frame error: no receiver pulls DATA within 1000 µs at the end of the byte = timeout
 
-* sender delays for > 512 µs = timeout
-* no receiver pulls DATA within 1000 µs at the end of the byte = timeout
-* no device pulls DATA within 1000 µs after ATN – no devices present
+XXX step 4, sender delays for > 512 µs = timeout
 
 ### Timing
 
-* controller can use tighter timing, because no device is a C64 :/
-
-* transfering bytes
-	* C64 holds CLK it for 42 ticks only
-	* 1541 holds CLK for 74 ticks -> $E976
-
-* byte ack
-	* receiver pulls DATA within 1000 µs (any receiver!) = byte received OK
-
-
-* Timing
+* original Shift Register plan
+	* relaxed timings between bytes, opportunities to stall
+		* receiver must be able to measure 200 µs reliably
+		* receiver must be able to ack byte within 1000 µs
+	* tight timing when transfering the bits, but done in hardware
+	* CLK toggles every 4 µs, so one bit per 8 µs, one byte in 64 µs
+* VIA buggy, implementation in SW
+	* 4 µs became 20 µs
 	* ready to receive means being able to make the timing for the whole byte
 	* receivers can stall between bytes, but not within a byte
-	* receiver must be able to measure 200 µs reliably
 	* receiver must be able to accept bit within 60 µs
-	* receiver must be able to ack byte within 1000 µs
-	* TODO ...
-	* TODO otherwise...?
-* sender doesn't actually have any data
-	* will release clock and do nothing
-	* receiver first thinks it's EOI, but it takes even longer
-	* receiver times out
+* C64:
+	* 20 µs became 60 µs
+	* exceptions: C64 can use tighter timing when talking to devices
+		* C64 holds CLK it for 42 ticks only
+		* 1541 holds CLK for 74 ticks -> $E976
 
 * comments:
 	* limitations
@@ -337,6 +329,7 @@ As discussed earlier, the sender has to pull CLK and the receiver has to pull DA
 * ATN	
 		* XXX ATN in the middle of a byte transmission?
 
+### SRQ
 
 ### Next Up
 
