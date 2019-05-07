@@ -141,7 +141,7 @@ Whenever the other receiver is ready to receive the next byte, it will also rele
 
 During the actual transmission of the data, both CLK and DATA are now operated by the sender.
 
-#### 4: Data is not valid
+#### 4: Data is not valid – hold for 60 µs
 ![](docs/cbmbus/serial-05.png =601x131)
 For the transmission of the bits, the CLK line will indicate whether the data on the DATA line is valid. So for the initial state, the sender pulls CLK, indicating that data is not valid.
 
@@ -157,7 +157,7 @@ After that, the sender releases CLK, signaling that the data bit in DATA is vali
 
 There is no way for the receivers to signal "data accepted" for the bit. The sender must hold this state for at least 60 µs, and receivers must be able to accept the bit within this time.
 
-#### 7: Data is not valid
+#### 7: Data is not valid – hold for 60 µs
 ![](docs/cbmbus/serial-08.png =601x131)
 After the 60 µs, the sender pulls CLK again to signal that the data is not valid, and releases the DATA line.
 
@@ -370,4 +370,4 @@ Part 5 of the series of articles on the Commodore Peripheral Bus family will cov
 
 [^5]: [Garth Wilson](http://forum.6502.org/viewtopic.php?t=342#p2310) posted a workaround in December 2000.
 
-[^6]: In practice, the C64 holds CLK for 42 ticks and the 1541 for 74 ticks, for example.
+[^6]: In practice, the C64 holds CLK for 42 µs and the 1541 for 74 µs, for example.
