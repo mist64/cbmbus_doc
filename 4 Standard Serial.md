@@ -222,7 +222,19 @@ After the sender has signaled EOI, it will wait for the DATA line to become 1, a
 
 ![](docs/cbmbus/serial.png =601x301)
 
-As a side effect of this, the Serial protocol does not allow empty streams - they would have to be at least one byte long.
+### Empty Stream
+
+With EOI being signaled during the transmission of the last byte of a stream, this method does not allow empty streams.
+
+There is a separate mechanism for this case, also using timing: At step 3 of what would be the transmission of the first byte, the sender just completely stops, and leaves both DATA and CLK released.
+
+Based on the time the transition from step 3 to step 4 takes, one of three different events is signaled:
+
+* 0-256 µs: The following byte is not the last one in the stream.
+* 256-512 µs: The following byte is the last one in the stream.
+* 512+ µs: The stream is empty, the receiver will not transmit anything.
+
+The empty stream case is equivalent to the IEEE-488 sender timeout, which is also what it is called in the Standard Serial specification. [Commodore DOS (layer 4)](https://www.pagetable.com/?p=1038) interprets an empty stream as a "FILE NOT FOUND" condition.
 
 ### Sending Commands
 
@@ -272,15 +284,15 @@ Triggered by CLK being 0, the new sender pulls down CLK and releases DATA. Both 
 
 ### Errors
 
-As discussed earlier, the sender has to pull CLK and the receiver has to pull DATA at the beginning of a transmission. If either of these events does not happen, it is an error condition, which will be detected through a 256 µs timeout.
+There are several possible error conditions:
 
-* If the receiver does not exist, DATA will not get pulled. This is a "DEVICE NOT PRESENT" error.
-* If the sender does not exist, CLK will not get pulled. This is also a "DEVICE NOT PRESENT" error.
-* There is a special case where a sender does not have any data and decides not to pull CLK: To distinguish this from the "DEVICE NOT PRESENT" error, it may only do this when asked to send data from a [layer 3](https://www.pagetable.com/?p=1031) "named channel", since it already revealed its existence when accepting the creation of the channel. This is used for the "FILE NOT FOUND" case for Commodore drives on [layer 4](https://www.pagetable.com/?p=1038).
+* If at the beginning of a transmission, none of the receivers exist, DATA will not get pulled. After a timeout of 256 µs, this will cause a "DEVICE NOT PRESENT" error. This also applies to the transmission of a command: All devices are required to pull DATA in this case, and if DATA remains at 0, it means that there no devices connected at all.
 
-XXX frame error: no receiver pulls DATA within 1000 µs at the end of the byte = timeout
+* There is no way to detect whether the sender exists. When a device is told to send, there are no specified timing requirements about when it has to pull the CLK line.
 
-XXX step 4, sender delays for > 512 µs = timeout
+* If no receiver pulls DATA within 1000 µs at the end of the transmission of a byte (after step 28), a receiver timeout is raised.
+
+* If the sender does not pull CLK within 512 µs after step 3, a sender timeout is raised. The sender hits this timeout on purpose to signal an empty stream.
 
 ### Timing
 
@@ -300,7 +312,7 @@ The fact that it was now a pure software protocol also changed the quality of th
 
 #### C64
 
-While the Commodore 64, which was the successor to the VIC-20, contained a 6526 CIA I/O controller that had a working shift register, Commodore did not enable it for hardware-supported byte transfers, since the accompanying disk drive, the 1541, was not planned to be updated from the buggy 6522 VIA.
+The Commodore 64, which was the successor to the VIC-20, contained a 6526 CIA I/O controller that had a working shift register, but Commodore did not enable it for hardware-supported byte transfers, since the accompanying disk drive, the 1541, was not planned to be updated from the buggy 6522 VIA.
 
 To make matter worse, the system architecture of the C64 had the video chip halt the CPU for about 40 µs every ~500 µs, which would make it likely for the CPU to miss the 20 µs window in which a bit was valid. The Commodore engineers decided not to turn off the display during Serial Bus operations (to disable video DMA), as it is done for tape access.
 
@@ -312,7 +324,7 @@ In practice, the Serial Bus implementation in the system software of the VIC-20 
 
 ### SRQ
 
-There is one more data line specified that hasn't been covered yet: The SRQ ("Service Request") line. In the IEEE-488 protocol, SRQ is basically an interrupt line that allows any device to signal the controller that it would like its attention. The controller would then use [layer 3](https://www.pagetable.com/?p=1031) commands to find out which device sent the request and handle it accordingly. The PET has the line connected and makes it available to software, but the KERNAL driver does not support it, and no Commodore devices make use of it. The Serial Bus inherited the SRQ line, but again, while it is connected and accessible by software (VIC-20, C64), neither the KERNAL nor any devices support it. On the Plus/4, the line is no longer connected to anything.
+There is one more data wire in the cable: The SRQ ("Service Request") line. In the IEEE-488 protocol, SRQ is basically an interrupt line that allows any device to signal the controller that it would like its attention. The controller would then use [layer 3](https://www.pagetable.com/?p=1031) commands to find out which device sent the request and handle it accordingly. The PET has the line connected and makes it available to software, but the KERNAL driver does not support it, and no Commodore devices make use of it. The Serial Bus inherited the SRQ line, but again, while it is connected and accessible by software (VIC-20, C64), neither the KERNAL nor any devices support it. On the Plus/4, the line is no longer connected to anything.
 
 On the C128, the wire was reused in an unrelated way for the Fast Serial protocol.
 
