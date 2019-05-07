@@ -186,7 +186,7 @@ Also, there is no ordering on which receiver pulls or releases its line first. T
 
 If there is no more data to be transmitted, the sequence stops at step 30 (which is the same state as step 0). In this step, there is no way for the sender to signal the end of the stream, because it only controls one bit (0 = ready to send the next byte, 1 = it has more data but is not ready to send yet). Therefore, the sender already signals this during the transmission of the last byte. The number of wires for carrying information is still limited, but it can do it through a timing sidechannel[^3]. (Consistent with IEEE-488, this event is called "EOI", "End Or Identify".)
 
-#### 3a: Sender delays for 256 µs to signal EOI
+#### 3: Sender delays for 256 µs to signal EOI
 ![](docs/cbmbus/serial-32.png =601x131)
 To indicate the end of the stream, the sender delays step 4 by at least 200 µs. That is, after the sender has signaled that it has more data available (CLK = 0), and after all receivers have signaled that they are ready for data (DATA = 0), the sender doesn't immediately pull the CLK line to start transmission.
 
@@ -205,8 +205,6 @@ do this by holding the DATA line for at least 60 µs.
 ![](docs/cbmbus/serial-35.png =601x131)
 
 The other receiver also has to hold the DATA line for 60 µs.
-
-XXX what if only one does it?
 
 #### 4c: A has finished acknowledging EOI
 ![](docs/cbmbus/serial-36.png =601x131)
