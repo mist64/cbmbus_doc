@@ -88,7 +88,7 @@ All commands are byte streams that are mostly ASCII, but with some binary argume
 
 There are two different ways to send them:
 
-They can be sent as a byte stream to channel 15, terminated an `EOI` or `UNLISTEN` event[^7]. The following BASIC code sends the command "`I`" to drive 8 this way:
+They can be sent as a byte stream to channel 15, terminated by an `EOI` or `UNLISTEN` event[^7]. The following BASIC code sends the command "`I`" to drive 8 this way:
 
     OPEN 1,8,15
     PRINT#1, "I";
@@ -107,7 +107,7 @@ In both cases, commands that don't contain binary arguments can also be terminat
 
 #### Status
 
-The status information that is sent from channel 15 is a `CR`-delimited ASCII-encoded string with a uniform encoding:
+The status information that is sent from channel 15 is a `CR`-delimited[^A] ASCII-encoded string with a uniform encoding:
 
 _code_`,`_string_`,`_a_`,`_b_[`,`_c_]
 
@@ -120,7 +120,7 @@ A status code of 0 will return the string "`00, OK,00,00`" (or "`00, OK,00,00,0`
 
 Reading the status will clear it. So if the user keeps on reading the status channel, the device will keep sending "`00, OK,00,00`" messages.
 
-The following BASIC program will read a single status message:
+The following BASIC program will read a single status message[^B]:
 
 	10 OPEN 1,8,15
 	20 GET#1,A$: PRINT A$;: IF A$<>CHR$(13) GOTO 20
@@ -240,10 +240,10 @@ Relative files do not have to be closed for the data on disk to be consistent.
 
 #### Channels 0 and 1
 
-While channels 2 through 14 can be used to open any kind of file in any mode, channels 0 and 1 are shortcuts that hardcode type and mode:
+While channels 2 through 14 can be used to open a file in any mode, channels 0 and 1 are shortcuts that force the mode and set a default type of `PRG`:
 
-* Channel 0 is the `LOAD` channel: It forces a type of `PRG` and an access mode of "read".
-* Channel 1 is the `SAVE` channel: It forces a type of `PRG` and an access mode of "write".
+* Channel 0 is the `LOAD` channel: It forces an access mode of "read".
+* Channel 1 is the `SAVE` channel: It forces an access mode of "write".
 
 ### Directory Listing
 
@@ -452,8 +452,12 @@ The arguments are binary-encoded bytes.
 | Name           | Syntax                                                | Description                     |
 |----------------|-------------------------------------------------------|---------------------------------|
 | MEMORY-WRITE   | `M-W` _addr_lo_ _addr_hi_ _count_ _data_              | Write RAM                       |
-| MEMORY-READ    | `M-R` _addr_lo_ _addr_hi_ _count_                     | Read RAM                        |
+| MEMORY-READ    | `M-R` _addr_lo_ _addr_hi_ [_count_]                   | Read RAM                        |
 | MEMORY-EXECUTE | `M-E` _addr_lo_ _addr_hi_                             | Execute code                    |
+
+The `M-W` is subject to the same length restrictions as any command, so on most devices, it is limitied to writing 34 bytes at a time.
+
+The count parameter of the `M-R` command is optional. If it is ommitted, a count of 1 is assumed.[^C]
 
 `M-R` and `M-W` allow accessing the operating system's internal data structures, for example. The combination of `M-W` and `M-E` can be used to upload code from the computer and execute it. In case the drive's operating system does not completely get taken over, it is advisable to allocate a specific buffer before uploading code, so that the operating system won't overwrite the new code.
 
@@ -726,3 +730,9 @@ Part 4 of the series of articles on the Commodore Peripheral Bus family will cov
 [^98]: The SFD-1001 and the 8250 are double-sided drives that can read and write single-sided disks (formatted by a 8050), but formatting a disk only supports double-sided mode. The same is true for the 1571 in native mode, which can read and write single-sided 1541 disks, but will always format double-sided disks – although the 1571 can format single-sided disks while in 1541 emulation mode.
 
 [^99]: The CMD RAMLink comes with an extra 64 KB of buffer RAM that can be read and written (to emulate the 1541/1571/1581 job queue), but the DOS runs on the computer's CPU, so executing code on the device is not supported.
+
+[^A]: In addition, devices signal EOI during the transmission of the `CR` character.
+
+[^B]: Instead of checking for `CR`, it is also possible to loop until the EOI condition: `20 GET#1,A$: PRINT A$;: IF ST<>64 GOTO 20`
+
+[^C]: The `M-R` command [has a bug](https://www.pagetable.com/?p=1038#comment-642594) on some devices: With one `M-R` command, you cannot cross a page boundary! That is, reading $20 from something like $03F0 will not succeed. That because the ROM functions for handling buffers always assume that a buffer does not cross a page boundary, so they do not take the high byte into account at all. But for `M-R`, this assumption is only true if the user knows about this restriction and makes sure he will never violate it.

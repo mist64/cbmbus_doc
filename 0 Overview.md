@@ -38,7 +38,7 @@ This part covers layers 1 (electrical) and 2 (byte transfer) of IEEE-488, an 8-b
 This part talks about layer 3 (TALK/LISTEN), which is shared between all bus variants.
 * **[Part 3: The Commodore DOS Layer](https://www.pagetable.com/?p=1038)**
 This part describes layer 4 (Commodore DOS), which is shared between all bus variants.
-* **Part 4: Standard Serial** (IEC) [VIC-20, C64; 1981] *(coming soon)*
+* **[Part 4: Standard Serial (IEC)](https://www.pagetable.com/?p=1135)** [VIC-20, C64; 1981]
 The VIC-20 introduced a serial version of layers 1 and 2 with one clock and one data line for serial data transmission, and an ATN line for bus arbitration. It has some strict timing requirements. This bus is supported by all members of the home computer line: VIC-20, C64, Plus/4 Series, C128 and C65.
 * **Part 5: TCBM** [C16, C116, Plus/4; 1984] *(coming soon)*
 The Plus/4 Series introduced a 1-to-1 bus between the computer and one drive, with 8 bit parallel data, two handshake lines, and two status lines from the drive to the computer. It was the short-lived planned successor of the Standard Serial bus, but was then replaced by Fast Serial.
