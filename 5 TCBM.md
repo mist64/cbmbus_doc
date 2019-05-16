@@ -39,6 +39,7 @@
 		* TALK/LISTEN will set bit #6/#7 in $F9 to indicate TALKER/LISTENER is TCBM
 		* reset of bits #6/#7 on UNTALK/UNLISTEN
 	* otherwise, uses serial IEC
+	* if drive has no power, detection fails – how?
 * byte output
 	* initial state
 		* PA = $00
@@ -73,7 +74,7 @@
 
 * discussion
 	* C264 series had super low cost C116: rubber keyboard, 16 KB, target price $49, only sold in Europe (100 DM, 99 GBP, which was about $75)
-	* Plus/4 was pro, had additional ACIA chip
+	* Plus/4 was pro, had additional ACIA chip, user port, 64 KB
 	* Plus/4 could have had a TIA for IEEE-488 or similar
 	* C16/C116 would have required a cartridge to support the fast drive
 		* but why would you connect a fast drive to a C16/C116?
