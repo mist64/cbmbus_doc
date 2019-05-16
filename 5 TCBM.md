@@ -33,7 +33,10 @@ The naming for the new TED bus is not completely consistent:
 
 ## History and Development
 
-The Commodore PET (1977) was using the industry-standard 8-bit parallel [IEEE-488 bus](https://www.pagetable.com/?p=1023) for disk drives and printers. For the VIC-20 (1981), they changed layers 1 and 2 of the protocol stack (electrical and byte transfer) into a cheaper [serial bus](https://www.pagetable.com/?p=1135), which turned out to have severe speed problems[^3]. For the TED series (1984), Commodore decided to create a new, low-cost parallel port for layers 1 and 2.
+The Commodore PET (1977) was using the industry-standard 8-bit parallel [IEEE-488 bus](https://www.pagetable.com/?p=1023) for disk drives and printers. For the VIC-20 (1981), they changed layers 1 and 2 of the protocol stack (electrical and byte transfer) into a cheaper [serial bus](https://www.pagetable.com/?p=1135), which turned out to have severe speed problems[^3].
+
+So for the TED series (1984), Commodore decided to create another variant of the protocol stack, replacing layers 1 and 2 again. The new bus was supposed to combine the speed of the IEEE-488 bus with the low cost of the serial bus.
+
 
 While the switch from parallel IEEE-488 to serial allowed the protocol stack to retain all key properties of the original design, TCBM drops some of these features:
 
@@ -51,32 +54,57 @@ The key difference is that the TCBM bus is point-to-point:
 * For multiple devices, one dedicated bus has to exist to each device.
 * Multiple busses are completely separate.
 
+TCBM only allows the primary addresses 8 and 9, practically limiting the bus to (disk) drives. This also limits the number of busses to two: One for drive 8, and one for dreive 9.
+
 A device still has multiple channels, and all data transmission is still byte stream based, because these are properties of the layers 3 and 4, which are retained in TCBM.
 
----
+TCBM has 8 data wires, but reduces the IEEE-488 signal wire count by three. (XXX REN doesn't count.)
 
-* history
-	* Commodore 1984
-	* only used in the 264 series (C16, C116, Plus/4)
+| IEEE-488 Signal | Description        | Serial Signal | TCBM   |
+|-----------------|--------------------|---------------|--------|
+| DIO1-8          | Data I/O           | DATA, CLK     | DIO1-8 |
+| EOI             | End Or Identify    | (timing)      | XXX    |
+| DAV             | Data Valid         | (CLK)         | DAV    |
+| NRFD            | Not Ready For Data | (DATA)        | XXX    |
+| NDAC            | No Data Accepted   | (timing)      | ACK    |
+| IFC             | Interface Clear    | RESET         | RESET  |
+| SRQ             | Service Request    | SRQ           | -      |
+| ATN             | Attention          | ATN           | (DIO)  |
+| REN             | Remote Enable      | -             | -      |
+
+XXX TODO
+
+## Layer 1: Electrical
+
+### Connectors and Pinout
+
 * 17 pin header
-	*  1  GND
-	*  2  DEV
-	*  3  pa0
-	*  4  pa1
-	*  5  pa2
-	*  6  pa3
-	*  7  pa4
-	*  8  pa5
-	*  9  pa6
-	* 10  pa7
-	* 11  DAV: data available
-	* 12  ST0: status0
-	* 13  ACK
-	* 14  ST1: status1
-	* 15  RESET
-	* 16  GND
-	* 17  GND
-* Point-to-point, two TCBM drives talk can't to each other
+
+| Pin | Signal  | Description |
+|-----|---------|-------------|
+|  1  | GND     | Ground      |
+|  2  | DEV     | Device 0/1  |
+|  3  | DIO1    | Data I/O    |
+|  4  | DIO2    | Data I/O    |
+|  5  | DIO3    | Data I/O    |
+|  6  | DIO4    | Data I/O    |
+|  7  | DIO5    | Data I/O    |
+|  8  | DIO6    | Data I/O    |
+|  9  | DIO7    | Data I/O    |
+| 10  | DIO8    | Data I/O    |
+| 11  | DAV     | Data Valid  |
+| 12  | STATUS0 | Status 0    |
+| 13  | ACK     | Acknowledge |
+| 14  | STATUS1 | Status 1    |
+| 15  | RESET   | Reset       |
+| 16  | GND     | Ground      |
+| 17  | GND     | Ground      |
+
+* There are 8 data lines, DIO1-8[^4].
+* 
+
+----
+
 * computer didn't have the port, I/O chip ("controller card") came with drive
 * two drives means two I/O chips, i.e. two busses
 * 264 series had up to three IEC-like busses, one serial IEC, and up to two TCBM (8 and 9)
@@ -165,3 +193,5 @@ A device still has multiple channels, and all data transmission is still byte st
 [^2]: These computers are also often referenced as the "264 series", since originally three machines with the names C232, C264 and C364 were planned.
 
 [^3]: A hardware defect in the VIC-20 required a significant slowdown of the bus timing. More information in the [article about the serial bus](https://www.pagetable.com/?p=1135).
+
+[^4]: The 1551 schematics call these pins PA0-PA7, after port A of the MOS 6523 I/O controller it is connected to.
