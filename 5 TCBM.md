@@ -28,7 +28,7 @@ The only computers with a TCBM bus are the Commodore C16, C116 and Plus/4. Inter
 The naming for the new TED bus is not completely consistent:
 
 * The [manual](http://www.zimmers.net/anonftp/pub/cbm/manuals/drives/1551_Disk_Drive_Users_Guide.pdf) and the [schematics](http://www.zimmers.net/anonftp/pub/cbm/schematics/drives/new/1551/251860.gif) of the 1551 disk drive call it **TCBM**. The "T" probably stands for "TED", and "CBM" is the common abbreviation of "Commodore Business Machines".
-* Comments in the [KERNAL driver code](https://github.com/mist64/cbmsrc/tree/master/KERNAL_TED_05) call it **TEDISK**. Other places call it the "Kennedy" interface, which seems to be a reference to [Ted Kennedy](https://en.wikipedia.org/wiki/Ted_Kennedy).
+* Comments in the [KERNAL driver code](https://github.com/mist64/cbmsrc/tree/master/KERNAL_TED_05) call it **TEDISK**. Other places call it the "Kennedy" ("KDY") interface, which seems to be a reference to [Ted Kennedy](https://en.wikipedia.org/wiki/Ted_Kennedy).
 * The 1551 power-on message contains the string **TDISK**.
 
 ## History and Development
@@ -54,7 +54,7 @@ The key difference is that the TCBM bus is point-to-point:
 * For multiple devices, one dedicated bus has to exist to each device.
 * Multiple busses are completely separate.
 
-TCBM only allows the primary addresses 8 and 9, practically limiting the bus to (disk) drives. This also limits the number of busses to two: One for drive 8, and one for dreive 9.
+TCBM only allows the primary addresses 8 and 9, practically limiting the bus to (disk) drives. This also limits the number of busses to two: One for drive 8, and one for drive 9.
 
 A device still has multiple channels, and all data transmission is still byte stream based, because these are properties of the layers 3 and 4, which are retained in TCBM.
 
@@ -101,13 +101,18 @@ XXX TODO
 | 17  | GND     | Ground      |
 
 * There are 8 data lines, DIO1-8[^4].
-* 
+* XXX
+
 
 ----
 
 * computer didn't have the port, I/O chip ("controller card") came with drive
 * two drives means two I/O chips, i.e. two busses
 * 264 series had up to three IEC-like busses, one serial IEC, and up to two TCBM (8 and 9)
+
+---
+
+
 * detection
 	* $EDA9
 	* on every TALK or LISTEN, if device 8 or 9
@@ -120,9 +125,24 @@ XXX TODO
 		* reset of bits #6/#7 on UNTALK/UNLISTEN
 	* otherwise, uses serial IEC
 	* if drive has no power, detection fails – how?
-* basics
-	* DAV and DIO owned by sender
-	* ACK and ST owned by receiver
+
+---
+
+## Layer 2: Byte Transfer
+
+XXX
+
+### Sending Bytes
+
+For the transmission of a byte stream, 12 wires are used. DAV is owned by the computer, ACK and the two ST lines are owned by the device. 
+
+
+
+DAV and the eight DIO lines are owned by the sender, and ACK and the two ST lines are owned by the receiver.
+
+* there is always a command, followed by a data byte
+
+
 	* ACK and DAV sometimes mean the opposite
 * byte output
 	* initial state
@@ -142,6 +162,7 @@ XXX TODO
 * byte input
 	* store $84 in PA
 	* wait for ACK (PC7) = 0
+	* store 0 in DRVA2
 	* set DAV (PC6) = 0
 	* wait for ACK (PC7) = 1
 	* read STATUS0/STATUS1 (PB0/PB1)
@@ -150,12 +171,23 @@ XXX TODO
 	* read PA
 	* set DAV (PC6) = 1
 	* wait for ACK (PC7) = 0
+	* store $FF in DRVA2
 	* store $00 in PA
 	* set DAV (PC6) = 0
+	* wait for ACK (PC7) = 1
+	* set DAV (PC6) = 1
 * TALK/LISTEN
 	* byte output with of $40/$20 with a $81 command
 * SECOND/TKSA
 	* byte output with of secondary address with a $82 command
+
+	kcmd1	=$81		;state change
+	kcmd2	=$82		;sec. addr
+	kcmd3	=$83		;dout
+	kcmd4	=$84		;din
+
+* how to signal EOI to the device?
+	* not necessary, UNLISTEN does this -> XXX?
 
 * discussion
 	* C264 series had super low cost C116: rubber keyboard, 16 KB, target price $49, only sold in Europe (100 DM, 99 GBP, which was about $75)
