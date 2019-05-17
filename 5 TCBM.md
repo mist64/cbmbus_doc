@@ -150,6 +150,7 @@ DAV and the eight DIO lines are owned by the sender, and ACK and the two ST line
 		* DAV (PC6) = 1
 		* ACK (PC7) = 1
 		* ST = 00
+		* DDRA is $FF
 	* store $83 into PA
 		* receiver detects MSB = 1
 	* wait for ACK (PC7) = 0
@@ -160,9 +161,10 @@ DAV and the eight DIO lines are owned by the sender, and ACK and the two ST line
 	* store $00 in PA
 	* set DAV (PC6) = 1
 * byte input
+	* initial state: same
 	* store $84 in PA
 	* wait for ACK (PC7) = 0
-	* store 0 in DRVA2
+	* set DDRA to $00 (data in)
 	* set DAV (PC6) = 0
 	* wait for ACK (PC7) = 1
 	* read STATUS0/STATUS1 (PB0/PB1)
@@ -171,7 +173,7 @@ DAV and the eight DIO lines are owned by the sender, and ACK and the two ST line
 	* read PA
 	* set DAV (PC6) = 1
 	* wait for ACK (PC7) = 0
-	* store $FF in DRVA2
+	* set DDRA to $FF (data out)
 	* store $00 in PA
 	* set DAV (PC6) = 0
 	* wait for ACK (PC7) = 1
