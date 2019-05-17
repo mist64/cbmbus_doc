@@ -1,6 +1,6 @@
 # Commodore Peripheral Bus: Part 5: TCBM
 
-In the [series about the variants of the Commodore Peripheral Bus family](https://www.pagetable.com/?p=1018), this article covers the lowest two layers (electrical and byte transfer) of the "TCBM" bus as found on the TED Series computers: the C16, C116 and the Plus/4.
+In the [series about the variants of the Commodore Peripheral Bus family](https://www.pagetable.com/?p=1018), this article covers the lowest two layers (electrical and byte transfer) of the "TCBM" bus as found on the TED series computers: the C16, C116 and the Plus/4.
 
 
 ![](docs/cbmbus/tcbm_layers.png =371x241)
@@ -23,19 +23,19 @@ In the [series about the variants of the Commodore Peripheral Bus family](https:
 
 ## Naming
 
-The only computers with a TCBM bus are the Commodore C16, C116 and Plus/4. Internally, Commodore called this the TED series, named after the core IC of the system[^1]. This name can be seen in multiple places in the [TED KERNAL and BASIC sources](https://github.com/mist64/cbmsrc). Many products around the TED series, like software cartridges, had product codes prefixed with "T".[^2]
+The only computers with a TCBM bus are the Commodore C16, C116 and Plus/4. Internally, Commodore called these the TED series, named after the core IC of the system[^1]. This name can be seen in multiple places in the [TED KERNAL and BASIC sources](https://github.com/mist64/cbmsrc) as well as [internal documentation](https://www.pagetable.com/?p=541). Many products around the TED series, like software cartridges, had product codes prefixed with "T".[^2]
 
-The naming for the new TED bus is not completely consistent:
+The naming for the new peripheral bus of the TED is not completely consistent:
 
-* The [manual](http://www.zimmers.net/anonftp/pub/cbm/manuals/drives/1551_Disk_Drive_Users_Guide.pdf) and the [schematics](http://www.zimmers.net/anonftp/pub/cbm/schematics/drives/new/1551/251860.gif) of the 1551 disk drive call it **TCBM**. The "T" probably stands for "TED", and "CBM" is the common abbreviation of "Commodore Business Machines".
-* Comments in the [KERNAL driver code](https://github.com/mist64/cbmsrc/tree/master/KERNAL_TED_05) call it **TEDISK**. Other places call it the "Kennedy" ("KDY") interface, which seems to be a reference to [Ted Kennedy](https://en.wikipedia.org/wiki/Ted_Kennedy).
-* The 1551 power-on message contains the string **TDISK**.
+* Comments in the [KERNAL driver code](https://github.com/mist64/cbmsrc/tree/master/KERNAL_TED_05) call it the **Kennedy** or **KDY** interface – a reference to [the politician](https://en.wikipedia.org/wiki/Ted_Kennedy). Some places call it **TEDISK**.
+* The 1551 power-on message is "CBM DOS 2.6 **TDISK**", which seems a variant of "TEDISK".
+* The [users manual](http://www.zimmers.net/anonftp/pub/cbm/manuals/drives/1551_Disk_Drive_Users_Guide.pdf) and the [schematics](http://www.zimmers.net/anonftp/pub/cbm/schematics/drives/new/1551/251860.gif) of the 1551 disk drive call it **TCBM**. "CBM" is the common abbreviation of "Commodore Business Machines", and the "T", as always, stands for "TED".
 
 ## History and Development
 
-The Commodore PET (1977) was using the industry-standard 8-bit parallel [IEEE-488 bus](https://www.pagetable.com/?p=1023) for disk drives and printers. For the VIC-20 (1981), they changed layers 1 and 2 of the protocol stack (electrical and byte transfer) into a cheaper [serial bus](https://www.pagetable.com/?p=1135), which turned out to have severe speed problems[^3].
+The Commodore PET (1977) was using the industry-standard 8-bit parallel [IEEE-488 bus](https://www.pagetable.com/?p=1023) for disk drives and printers. For the VIC-20 (1981), Commodore changed layers 1 and 2 of the protocol stack (electrical and byte transfer) into a cheaper [serial bus](https://www.pagetable.com/?p=1135), which turned out to have severe speed problems[^3].
 
-So for the TED series (1984), Commodore decided to create another variant of the protocol stack, replacing layers 1 and 2 again. The new bus was supposed to combine the speed of the IEEE-488 bus with the low cost of the serial bus.
+For the TED series (1984), Commodore decided to create another variant of the protocol stack, replacing layers 1 and 2 again. The new bus was supposed to combine the speed of the IEEE-488 bus with the low cost of the serial bus.
 
 
 While the switch from parallel IEEE-488 to serial allowed the protocol stack to retain all key properties of the original design, TCBM drops some of these features:
@@ -48,31 +48,32 @@ While the switch from parallel IEEE-488 to serial allowed the protocol stack to 
 | A device has **multiple channels** for different functions. | Yes | Yes | Yes |
 | Data transmission is **byte stream** based. | Yes | Yes | Yes |
 
+A device still has multiple channels, and all data transmission is still byte stream based, because these are properties of the layers 3 and 4, which are retained in TCBM.
+
 The key difference is that the TCBM bus is point-to-point:
 
-* The bus is between one computer and one device.
-* For multiple devices, one dedicated bus has to exist to each device.
+* The bus is between one controller (the computer) and one device.
+* For connecting multiple devices to one computer, the computer needs one dedicated bus per device.
 * Multiple busses are completely separate.
 
 TCBM only allows the primary addresses 8 and 9, practically limiting the bus to (disk) drives. This also limits the number of busses to two: One for drive 8, and one for drive 9.
 
 XXX the bus doesn't know about 8/9, only about 0/1 to signal, which *bus* it is...
 
-A device still has multiple channels, and all data transmission is still byte stream based, because these are properties of the layers 3 and 4, which are retained in TCBM.
 
 TCBM has 8 data wires, but reduces the IEEE-488 signal wire count by three. (XXX REN doesn't count.)
 
-| IEEE-488 Signal | Description        | Serial Signal | TCBM   |
-|-----------------|--------------------|---------------|--------|
-| DIO1-8          | Data I/O           | DATA, CLK     | DIO1-8 |
-| EOI             | End Or Identify    | (timing)      | XXX    |
-| DAV             | Data Valid         | (CLK)         | DAV    |
-| NRFD            | Not Ready For Data | (DATA)        | XXX    |
-| NDAC            | No Data Accepted   | (timing)      | ACK    |
-| IFC             | Interface Clear    | RESET         | RESET  |
-| SRQ             | Service Request    | SRQ           | -      |
-| ATN             | Attention          | ATN           | (DIO)  |
-| REN             | Remote Enable      | -             | -      |
+| IEEE-488 Signal | Description        | Serial Signal | TCBM Signal |
+|-----------------|--------------------|---------------|-------------|
+| DIO1-8          | Data I/O           | DATA, CLK     | DIO1-8      |
+| EOI             | End Or Identify    | (timing)      | XXX         |
+| DAV             | Data Valid         | (CLK)         | DAV         |
+| NRFD            | Not Ready For Data | (DATA)        | XXX         |
+| NDAC            | No Data Accepted   | (timing)      | ACK         |
+| IFC             | Interface Clear    | RESET         | RESET       |
+| SRQ             | Service Request    | SRQ           | -           |
+| ATN             | Attention          | ATN           | (DIO)       |
+| REN             | Remote Enable      | -             | -           |
 
 XXX TODO
 
@@ -259,6 +260,8 @@ Triggered by ACK being 1, the controller pulls DAV. All wires are now in the ini
 
 Note that the protocol only specifies the triggers: For example, the controller is to read the data from DIO once ACK = 1, so it would be just as legal for the the device to put the status before the data on the bus, or put both the status and the data on the bus and pull ACK at the same time.
 
+![](docs/cbmbus/tcbm-receive.gif =601x577)
+
 ### End of Stream
 
 ### Sending Commands
@@ -275,6 +278,11 @@ Note that the protocol only specifies the triggers: For example, the controller 
 
 * how to signal EOI to the device?
 	* not necessary, UNLISTEN does this -> XXX?
+
+* timing completely flexible, no timeouts
+
+* errors
+	* fnf etc over "timeout" codes
 
 * discussion
 	* C264 series had super low cost C116: rubber keyboard, 16 KB, target price $49, only sold in Europe (100 DM, 99 GBP, which was about $75)
@@ -298,14 +306,12 @@ Note that the protocol only specifies the triggers: For example, the controller 
 		* with multiple 1541, formatting one disk blocks the bus
 		* with two 1551 and one 1541, all three can format at the same time
 
-![](docs/cbmbus/tcbm.gif =601x577)
-
-* TODO: TCBM receive
 
 
 # Referencces
 
 * [The Complete Commodore 1551 ROM disassembly](http://www.cbmhardware.de/show.php?r=7&id=21) by Attila Grósz
+* XXX cbmsrc
 
 [^1]: The VIC-20 was named after the VIC ("Video Interface Controller"), the video chip of the system.
 
