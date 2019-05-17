@@ -22,4 +22,11 @@ done
 convert -crop 1200x600+0+0\! -bordercolor black -border 1 /tmp/Serial/Serial.038.png  ../docs/cbmbus/serial.png
 
 # Part 5
+convert -crop 420x480+0+0\! -bordercolor black -border 1 /tmp/TCBM\ Layers/TCBM\ Layers.001.png  ../docs/cbmbus/tcbm_layers.png
 
+convert -bordercolor black -border 1 -loop 0 -delay 200 /tmp/TCBM/TCBM.00[123456789].png /tmp/TCBM/TCBM.010.png ../docs/cbmbus/tcbm-send.gif
+convert -bordercolor black -border 1 -loop 0 -delay 200 /tmp/TCBM/TCBM.01[123456789].png /tmp/TCBM/TCBM.02[012345].png ../docs/cbmbus/tcbm-receive.gif
+
+for i in 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25; do
+	convert -crop 1200x262+0+84\! -bordercolor black -border 1 /tmp/TCBM/TCBM.0$i.png ../docs/cbmbus/tcbm-$i.png
+done

@@ -56,6 +56,8 @@ The key difference is that the TCBM bus is point-to-point:
 
 TCBM only allows the primary addresses 8 and 9, practically limiting the bus to (disk) drives. This also limits the number of busses to two: One for drive 8, and one for drive 9.
 
+XXX the bus doesn't know about 8/9, only about 0/1 to signal, which *bus* it is...
+
 A device still has multiple channels, and all data transmission is still byte stream based, because these are properties of the layers 3 and 4, which are retained in TCBM.
 
 TCBM has 8 data wires, but reduces the IEEE-488 signal wire count by three. (XXX REN doesn't count.)
@@ -132,15 +134,64 @@ XXX TODO
 
 XXX
 
-### Sending Bytes
-
 For the transmission of a byte stream, 12 wires are used. DAV is owned by the computer, ACK and the two ST lines are owned by the device. 
 
-
-
-DAV and the eight DIO lines are owned by the sender, and ACK and the two ST lines are owned by the receiver.
+XXX DAV and the eight DIO lines are owned by the sender, and ACK and the two ST lines are owned by the receiver.
 
 * there is always a command, followed by a data byte
+
+### Sending Bytes
+
+XXX
+
+![](docs/cbmbus/tcbm-send.gif =601x577)
+
+Let's go through it step by step:
+
+#### 0: Initial State
+![](docs/cbmbus/serial-01.png =601x131)
+In the initial state, the controller is holding the DAV line to indicate that it it is not ready to send. The device is holding the ACK line, meaning it is not ready to receive. The DIO and ST lines are all released.
+
+#### 1: Controller puts code 0x83 on the bus
+![](docs/cbmbus/serial-02.png =601x131)
+All communication is initiated by the controller by putting a TCBM command byte onto DIO. 0x83 means that the controller intends to send a byte to the device.
+
+#### 2: Device has accepted the code
+![](docs/cbmbus/serial-03.png =601x131)
+Transmission cannot begin until the device is ready to receive. So at some point the device is done handling the previous byte it may have received, so it detects the most significant bit of DIO set, and signals that it is ready for data by releasing ACK.
+
+#### 3: 
+![](docs/cbmbus/serial-04.png =601x131)
+Triggered by ACK being 0, the controller now puts the byte value onto DIO.
+
+#### 4: Data on bus is now valid
+![](docs/cbmbus/serial-05.png =601x131)
+After that, the controller releases DAV, signaling that the data in DIO is valid.
+
+#### 5: Device puts status on the bus
+![](docs/cbmbus/serial-06.png =601x131)
+Triggered by DAV being 0, the device reads the data from DIO and puts the two status bits onto ST.
+
+#### 6: Device has accepted the data, status is valid
+![](docs/cbmbus/serial-07.png =601x131)
+It then pulls ACK, signaling that it has accepted the data and the status is valid.
+
+#### 7: Controller clears data on the bus
+![](docs/cbmbus/serial-08.png =601x131)
+Triggered by ACK being 1, the controller reads the status, and clears the byte from the DIO lines and sets them back to 0, so they can't be interpreted as a TCBM command in the next cycle.
+
+#### 8: Controller resets data valid
+![](docs/cbmbus/serial-09.png =601x131)
+In order to revert to the initial state, the sender then pulls DAV.
+
+#### 9: 
+![](docs/cbmbus/serial-10.png =601x131)
+Triggered by DAV being 1 (the controller has read the status), the device clears the status. All wires are now in the initial state again. All steps are repeated as long as there is more data to be sent.
+
+
+### Receiving Bytes
+
+
 
 
 	* ACK and DAV sometimes mean the opposite
