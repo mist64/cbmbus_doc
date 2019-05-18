@@ -151,7 +151,7 @@ Let's go through it step by step:
 
 #### 0: Initial State
 ![](docs/cbmbus/tcbm-01.png =601x261)
-In the initial state, the controller is holding the DAV line to indicate that it it is not ready to send. The device is holding the ACK line, meaning it is not ready to receive. The DIO and ST lines are all released.
+In the initial state, the controller is holding the DAV line to indicate that it it is not ready for the next transmission. The device is holding the ACK line, meaning it is not ready either. The DIO and ST lines are all released.
 
 #### 1: Controller puts code 0x83 on the bus
 ![](docs/cbmbus/tcbm-02.png =601x261)
@@ -189,6 +189,7 @@ In order to revert to the initial state, the sender then pulls DAV.
 ![](docs/cbmbus/tcbm-10.png =601x261)
 Triggered by DAV being 1 (the controller has read the status), the device clears the status. All wires are now in the initial state again. All steps are repeated as long as there is more data to be sent.
 
+![](docs/cbmbus/tcbm-send.png =601x275)
 
 ### Receiving Bytes
 
@@ -200,7 +201,7 @@ Here it is step by step:
 
 #### 0: Initial State
 ![](docs/cbmbus/tcbm-11.png =601x261)
-The initial state between byte when receiving is the same as when sending: The controller is holding the DAV line to indicate that it it is not ready to receive. The device is holding the ACK line, meaning it is not ready to send. The DIO and ST lines are all released.
+The initial state between bytes when receiving is the same as when sending: The controller is holding the DAV line to indicate that it it is not ready for the next transmission and the device is holding the ACK line, meaning it is not ready either. The DIO and ST lines are all released.
 
 #### 1: Controller puts code 0x84 on the bus
 ![](docs/cbmbus/tcbm-12.png =601x261)
@@ -260,7 +261,7 @@ Triggered by ACK being 1, the controller pulls DAV. All wires are now in the ini
 
 Note that the protocol only specifies the triggers: For example, the controller is to read the data from DIO once ACK = 1, so it would be just as legal for the the device to put the status before the data on the bus, or put both the status and the data on the bus and pull ACK at the same time.
 
-![](docs/cbmbus/tcbm-receive.gif =601x577)
+![](docs/cbmbus/tcbm-receive.png =601x275)
 
 ### End of Stream
 
@@ -311,6 +312,7 @@ Note that the protocol only specifies the triggers: For example, the controller 
 
 	* sending is cheaper than receiving :(
 	* why not just use (single-device?) IEEE-488?? this is not cheaper, but much slower!
+	* receiving step 4: not necessary. device can see DIO8 = 0
 
 
 # Referencces
