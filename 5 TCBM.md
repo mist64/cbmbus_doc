@@ -81,7 +81,15 @@ XXX TODO
 
 ### Connectors and Pinout
 
-* 17 pin header
+There are no standardized connectors. Both on the computer and the device side, the 17 wires are connected directly to the board through pin headers. This is the computer side:
+
+[![](docs/cbmbus/tcbm_connector_small.jpg =600x311)](docs/cbmbus/tcbm_connector.jpg)
+
+And the device side:
+
+[![](docs/cbmbus/tcbm_connector2_small.jpg =600x311)](docs/cbmbus/tcbm_connector2.jpg)
+
+This is the pinout:
 
 | Pin | Signal  | Description |
 |-----|---------|-------------|
@@ -104,32 +112,28 @@ XXX TODO
 | 17  | GND     | Ground      |
 
 * There are 8 data lines, DIO1-8[^4].
-* XXX
+* The two STATUS lines are used by the device to signal errors.
+* The DAV and ACK lines are used for handshaking.
+* The DEV line tells the computer whether the device number is 0 or 1.
+* The RESET line resets the device.
 
+### Paddle
 
-----
+The TED series spans from the super-low-cost[^5] C116 (rubber keyboard, 16 KB) to the "pro" Plus/4 with 64 KB, an additional ACIA chip for RS232 and built-in productivity software. The [Standard Serial](https://www.pagetable.com/?p=1135) port only requires 3 GPIO lines and was natively supported by all TED machines. A parallel bus would have required adding a I/O controller.
 
-* computer didn't have the port, I/O chip ("controller card") came with drive
-* two drives means two I/O chips, i.e. two busses
-* 264 series had up to three IEC-like busses, one serial IEC, and up to two TCBM (8 and 9)
+To save on costs, the I/O controller did not come with the machine, but one shipped with every disk drive, where the costs of the chip were eclipsed by the cost of the drive (USD 269).
 
----
+The 1551 disk drive, the only TCBM device made, came with a fixed cable that ended in the so-called "Paddle", a cartridge for the TED expansion port. The expansion port on Commodore computers exposes the complete internal bus, allowing the I/O controller in the paddle to map itself into the computer's address space, at one of two locations, decided by the DEV line from the 1551.
 
+XXX pic
 
-* detection
-	* $EDA9
-	* on every TALK or LISTEN, if device 8 or 9
-	* ROM driver checks for presence of first ($FEC0) or second ($FEF0) I/O chip
-		* PA must retain its value
-		* STATUS1 (PB1) must be 
-		* offset of TIA is stored in bits #4 and #5 in $f9 ($FEC0 + MEM($F9) & 0x30)
-	* if found, uses TCBM over that chip
-		* TALK/LISTEN will set bit #6/#7 in $F9 to indicate TALKER/LISTENER is TCBM
-		* reset of bits #6/#7 on UNTALK/UNLISTEN
-	* otherwise, uses serial IEC
-	* if drive has no power, detection fails – how?
+So two 1551 drives required two paddles, each with an I/O controller mapped at a different location. Each paddle has a pass-through connector to allow connecting a another paddle or any other cartridge.
 
----
+#### Multiple Busses
+
+The TED computers support the Standard Serial bus and send all traffic to devices 4-30 to this bus. If a paddle with DEV = 0 is detected, it will direct traffic to drive 8 to this TCBM bus. And if there is a paddle with DEV = 1, all traffic to drive 9 will go to that TCBM bus. This allows a TED to have up to three separate Commodore Peripheral busses. All participants of the Standard Serial bus can talk to each other, but the TCBM busses are point-to-point.[^6]
+
+The presence of a TCBM device is detected whenever a communication channel is initiated ([layer 3](https://www.pagetable.com/?p=1031) TALK or LISTEN) for devices 8 or 9.
 
 ## Layer 2: Byte Transfer
 
@@ -328,3 +332,13 @@ Note that the protocol only specifies the triggers: For example, the controller 
 [^3]: A hardware defect in the VIC-20 required a significant slowdown of the bus timing. More information in the [article about the serial bus](https://www.pagetable.com/?p=1135).
 
 [^4]: The 1551 schematics call these pins PA0-PA7, after port A of the MOS 6523 I/O controller it is connected to.
+
+[^5]: The C116 was supposed to compete with the Sinclair ZX81 and had a target price of $49. If ended up being sold only in Europe, for 100 DM or 99 GBP (which was about 75 USD).
+
+[^6]: Here is a party trick: On a system with IEEE-488 or Standard Serial, the bus is blocked for all communication while one drive is busy with a long-running task, like formatting a disk. On a TED with one 1541 connected to Serial, and two 1551 drives connected to two separate TCBM busses, it is possible to all three drives format disks at the same time.
+
+
+
+
+
+
