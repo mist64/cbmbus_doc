@@ -287,8 +287,6 @@ Unlike the other variants in the protocol family, TCBM cannot signal "EOI" to a 
 
 The timing of TCBM is completely flexible, there are no timeouts. Both the controller and the device can stall any step in the protocol as long as they wish[^7].
 
-* timing completely flexible, no timeouts
-
 ### Discussion
 * but expansion port does not provide a chip select for the external TIAs
 	* so cartridge needs its own PLA
@@ -317,6 +315,12 @@ The timing of TCBM is completely flexible, there are no timeouts. Both the contr
 * [The Complete ROM dissasembly](http://yape.homeserver.hu/download/kernal.txt) by Mike Dailly
 * [The Complete Commodore 1551 ROM disassembly](http://www.cbmhardware.de/show.php?r=7&id=21) by Attila Grósz
 * [Original source code of various Commodore computers and peripherals](https://www.github.com/mist64/cbmsrc)
+* [Commodore 1551 schematics](http://www.zimmers.net/anonftp/pub/cbm/schematics/drives/new/1551/index.html)
+* [Floppy 1551 reparieren – so geht's](http://www.zimmers.net/anonftp/pub/cbm/documents/projects/drives/1551-tia.gif)
+* [The strange design of the 1551 floppy drive](http://www.softwolves.com/arkiv/cbm-hackers/15/15949.html)
+* [TCBM-Bus Analyse](https://www.forum64.de/index.php?thread/58413-tcbm-bus-analyse/)
+* [1551USB](http://www.cbmhardware.de/show.php?r=10&id=15)
+* [Retró rovat IV/B: Az 1551-II projekt folytatása](https://hup.hu/node/121506)
 
 [^1]: The VIC-20 was named after the VIC ("Video Interface Controller"), the video chip of the system.
 
