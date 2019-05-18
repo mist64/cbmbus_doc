@@ -66,10 +66,10 @@ TCBM has 8 data wires, but reduces the IEEE-488 signal wire count by three. (XXX
 | IEEE-488 Signal | Description        | Serial Signal | TCBM Signal |
 |-----------------|--------------------|---------------|-------------|
 | DIO1-8          | Data I/O           | DATA, CLK     | DIO1-8      |
-| EOI             | End Or Identify    | (timing)      | XXX         |
-| DAV             | Data Valid         | (CLK)         | DAV         |
-| NRFD            | Not Ready For Data | (DATA)        | XXX         |
-| NDAC            | No Data Accepted   | (timing)      | ACK         |
+| EOI             | End Or Identify    | (timing)      | STATUS0-1   |
+| DAV             | Data Valid         | (CLK)         | (DAV/ACK)   |
+| NRFD            | Not Ready For Data | (DATA)        | (DAV/ACK)   |
+| NDAC            | No Data Accepted   | (timing)      | (DAV/ACK)   |
 | IFC             | Interface Clear    | RESET         | RESET       |
 | SRQ             | Service Request    | SRQ           | -           |
 | ATN             | Attention          | ATN           | (DIO)       |
@@ -133,19 +133,17 @@ XXX TODO
 
 ## Layer 2: Byte Transfer
 
-XXX
+The byte transfer layer of TCBM defines the roles of the controller (which is the computer) and the device.
 
-For the transmission of a byte stream, 12 wires are used. DAV is owned by the computer, ACK and the two ST lines are owned by the device. 
+The controller and the device each own one handshaking line: DAV and ACK, respectively. The names stand for "Data Valid" and "Acklowledge", but in practice, they are just general handshaking lines with different meanings across the protocol.
 
-XXX DAV and the eight DIO lines are owned by the sender, and ACK and the two ST lines are owned by the receiver.
+The device also owns the two STATUS lines to communicacte error codes to the controller. The eight DIO lines are shared and used to send data in either direction. The protocol defines at what point which participant owns it.
 
-* ACK and DAV sometimes mean the opposite
-
-* there is always a command, followed by a data byte
+All communication is initiated by the controller by telling the device whether data is sent to it or received from it, or whether a layer 3 command is sent to the device.
 
 ### Sending Bytes
 
-XXX
+When the controller sends data to the device, it owns the eight DIO lines during the whole process. The basic idea is that the controller sends a TCBM code of 0x83 to indicate a byte send, then sends the byte, and the device returns a two-bit status code.
 
 ![](docs/cbmbus/tcbm-send.gif =601x577)
 
@@ -194,13 +192,15 @@ Triggered by DAV being 1 (the controller has read the status), the device clears
 
 ### Receiving Bytes
 
+When the controller wants to receive data from the device, ownership of the eight DIO lines is passed to the device and back. The basic idea is that the controller sends a TCBM code of 0x84 to indicate a byte receive, passes DIO to the device, the device returns the byte and a two-bit status code, and DIO is passed back to the controller.
+
 ![](docs/cbmbus/tcbm-receive.gif =601x577)
 
-XXX timing diagram
+Here it is step by step:
 
 #### 0: Initial State
 ![](docs/cbmbus/tcbm-11.png =601x261)
-The initial state between byte when receicing is the same as when sending: The controller is holding the DAV line to indicate that it it is not ready to receive. The device is holding the ACK line, meaning it is not ready to send. The DIO and ST lines are all released.
+The initial state between byte when receiving is the same as when sending: The controller is holding the DAV line to indicate that it it is not ready to receive. The device is holding the ACK line, meaning it is not ready to send. The DIO and ST lines are all released.
 
 #### 1: Controller puts code 0x84 on the bus
 ![](docs/cbmbus/tcbm-12.png =601x261)
@@ -284,6 +284,9 @@ Note that the protocol only specifies the triggers: For example, the controller 
 * errors
 	* fnf etc over "timeout" codes
 
+* versions
+	* last bits were changed VERY LATE, patches in source!
+
 * discussion
 	* C264 series had super low cost C116: rubber keyboard, 16 KB, target price $49, only sold in Europe (100 DM, 99 GBP, which was about $75)
 	* Plus/4 was pro, had additional ACIA chip, user port, 64 KB
@@ -306,6 +309,8 @@ Note that the protocol only specifies the triggers: For example, the controller 
 		* with multiple 1541, formatting one disk blocks the bus
 		* with two 1551 and one 1541, all three can format at the same time
 
+	* sending is cheaper than receiving :(
+	* why not just use (single-device?) IEEE-488?? this is not cheaper, but much slower!
 
 
 # Referencces
