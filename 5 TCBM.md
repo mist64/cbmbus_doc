@@ -50,32 +50,7 @@ While the switch from parallel IEEE-488 to serial allowed the protocol stack to 
 
 A device still has multiple channels, and all data transmission is still byte stream based, because these are properties of the layers 3 and 4, which are retained in TCBM.
 
-The key difference is that the TCBM bus is point-to-point:
-
-* The bus is between one controller (the computer) and one device.
-* For connecting multiple devices to one computer, the computer needs one dedicated bus per device.
-* Multiple busses are completely separate.
-
-TCBM only allows the primary addresses 8 and 9, practically limiting the bus to (disk) drives. This also limits the number of busses to two: One for drive 8, and one for drive 9.
-
-XXX the bus doesn't know about 8/9, only about 0/1 to signal, which *bus* it is...
-
-
-TCBM has 8 data wires, but reduces the IEEE-488 signal wire count by three. (XXX REN doesn't count.)
-
-| IEEE-488 Signal | Description        | Serial Signal | TCBM Signal |
-|-----------------|--------------------|---------------|-------------|
-| DIO1-8          | Data I/O           | DATA, CLK     | DIO1-8      |
-| EOI             | End Or Identify    | (timing)      | STATUS0-1   |
-| DAV             | Data Valid         | (CLK)         | (DAV/ACK)   |
-| NRFD            | Not Ready For Data | (DATA)        | (DAV/ACK)   |
-| NDAC            | No Data Accepted   | (timing)      | (DAV/ACK)   |
-| IFC             | Interface Clear    | RESET         | RESET       |
-| SRQ             | Service Request    | SRQ           | -           |
-| ATN             | Attention          | ATN           | (DIO)       |
-| REN             | Remote Enable      | -             | -           |
-
-XXX TODO
+The key difference is that the TCBM bus is point-to-point: The bus is between one controller (the computer) and one device. For connecting multiple devices to one computer, the computer needs one dedicated bus per device.
 
 ## Layer 1: Electrical
 
@@ -114,16 +89,16 @@ This is the pinout:
 * There are 8 data lines, DIO1-8[^4].
 * The two STATUS lines are used by the device to signal errors.
 * The DAV and ACK lines are used for handshaking.
-* The DEV line tells the computer whether the device number is 0 or 1.
 * The RESET line resets the device.
+* The DEV line tells the paddle whether to create bus #0 or #1 (see below).
 
 ### Paddle
 
-The TED series spans from the super-low-cost[^5] C116 (rubber keyboard, 16 KB) to the "pro" Plus/4 with 64 KB, an additional ACIA chip for RS232 and built-in productivity software. The [Standard Serial](https://www.pagetable.com/?p=1135) port only requires 3 GPIO lines and was natively supported by all TED machines. A parallel bus would have required adding a I/O controller.
+The TED series spans from the super-low-cost[^5] C116 (rubber keyboard, 16 KB) to the high-end Plus/4 (pro keyboard, 64 KB, RS232, built-in productivity software). The [Standard Serial](https://www.pagetable.com/?p=1135) port only requires 3 GPIO lines and was natively supported by all TED machines. A parallel bus would have required adding an additional I/O controller.
 
 To save on costs, the I/O controller did not come with the machine, but one shipped with every disk drive, where the costs of the chip were eclipsed by the cost of the drive (USD 269).
 
-The 1551 disk drive, the only TCBM device made, came with a fixed cable that ended in the so-called "Paddle", a cartridge for the TED expansion port. The expansion port on Commodore computers exposes the complete internal bus, allowing the I/O controller in the paddle to map itself into the computer's address space, at one of two locations, decided by the DEV line from the 1551.
+The 1551 disk drive, the only TCBM device made, came with a fixed cable that ended in the so-called "Paddle", a cartridge for the TED expansion port. The expansion port on Commodore computers exposes the complete internal bus, allowing the I/O controller in the paddle to map itself into the computer's address space, at one of two locations, controlled by the DEV line from the 1551.
 
 XXX pic
 
