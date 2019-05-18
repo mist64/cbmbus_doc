@@ -98,7 +98,7 @@ The TED series spans from the super-low-cost[^5] C116 (rubber keyboard, 16 KB) t
 
 To save on costs, the I/O controller did not come with the machine, but one shipped with every disk drive, where the costs of the chip were eclipsed by the cost of the drive (USD 269).
 
-The 1551 disk drive, the only TCBM device made, came with a fixed cable that ended in the so-called "Paddle", a cartridge for the TED expansion port. The expansion port on Commodore computers exposes the complete internal bus, allowing the I/O controller in the paddle to map itself into the computer's address space, at one of two locations, controlled by the DEV line from the 1551.
+The 1551 disk drive, the only TCBM device made, came with a fixed cable that ended in the so-called "Paddle", a cartridge for the TED expansion port. The expansion port on Commodore computers exposes the complete internal bus, allowing the I/O controller in the paddle to map itself into the computer's address space, at one of two locations, controlled by the DEV line from the 1551[^8].
 
 XXX pic
 
@@ -288,6 +288,9 @@ Unlike the other variants in the protocol family, TCBM cannot signal "EOI" to a 
 The timing of TCBM is completely flexible, there are no timeouts. Both the controller and the device can stall any step in the protocol as long as they wish[^7].
 
 ### Discussion
+
+#### Paddle
+
 * but expansion port does not provide a chip select for the external TIAs
 	* so cartridge needs its own PLA
 * they decided on point-to-point instead of existing IEEE-488
@@ -296,23 +299,41 @@ The timing of TCBM is completely flexible, there are no timeouts. Both the contr
 * but the drive was very custom and therefore expensive
 	* 1541 electronics would have worked
 	* maybe clocked at 2 MHz for faster transfer
+* two paddles look quite comical
+
+#### Stack Bugs
+
 * no strict separation of layers 2 and 3
 	* codes $81 and $82 have knowledge of type of command byte (main or supplementary command byte)
 	* they should only signal ATN yes/no
+* no EOI from controller to device
 
-* receiving (common case) is more expensive than sending :(
-* why not just use (single-device?) IEEE-488?? this is not cheaper, but much slower!
+#### Speed
+
 * receiving step 4: not necessary. device can see DIO8 = 0
-* versions
-	* last bits were changed VERY LATE, patches in source!
-	* sending: clear DIO, set DAV = 1
-	* receiving: wait for ACK = 1, set DAV = 1
-	* no, this was for supporting DEV=0/1; all protoytpe ROMs only support one paddle at $FEF0
+* receiving (common case) is more expensive than sending :(
+* sending a TCBM code for every byte halves speed in general
+* makes it even slower for receiving because of bus turnaround
+* one idea: fast mode for receiving until EOI ("LOAD"); like burst
+* or:
+	* give controller two handshake lines
+	* reduce status lines to 1
+		* 0 means 00
+		* 1 means 01, 10 or 11 - byte transmission follows
+	* now controller can indicate whether it wants more bytes after each byte without the turnaround
+
+#### Conclusion
+
+* faster than serial, but slower than IEEE
+* no daisy-chaining = no connectors = cheaper. ugly compromise.
+
+* not clear what the new protocol was for
+* single-device IEEE-488 requires just one extra line
 
 
 # References
 
-* [The Complete ROM dissasembly](http://yape.homeserver.hu/download/kernal.txt) by Mike Dailly
+* [The Complete ROM dissasembly](http://www.zimmers.net/anonftp/pub/cbm/src/plus4/plus4_rom_disassembly.txt) by Mike Dailly
 * [The Complete Commodore 1551 ROM disassembly](http://www.cbmhardware.de/show.php?r=7&id=21) by Attila Grósz
 * [Original source code of various Commodore computers and peripherals](https://www.github.com/mist64/cbmsrc)
 * [Commodore 1551 schematics](http://www.zimmers.net/anonftp/pub/cbm/schematics/drives/new/1551/index.html)
@@ -336,7 +357,7 @@ The timing of TCBM is completely flexible, there are no timeouts. Both the contr
 
 [^7]: This is in contrast to Standard Serial, where the tight timing requirements of the original specification (for the VIC-20) could not be met by the C64, so the specification had to be changed.
 
-
+[^8]: Support for two paddles was added very late in the design process. Some [TED](http://www.zimmers.net/anonftp/pub/cbm/firmware/computers/plus4/264/index.html) [prototype](http://www.zimmers.net/anonftp/pub/cbm/firmware/computers/plus4/364/index.html) [ROMs](http://www.zimmers.net/anonftp/pub/cbm/firmware/computers/plus4/PI9/index.html) only support a single TCBM bus. When support for multiple busses was added, the byte send and receive code had to overflow into the patch area, which can be seen in the release ROM versions.
 
 
 
