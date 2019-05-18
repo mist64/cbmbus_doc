@@ -284,20 +284,18 @@ Note that the protocol only specifies the triggers: For example, the controller 
 * device can signal EOI to controller
 * how to signal EOI to the device?
 	* not necessary, UNLISTEN does this -> XXX?
- errors
+* errors
 	* fnf etc over "timeout" codes
+
+* 01 Timeout during reading
+* 10 Timeout during writing
+* 11 End of data
 
 ### Timing
 
 * timing completely flexible, no timeouts
 
 ### Discussion
-* C264 series had super low cost C116: rubber keyboard, 16 KB, target price $49, only sold in Europe (100 DM, 99 GBP, which was about $75)
-* Plus/4 was pro, had additional ACIA chip, user port, 64 KB
-* Plus/4 could have had a TIA for IEEE-488 or similar
-* C16/C116 would have required a cartridge to support the fast drive
-	* but why would you connect a fast drive to a C16/C116?
-* they decided on having a cartridge for all systems, making the Plus/4 cheaper
 * but expansion port does not provide a chip select for the external TIAs
 	* so cartridge needs its own PLA
 * they decided on point-to-point instead of existing IEEE-488
@@ -306,24 +304,25 @@ Note that the protocol only specifies the triggers: For example, the controller 
 * but the drive was very custom and therefore expensive
 	* 1541 electronics would have worked
 	* maybe clocked at 2 MHz for faster transfer
-* no strict separation of layers 2 and 2
+* no strict separation of layers 2 and 3
 	* codes $81 and $82 have knowledge of type of command byte (main or supplementary command byte)
 	* they should only signal ATN yes/no
-* with two 1551 and one 1541, all three can communicate at the same time
-	* with multiple 1541, formatting one disk blocks the bus
-	* with two 1551 and one 1541, all three can format at the same time
 
-* sending is cheaper than receiving :(
+* receiving (common case) is more expensive than sending :(
 * why not just use (single-device?) IEEE-488?? this is not cheaper, but much slower!
 * receiving step 4: not necessary. device can see DIO8 = 0
 * versions
 	* last bits were changed VERY LATE, patches in source!
+	* sending: clear DIO, set DAV = 1
+	* receiving: wait for ACK = 1, set DAV = 1
+	* no, this was for supporting DEV=0/1; all protoytpe ROMs only support one paddle at $FEF0
 
 
 # References
 
+* [The Complete ROM dissasembly](http://yape.homeserver.hu/download/kernal.txt) by Mike Dailly
 * [The Complete Commodore 1551 ROM disassembly](http://www.cbmhardware.de/show.php?r=7&id=21) by Attila Grósz
-* XXX cbmsrc
+* [Original source code of various Commodore computers and peripherals](https://www.github.com/mist64/cbmsrc)
 
 [^1]: The VIC-20 was named after the VIC ("Video Interface Controller"), the video chip of the system.
 
