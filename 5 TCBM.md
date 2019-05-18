@@ -244,29 +244,48 @@ Note that the protocol only specifies the triggers: For example, the controller 
 
 ### Sending Commands
 
-* TALK/LISTEN
-	* byte output with of $40/$20 with a $81 command
-* SECOND/TKSA
-	* byte output with of secondary address with a $82 command
+([Layer 3](https://www.pagetable.com/)) of the protocol stack requires the controller to send commands ("TALK"/"LISTEN") to devices. Layer 2 therefore has a mode for the transmission of command byte streams.
 
-	kcmd1	=$81		;state change
-	kcmd2	=$82		;sec. addr
-	kcmd3	=$83		;dout
-	kcmd4	=$84		;din
+As shown before, for the transmission of each byte, the controller first sends a TCBM code to the device indicating whether a byte is supposed to be sent (0x83) or received (0x84) by the controller.
+
+Commands are sent just like data bytes, but with a TCBM code of 0x81 or 0x82.
+
+Whether the TCBM cde is 0x81 or 0x82 depends on the type of layer 3 command: The commands 0x20/0x3F/0x40/0x5F (LISTEN, UNLISTEN, TALK, UNTALK) are sent with the TCBM code 0x81, and the commands 0x60/0xE0/0xF0 (SECOND, CLOSE, OPEN) are sent with the TCBM code 0x82.
+
+While the other variants of the Commodore Peripheral Bus protocol family strictly separate the layers, this is one case where details from a higher layer leak into a lower layer.
+ 
+| TCBM code | Description                                       |
+|-----------|---------------------------------------------------|
+| 0x81      | Controller sends command byte (state change)      |
+| 0x82      | Controller sends command byte (secondary address) |
+| 0x83      | Controller sends data byte                        |
+| 0x84      | Controller receives data byte                     |
 
 ### Status Codes
 
-* device can signal EOI to controller
-* how to signal EOI to the device?
-	* not necessary, UNLISTEN does this -> XXX?
-* errors
-	* fnf etc over "timeout" codes
+With the transmission of every byte in either direction, the device sends a two-bit status code to the controller:
 
-* 01 Timeout during reading
-* 10 Timeout during writing
-* 11 End of data
+| Status | Description   |
+|--------|---------------|
+| 00     | OK            |
+| 01     | receive error |
+| 10     | send error    |
+| 11     | EOI           |
+
+In the general case, the device sends a status of 00, which means that everything is okay.
+
+A receive error is returned by the device if the controller was trying to receive a byte from the device, but the device did not have any data. This corresponds to the IEEE-488 "sender timeout" and the Standard Serial "empty stream" case. It signals a [Commodore DOS (layer 4)](https://www.pagetable.com/?p=1038) "FILE NOT FOUND" condition.
+
+A send error is returned by the device if the controller was trying to send a byte to the device, but the device decided not to accept it. XXX
+
+The "EOI" ("End or Identify") status is returned if the byte currently 
+received by the controller is the last byte of the stream.
+
+Unlike the other variants in the protocol family, TCBM cannot signal "EOI" to a device. XXX
 
 ### Timing
+
+The timing of TCBM is completely flexible, there are no timeouts. Both the controller and the device can stall any step in the protocol as long as they wish[^7].
 
 * timing completely flexible, no timeouts
 
@@ -311,6 +330,7 @@ Note that the protocol only specifies the triggers: For example, the controller 
 
 [^6]: Here is a party trick: On a system with IEEE-488 or Standard Serial, the bus is blocked for all communication while one drive is busy with a long-running task, like formatting a disk. On a TED with one 1541 connected to Serial, and two 1551 drives connected to two separate TCBM busses, it is possible to all three drives format disks at the same time.
 
+[^7]: This is in contrast to Standard Serial, where the tight timing requirements of the original specification (for the VIC-20) could not be met by the C64, so the specification had to be changed.
 
 
 
