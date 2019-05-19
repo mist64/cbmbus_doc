@@ -297,20 +297,30 @@ The paddles are of course awkward and ugly[^9], and in the case of two paddles c
 
 If there was no way around the requirement of not shipping the computer with the necessary I/O chip, there could instead have been a cartridge with the chip, supporting any number of daisy-chained devices with cheap DB-25 connectors – like the [IEEE-488 cartridge for the C64](https://www.pagetable.com/?p=1312).
 
-#### Stack Bugs
+#### Protocol Stack Issues
 
 There are two details that divert from the clean original design of the IEEE-488 stack:
 
 There is no strict separation of layers 2 and 3. The TCBM codes 0x81 and 0x82 on layer 2 depend on the type of command on layer 3. Layer 2 should not have any knowledge of layer 3: It should be possible to add layer 3 commands or even replace all of layer 3 completely, with all layer 2 variants still compatible. This would be true for IEEE-488 and Standard Serial, but not for TCBM.
 
-Also, the communication features are not symmetric any more: While a device can signal the EOI condition by setting the status wires to "11", there is no way for the controller to signal EOI to the device.
+Also, with TCBM the communication features are not symmetric any more: While a device can signal the EOI condition by setting the status wires to "11", there is no way for the controller to signal EOI to the device. For Commodore DOS disk drives, this is not necessary: EOI from the device indicates that the end of a file has been reached, which is necessary and actionable for the controller, but EOI from the controller is not necessary: If the end of a stream sent for writing has been reached, there is nothing actionable for the drive yet. The controller, who knows about the EOI condition, can then send a layer 3 UNTALK or CLOSE command.
 
 #### Speed
 
-* receiving step 4: not necessary. device can see DIO8 = 0
-* receiving (common case) is more expensive than sending :(
-* sending a TCBM code for every byte halves speed in general
-* makes it even slower for receiving because of bus turnaround
+There are several issues with the protocol:
+
+##### Unnecessary Steps
+
+When the controller receives a byte, releasing DAV in step 4 ("Controller signals DIO belongs to device") is not necessary. The device can already detect that the TCBM code has been removed from DIO in step 3 (MSB is 0) and use it as a trigger for step 5. In a modified protocol with step 4 removed, DAV would be inverted from this point on. So in step 12, the controller would pull DAV instead of releasing it, which is the initial state, so the additional handshake in step 14 would be unnecessary.
+
+##### 
+
+The design of the TCBM code being sent with every byte almost halves the trasmission speed because of its two handshakes.
+
+The complex protocol to hand the DIO wires to the device and pass it back with its extra handshakes will also make receiving slower than sending. But receiving is the common case: Much more data is ever read from disk than written to it.
+
+Most data transmissions between a computer and a disk drive are the LOAD and SAVE operations, where a full file is transfered in one go. Optimized stream transfer protocols could have been added for these cases – like the Fast Serial protocol of the C128 ("Burst") – doubling the SAVE speed and tripling the LOAD speed. 
+
 * one idea: fast mode for receiving until EOI ("LOAD"); like burst
 * or:
 	* give controller two handshake lines
