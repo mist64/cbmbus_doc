@@ -289,24 +289,21 @@ The timing of TCBM is completely flexible, there are no timeouts. Both the contr
 
 ### Discussion
 
+A lot can be criticized about the TCBM bus.
+
 #### Paddle
 
-* but expansion port does not provide a chip select for the external TIAs
-	* so cartridge needs its own PLA
-* they decided on point-to-point instead of existing IEEE-488
-	* this requires one cartridge per drive
-	* cartridge doesn't need a connector
-* but the drive was very custom and therefore expensive
-	* 1541 electronics would have worked
-	* maybe clocked at 2 MHz for faster transfer
-* two paddles look quite comical
+The paddles are of course awkward and ugly[^9], and in the case of two paddles connected at the same time, even to a comical extent.
+
+If there was no way around the requirement of not shipping the computer with the necessary I/O chip, there could instead have been a cartridge with the chip, supporting any number of daisy-chained devices with cheap DB-25 connectors – like the [IEEE-488 cartridge for the C64](https://www.pagetable.com/?p=1312).
 
 #### Stack Bugs
 
-* no strict separation of layers 2 and 3
-	* codes $81 and $82 have knowledge of type of command byte (main or supplementary command byte)
-	* they should only signal ATN yes/no
-* no EOI from controller to device
+There are two details that divert from the clean original design of the IEEE-488 stack:
+
+There is no strict separation of layers 2 and 3. The TCBM codes 0x81 and 0x82 on layer 2 depend on the type of command on layer 3. Layer 2 should not have any knowledge of layer 3: It should be possible to add layer 3 commands or even replace all of layer 3 completely, with all layer 2 variants still compatible. This would be true for IEEE-488 and Standard Serial, but not for TCBM.
+
+Also, the communication features are not symmetric any more: While a device can signal the EOI condition by setting the status wires to "11", there is no way for the controller to signal EOI to the device.
 
 #### Speed
 
@@ -359,5 +356,5 @@ The timing of TCBM is completely flexible, there are no timeouts. Both the contr
 
 [^8]: Support for two paddles was added very late in the design process. Some [TED](http://www.zimmers.net/anonftp/pub/cbm/firmware/computers/plus4/264/index.html) [prototype](http://www.zimmers.net/anonftp/pub/cbm/firmware/computers/plus4/364/index.html) [ROMs](http://www.zimmers.net/anonftp/pub/cbm/firmware/computers/plus4/PI9/index.html) only support a single TCBM bus. When support for multiple busses was added, the byte send and receive code had to overflow into the patch area, which can be seen in the release ROM versions.
 
-
+[^9]: In addition to the I/O chip, the paddles contain a PLA for address decoding, since unlike the C64's PLA, the TED one does not generate chip select signals for external devices.
 
