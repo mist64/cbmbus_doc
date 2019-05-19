@@ -37,7 +37,6 @@ The Commodore PET (1977) was using the industry-standard 8-bit parallel [IEEE-48
 
 For the TED series (1984), Commodore decided to create another variant of the protocol stack, replacing layers 1 and 2 again. The new bus was supposed to combine the speed of the IEEE-488 bus with the low cost of the serial bus.
 
-
 While the switch from parallel IEEE-488 to serial allowed the protocol stack to retain all key properties of the original design, TCBM drops some of these features:
 
 | Feature | IEEE-488 | Serial | TCBM |
@@ -51,6 +50,8 @@ While the switch from parallel IEEE-488 to serial allowed the protocol stack to 
 A device still has multiple channels, and all data transmission is still byte stream based, because these are properties of the layers 3 and 4, which are retained in TCBM.
 
 The key difference is that the TCBM bus is point-to-point: The bus is between one controller (the computer) and one device. For connecting multiple devices to one computer, the computer needs one dedicated bus per device.
+
+With the introduction of Fast Serial with the C128, Commodore gave up the TCBM bus, which had only shipped with the TED series.
 
 ## Layer 1: Electrical
 
@@ -276,12 +277,10 @@ In the general case, the device sends a status of 00, which means that everythin
 
 A receive error is returned by the device if the controller was trying to receive a byte from the device, but the device did not have any data. This corresponds to the IEEE-488 "sender timeout" and the Standard Serial "empty stream" case. It signals a [Commodore DOS (layer 4)](https://www.pagetable.com/?p=1038) "FILE NOT FOUND" condition.
 
-A send error is returned by the device if the controller was trying to send a byte to the device, but the device decided not to accept it. XXX
+A send error is returned by the device if the controller was trying to send a byte to the device, but the device decided not to accept it.
 
 The "EOI" ("End or Identify") status is returned if the byte currently 
 received by the controller is the last byte of the stream.
-
-Unlike the other variants in the protocol family, TCBM cannot signal "EOI" to a device. XXX
 
 ### Timing
 
@@ -307,35 +306,35 @@ Also, with TCBM the communication features are not symmetric any more: While a d
 
 #### Speed
 
-There are several issues with the protocol:
+There are several issues with the protocol, which lead to a much lower speed than what would be expected from a parallel connection:
 
 ##### Unnecessary Steps
 
 When the controller receives a byte, releasing DAV in step 4 ("Controller signals DIO belongs to device") is not necessary. The device can already detect that the TCBM code has been removed from DIO in step 3 (MSB is 0) and use it as a trigger for step 5. In a modified protocol with step 4 removed, DAV would be inverted from this point on. So in step 12, the controller would pull DAV instead of releasing it, which is the initial state, so the additional handshake in step 14 would be unnecessary.
 
-##### 
+##### TCBM Codes
 
 The design of the TCBM code being sent with every byte almost halves the trasmission speed because of its two handshakes.
 
 The complex protocol to hand the DIO wires to the device and pass it back with its extra handshakes will also make receiving slower than sending. But receiving is the common case: Much more data is ever read from disk than written to it.
 
-Most data transmissions between a computer and a disk drive are the LOAD and SAVE operations, where a full file is transfered in one go. Optimized stream transfer protocols could have been added for these cases – like the Fast Serial protocol of the C128 ("Burst") – doubling the SAVE speed and tripling the LOAD speed. 
+Most data transmissions between a computer and a disk drive are the LOAD and SAVE operations, where a full file is transfered in one go. Optimized stream transfer protocols could have been added for these cases – like the Fast Serial protocol of the C128 ("Burst") as well as JiffyDOS – doubling the SAVE speed and tripling the LOAD speed. 
 
-* one idea: fast mode for receiving until EOI ("LOAD"); like burst
-* or:
-	* give controller two handshake lines
-	* reduce status lines to 1
-		* 0 means 00
-		* 1 means 01, 10 or 11 - byte transmission follows
-	* now controller can indicate whether it wants more bytes after each byte without the turnaround
+A more generic protocol optimization could replace the TCBM code before every byte with an extra wire owned by the controller indicating whether the next byte will be transmitted with the same mode. This would not even require adding an extra line: It is enough to have one status line going from the device to the computer. "0" would mean OK, and "1" would have the controller transfer DIO to the device, so it can return an 8 bit status code.
+
+The common case of transfering multiple bytes would also be sped up by at least a factor of two this way.
 
 #### Conclusion
 
-* faster than serial, but slower than IEEE
-* no daisy-chaining = no connectors = cheaper. ugly compromise.
+While TCBM is faster than Standard Serial, it is a huge compromise and certainly not a clean design. And with more than half the bandwidth eaten up by the TCBM codes, it is still slower than IEEE-488.
 
-* not clear what the new protocol was for
-* single-device IEEE-488 requires just one extra line
+It is not clear though why they couldn't just use the exact IEEE-488 protocol on layer 2, even in point-to-point mode with just a single device. IEEE-488 only requires one more data line (13 instead of 12), and EOI could have been removed by using a timing sidechannel as done by Standard Serial.
+
+### Next Up
+
+Part 6 of the series of articles on the Commodore Peripheral Bus family will cover the JiffyDOS protocol on layer 2, which shipped as a 3rd party ROM patch for computers and drives, replacing the byte transmission protocol of Standard Serial by using the clock and data lines in a more efficient way.
+
+> This article series is an Open Source project. Corrections, clarifications and additions are **highly** appreciated. I will regularly update the articles from the repository at [https://github.com/mist64/cbmbus_doc](https://github.com/mist64/cbmbus_doc).
 
 
 # References
