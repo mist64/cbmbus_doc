@@ -123,8 +123,7 @@ Each paddle has a pass-through connector to allow using any other cartridge at t
 
 A second 1551 required its own paddle on top of the first one. In this setup, there is one I/O controller in each paddle, which is mapped to one of two locations in the computer's address space. A switch in the disk drive tells the paddle through the DEV line which location and thus which device number the drive should have[^8].
 
-XXX pic
-
+[![](docs/cbmbus/tcbm_paddle_small.jpg =300x494)](docs/cbmbus/tcbm_paddle.jpg)[![](docs/cbmbus/tcbm_paddle_board_small.jpg =300x408)](docs/cbmbus/tcbm_paddle_board.jpg)[![](docs/cbmbus/tcbm_paddle_connected_small.jpg =300x247)](docs/cbmbus/tcbm_paddle_connected.jpg)
 
 #### Multiple Busses
 
