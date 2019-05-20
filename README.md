@@ -9,7 +9,7 @@ I am releasing one part every week, at which time links will be added to the bul
 * [Part 2: The TALK/LISTEN Layer](https://www.pagetable.com/?p=1031)
 * [Part 3: The Commodore DOS Layer](https://www.pagetable.com/?p=1038)
 * [Part 4: Standard Serial (IEC)](https://www.pagetable.com/?p=1135) [VIC-20, C64; 1981]
-* Part 5: TCBM [C16, C116, Plus/4; 1984] (coming soon)
+* [Part 5: TCBM](https://www.pagetable.com/?p=1324) [C16, C116, Plus/4; 1984]
 * Part 6: JiffyDOS [1985] (coming soon)
 * Part 7: Fast Serial [C128; 1986] (coming soon)
 * Part 8: CBDOS [C65; 1991] (coming soon)
