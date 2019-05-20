@@ -363,7 +363,7 @@ Part 6 of the series of articles on the Commodore Peripheral Bus family will cov
 
 [^7]: This is in contrast to Standard Serial, where the tight timing requirements of the original specification (for the VIC-20) could not be met by the C64, so the specification had to be changed.
 
-[^8]: Support for two paddles was added very late in the design process. Some [TED](http://www.zimmers.net/anonftp/pub/cbm/firmware/computers/plus4/264/index.html) [prototype](http://www.zimmers.net/anonftp/pub/cbm/firmware/computers/plus4/364/index.html) [ROMs](http://www.zimmers.net/anonftp/pub/cbm/firmware/computers/plus4/PI9/index.html) only support a single TCBM bus. When support for multiple busses was added, the byte send and receive code had to overflow into the patch area, which can be seen in the release ROM versions.
+[^8]: Support for two paddles was added very late in the design process. Early [TED](http://www.zimmers.net/anonftp/pub/cbm/firmware/computers/plus4/264/index.html) [prototype](http://www.zimmers.net/anonftp/pub/cbm/firmware/computers/plus4/364/index.html) [ROMs](http://www.zimmers.net/anonftp/pub/cbm/firmware/computers/plus4/PI9/index.html) only support a single TCBM bus. When support for multiple busses was added, the byte send and receive code had to overflow into the patch area, which can be seen in the release ROM versions.
 
 [^9]: In addition to the I/O chip, the paddles contain a PLA for address decoding, since unlike the C64's PLA, the TED one does not generate chip select signals for external devices.
 
