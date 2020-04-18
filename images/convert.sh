@@ -35,3 +35,11 @@ for i in 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24
 done
 convert -crop 1200x550+0+0\! -bordercolor black -border 1 /tmp/TCBM/TCBM.026.png  ../docs/cbmbus/tcbm-send.png
 convert -crop 1200x550+0+0\! -bordercolor black -border 1 /tmp/TCBM/TCBM.027.png  ../docs/cbmbus/tcbm-receive.png
+
+# Part 6
+#convert -crop 420x480+0+0\! -bordercolor black -border 1 /tmp/JiffyDOS\ Layers/JiffyDOS\ Layers.001.png  ../docs/cbmbus/JiffyDOS_layers.png
+convert -crop 1200x686+0+0\! -bordercolor black -border 1 -loop 0 -delay 200 /tmp/JiffyDOS/JiffyDOS.00*.png ../docs/cbmbus/jiffydos.gif
+for i in 01 02 03 04 05 06 07 08 09 10 11 12; do
+	convert -crop 1200x262+0+84\! -bordercolor black -border 1 /tmp/JiffyDOS/JiffyDOS.0$i.png ../docs/cbmbus/jiffydos-$i.png
+done
+convert -crop 1200x600+0+0\! -bordercolor black -border 1 /tmp/JiffyDOS/JiffyDOS.013.png  ../docs/cbmbus/jiffydos.png
