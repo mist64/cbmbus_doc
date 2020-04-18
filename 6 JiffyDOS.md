@@ -76,36 +76,39 @@ The following animation shows a byte being sent from the controller to the devic
 ![](docs/cbmbus/jiffydos-send.gif =601x344)
 
 #### 0: Initial State
-![](docs/cbmbus/jiffydos-14.png =601x131)
+![](docs/cbmbus/jiffydos-13.png =601x131)
 
 #### 1: Device is ready to receive
-![](docs/cbmbus/jiffydos-15.png =601x131)
+![](docs/cbmbus/jiffydos-14.png =601x131)
 
 #### 2: Controller is ready to send
-![](docs/cbmbus/jiffydos-16.png =601x131)
+![](docs/cbmbus/jiffydos-15.png =601x131)
 
 #### 3: Controller puts data bits #4 and #5 onto wires
-![](docs/cbmbus/jiffydos-17.png =601x131)
+![](docs/cbmbus/jiffydos-16.png =601x131)
 
 #### 4: Controller puts data bits #6 and #7 onto wires
-![](docs/cbmbus/jiffydos-18.png =601x131)
+![](docs/cbmbus/jiffydos-17.png =601x131)
 
 #### 5: Controller puts data bits #3 and #1 onto wires
-![](docs/cbmbus/jiffydos-19.png =601x131)
+![](docs/cbmbus/jiffydos-18.png =601x131)
 
 #### 6: Controller puts data bits #2 and #0 onto wires
+![](docs/cbmbus/jiffydos-19.png =601x131)
+
+#### 7: Controller is now busy again
 ![](docs/cbmbus/jiffydos-20.png =601x131)
 
-#### 7: Controller sends EOI status
+#### 8: Device is now busy again
 ![](docs/cbmbus/jiffydos-21.png =601x131)
 
-#### 8: Controller is now busy again
-![](docs/cbmbus/jiffydos-22.png =601x131)
-
-#### 9: Device is now busy again
-![](docs/cbmbus/jiffydos-23.png =601x131)
-
 1541 doesn't actually wait for C=1 after reading EOI
+
+### End of Stream
+
+...
+
+![](docs/cbmbus/jiffydos-send.png =601x301)
 
 ### Receiving Bytes
 
@@ -136,7 +139,7 @@ Let's go through it step by step:
 #### 6: Device puts data bits #6 and #7 onto wires
 ![](docs/cbmbus/jiffydos-07.png =601x131)
 
-#### 7: Device signals OK/busy
+#### 7: Device is now busy again
 ![](docs/cbmbus/jiffydos-08.png =601x131)
 
 #### 8: Controller is now busy again
@@ -150,14 +153,7 @@ Let's go through it step by step:
 #### 7b: Device is now busy again
 ![](docs/cbmbus/jiffydos-11.png =601x131)
 
-### Error
-
-#### 7a': Device signals error status
-![](docs/cbmbus/jiffydos-12.png =601x131)
-
-* TODO: verify in C64 ROM
-
-![](docs/cbmbus/jiffydos.png =601x301)
+![](docs/cbmbus/jiffydos-receive.png =601x301)
 
 ### LOAD
 
@@ -170,6 +166,8 @@ Let's go through it step by step:
 ### C64/1541-specific
 
 * bit order and negation based on C64/1541 ports
+	* send case: high nybble decoded by device, low-nybble encoded by controller
+	* 
 * all non-C64/1541 devices are faster, so they can handle the overhead
 * not symmetric, can't do one-to-many
 	* but that's not solvable if it's always the C64 that needs to initiate a byte transmission

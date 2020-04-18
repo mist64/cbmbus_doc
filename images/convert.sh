@@ -40,9 +40,11 @@ convert -crop 1200x550+0+0\! -bordercolor black -border 1 /tmp/TCBM/TCBM.027.png
 convert -crop 580x480+0+0\! -bordercolor black -border 1 /tmp/JiffyDOS\ Layers/JiffyDOS\ Layers.001.png  ../docs/cbmbus/JiffyDOS_layers.png
 
 convert -crop 1200x686+0+0\! -bordercolor black -border 1 -loop 0 -delay 200 /tmp/JiffyDOS/JiffyDOS.00*.png ../docs/cbmbus/jiffydos-receive.gif
-convert -crop 1200x686+0+0\! -bordercolor black -border 1 -loop 0 -delay 200 /tmp/JiffyDOS/JiffyDOS.01[456789].png /tmp/JiffyDOS/JiffyDOS.02[0123].png ../docs/cbmbus/jiffydos-send.gif
+convert -crop 1200x686+0+0\! -bordercolor black -border 1 -loop 0 -delay 200 /tmp/JiffyDOS/JiffyDOS.01[3456789].png /tmp/JiffyDOS/JiffyDOS.02[01].png ../docs/cbmbus/jiffydos-send.gif
 
-for i in 01 02 03 04 05 06 07 08 09 10 11 12 14 15 16 17 18 19 20 21 22 23; do
+for i in 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20 21 22 23; do
 	convert -crop 1200x262+0+84\! -bordercolor black -border 1 /tmp/JiffyDOS/JiffyDOS.0$i.png ../docs/cbmbus/jiffydos-$i.png
 done
-convert -crop 1200x600+0+0\! -bordercolor black -border 1 /tmp/JiffyDOS/JiffyDOS.013.png  ../docs/cbmbus/jiffydos.png
+
+convert -crop 1200x600+0+0\! -bordercolor black -border 1 /tmp/JiffyDOS/JiffyDOS.012.png  ../docs/cbmbus/jiffydos-receive.png
+convert -crop 1200x600+0+0\! -bordercolor black -border 1 /tmp/JiffyDOS/JiffyDOS.024.png  ../docs/cbmbus/jiffydos-send.png
