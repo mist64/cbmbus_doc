@@ -17,7 +17,7 @@ The Commodore DOS API defines the meaning of channel numbers, channel names and 
 
 <hr/>
 
-> **_NOTE:_**  I am releasing one part every once in a while, at which time links will be added to the bullet points below. The articles will also be announced on my Twitter account <a href="https://twitter.com/pagetable">@pagetable</a> and my Mastodon account <a href="https://mastodon.social/@pagetable">@pagetable&#64;mastodon.social</a>.
+> **_NOTE:_**  I am releasing one part every once in a while, at which time links will be added to the bullet points below. The articles will also be announced on the Twitter account <a href="https://twitter.com/pagetable">@pagetable</a> and the Mastodon account <a href="https://mastodon.social/@pagetable">@pagetable&#64;mastodon.social</a>.
 
 <hr/>
 
@@ -27,7 +27,7 @@ The Commodore DOS API defines the meaning of channel numbers, channel names and 
 * **Part 3: The Commodore DOS Layer** ← *this article*
 * [Part 4: Standard Serial (IEC)](https://www.pagetable.com/?p=1135) [VIC-20, C64; 1981]
 * [Part 5: TCBM](https://www.pagetable.com/?p=1324) [C16, C116, Plus/4; 1984]
-* Part 6: JiffyDOS [1985] *(coming soon)*
+* [Part 6: JiffyDOS](https://www.pagetable.com/?p=1387) [1985]
 * Part 7: Fast Serial [C128; 1985] *(coming soon)*
 * Part 8: CBDOS [C65; 1991] *(coming soon)*
 

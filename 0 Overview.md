@@ -26,7 +26,7 @@ The different variants and layers will be described in multiple articles.
 
 <hr/>
 
-> **_NOTE:_**  I am releasing one part every once in a while, at which time links will be added to the bullet points below. The articles will also be announced on my Twitter account <a href="https://twitter.com/pagetable">@pagetable</a> and my Mastodon account <a href="https://mastodon.social/@pagetable">@pagetable&#64;mastodon.social</a>.
+> **_NOTE:_**  I am releasing one part every once in a while, at which time links will be added to the bullet points below. The articles will also be announced on the Twitter account <a href="https://twitter.com/pagetable">@pagetable</a> and the Mastodon account <a href="https://mastodon.social/@pagetable">@pagetable&#64;mastodon.social</a>.
 
 <hr/>
 
@@ -42,7 +42,7 @@ This part describes layer 4 (Commodore DOS), which is shared between all bus var
 The VIC-20 introduced a serial version of layers 1 and 2 with one clock and one data line for serial data transmission, and an ATN line for bus arbitration. It has some strict timing requirements. This bus is supported by all members of the home computer line: VIC-20, C64, Plus/4 Series, C128 and C65.
 * **[Part 5: TCBM](https://www.pagetable.com/?p=1324)** [C16, C116, Plus/4; 1984]
 The Plus/4 Series introduced a 1-to-1 bus between the computer and one drive, with 8 bit parallel data, two handshake lines, and two status lines from the drive to the computer. It was the short-lived planned successor of the Standard Serial bus, but was then replaced by Fast Serial.
-* **Part 6: JiffyDOS** [1985] *(coming soon)*
+* **[Part 6: JiffyDOS](https://www.pagetable.com/?p=1387)** [1985]
 JiffyDOS, a 3rd party ROM patch for computers and drives, replaces layer 2 byte transmission of Standard Serial by using the clock and data lines in a more efficient way. Bus arbitration is unchanged. The controller detects a device's JiffyDOS support and can fall back to the Standard Serial protocol.
 * **Part 7: Fast Serial** [C128; 1985] *(coming soon)*
 The C128 introduced Fast Serial, which replaces layer 2 byte transmission of Standard Serial by using a previously unused wire in the Serial connector as a third line for data transmission. Bus arbitration is unchanged. The controller detects a device's Fast Serial support and can fall back to the Standard Serial protocol.

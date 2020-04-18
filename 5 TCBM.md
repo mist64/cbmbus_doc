@@ -3,11 +3,11 @@
 In the [series about the variants of the Commodore Peripheral Bus family](https://www.pagetable.com/?p=1018), this article covers the lowest two layers (electrical and byte transfer) of the "TCBM" bus as found on the TED series computers: the C16, C116 and the Plus/4.
 
 
-![](docs/cbmbus/tcbm_layers.png =371x241)
+![](docs/cbmbus/tcbm_layers.png =211x241)
 
 <hr/>
 
-> **_NOTE:_**  I am releasing one part every once in a while, at which time links will be added to the bullet points below. The articles will also be announced on my Twitter account <a href="https://twitter.com/pagetable">@pagetable</a> and my Mastodon account <a href="https://mastodon.social/@pagetable">@pagetable&#64;mastodon.social</a>.
+> **_NOTE:_**  I am releasing one part every once in a while, at which time links will be added to the bullet points below. The articles will also be announced on the Twitter account <a href="https://twitter.com/pagetable">@pagetable</a> and the Mastodon account <a href="https://mastodon.social/@pagetable">@pagetable&#64;mastodon.social</a>.
 
 <hr/>
 
@@ -17,7 +17,7 @@ In the [series about the variants of the Commodore Peripheral Bus family](https:
 * [Part 3: The Commodore DOS Layer](https://www.pagetable.com/?p=1038)
 * [Part 4: Standard Serial (IEC)](https://www.pagetable.com/?p=1135) [VIC-20, C64; 1981]
 * **Part 5: TCBM [C16, C116, Plus/4; 1984]** ← *this article*
-* Part 6: JiffyDOS [1985] *(coming soon)*
+* [Part 6: JiffyDOS](https://www.pagetable.com/?p=1387) [1985]
 * Part 7: Fast Serial [C128; 1985] *(coming soon)*
 * Part 8: CBDOS [C65; 1991] *(coming soon)*
 
@@ -337,7 +337,7 @@ The design of the TCBM code being sent with every byte almost halves the trasmis
 
 The complex protocol to hand the DIO wires to the device and pass it back with its extra handshakes will also make receiving slower than sending. But receiving is the common case: Much more data is ever read from disk than written to it.
 
-Most data transmissions between a computer and a disk drive are the LOAD and SAVE operations, where a full file is transfered in one go. Optimized stream transfer protocols could have been added for these cases – the Fast Serial protocol of the C128 ("Burst") as well as JiffyDOS do this – doubling the SAVE speed and tripling the LOAD speed. 
+Most data transmissions between a computer and a disk drive are the LOAD and SAVE operations, where a full file is transfered in one go. Optimized stream transfer protocols could have been added for these cases – the Fast Serial protocol of the C128 ("Burst") as well as JiffyDOS (LOAD only) do this – doubling the SAVE speed and tripling the LOAD speed. 
 
 A more generic protocol optimization could replace the TCBM code before every byte with an extra wire owned by the controller indicating whether the next byte will be transmitted in the same mode. The common case of transfering multiple bytes would also be sped up by at least a factor of two this way, and even more in the receive case, which would no longer require the DIO handover between bytes.
 

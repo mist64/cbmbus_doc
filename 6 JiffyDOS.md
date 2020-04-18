@@ -3,11 +3,11 @@
 In the [series about the variants of the Commodore Peripheral Bus family](https://www.pagetable.com/?p=1018), this article covers the third party "JiffyDOS" extension to the Commodore Serial Bus protocol, which shipped as a ROM patch for computers and drives, replacing the byte transmission protocol of Standard Serial by using the clock and data lines in a more efficient way.
 
 
-<!-- ![](docs/cbmbus/tcbm_layers.png =371x241) -->
+![](docs/cbmbus/jiffydos_layers.png =291x241)
 
 <hr/>
 
-> **_NOTE:_**  I am releasing one part every once in a while, at which time links will be added to the bullet points below. The articles will also be announced on my Twitter account <a href="https://twitter.com/pagetable">@pagetable</a> and my Mastodon account <a href="https://mastodon.social/@pagetable">@pagetable&#64;mastodon.social</a>.
+> **_NOTE:_**  I am releasing one part every once in a while, at which time links will be added to the bullet points below. The articles will also be announced on the Twitter account <a href="https://twitter.com/pagetable">@pagetable</a> and the Mastodon account <a href="https://mastodon.social/@pagetable">@pagetable&#64;mastodon.social</a>.
 
 <hr/>
 
@@ -67,64 +67,140 @@ In the [series about the variants of the Commodore Peripheral Bus family](https:
 
 ## Byte Transfer
 
+* not symmetric
+
+### Sending Bytes
+
+The following animation shows a byte being sent from the controller to the device.
+
+![](docs/cbmbus/jiffydos-send.gif =601x344)
+
+#### 0: Initial State
+![](docs/cbmbus/jiffydos-14.png =601x131)
+
+#### 1: Device is ready to receive
+![](docs/cbmbus/jiffydos-15.png =601x131)
+
+#### 2: Controller is ready to send
+![](docs/cbmbus/jiffydos-16.png =601x131)
+
+#### 3: Controller puts data bits #4 and #5 onto wires
+![](docs/cbmbus/jiffydos-17.png =601x131)
+
+#### 4: Controller puts data bits #6 and #7 onto wires
+![](docs/cbmbus/jiffydos-18.png =601x131)
+
+#### 5: Controller puts data bits #3 and #1 onto wires
+![](docs/cbmbus/jiffydos-19.png =601x131)
+
+#### 6: Controller puts data bits #2 and #0 onto wires
+![](docs/cbmbus/jiffydos-20.png =601x131)
+
+#### 7: Controller sends EOI status
+![](docs/cbmbus/jiffydos-21.png =601x131)
+
+#### 8: Controller is now busy again
+![](docs/cbmbus/jiffydos-22.png =601x131)
+
+#### 9: Device is now busy again
+![](docs/cbmbus/jiffydos-23.png =601x131)
+
+1541 doesn't actually wait for C=1 after reading EOI
+
 ### Receiving Bytes
 
-The following animation shows a byte being received from the controller by the device.
+The following animation shows a byte being received by the controller from the device.
 
-![](docs/cbmbus/jiffydos.gif =601x344)
+![](docs/cbmbus/jiffydos-receive.gif =601x344)
 
 Let's go through it step by step:
 
 #### 0: Initial State
 ![](docs/cbmbus/jiffydos-01.png =601x131)
 
-#### 1: Sender is ready to send
+#### 1: Device is ready to send
 ![](docs/cbmbus/jiffydos-02.png =601x131)
 
-#### 2: Receiver is ready to receive
+#### 2: Controller is ready to receive
 ![](docs/cbmbus/jiffydos-03.png =601x131)
 
-#### 3: Sender puts data bits #0 and #1 onto wires
+#### 3: Device puts data bits #0 and #1 onto wires
 ![](docs/cbmbus/jiffydos-04.png =601x131)
 
-#### 4: Sender puts data bits #2 and #3 onto wires
+#### 4: Device puts data bits #2 and #3 onto wires
 ![](docs/cbmbus/jiffydos-05.png =601x131)
 
-#### 5: Sender puts data bits #4 and #5 onto wires
+#### 5: Device puts data bits #4 and #5 onto wires
 ![](docs/cbmbus/jiffydos-06.png =601x131)
 
-#### 6: Sender puts data bits #6 and #7 onto wires
+#### 6: Device puts data bits #6 and #7 onto wires
 ![](docs/cbmbus/jiffydos-07.png =601x131)
 
-#### 7: Sender signals OK/busy
+#### 7: Device signals OK/busy
 ![](docs/cbmbus/jiffydos-08.png =601x131)
 
-#### 8: Receiver is now busy again
+#### 8: Controller is now busy again
 ![](docs/cbmbus/jiffydos-09.png =601x131)
 
 ### End of Stream
 
-#### 7a: Sender signals EOI status
+#### 7a: Device signals EOI status
 ![](docs/cbmbus/jiffydos-10.png =601x131)
 
-#### 7b: Sender is now busy again
+#### 7b: Device is now busy again
 ![](docs/cbmbus/jiffydos-11.png =601x131)
 
 ### Error
 
-#### 7a': Sender signals error status
+#### 7a': Device signals error status
 ![](docs/cbmbus/jiffydos-12.png =601x131)
 
+* TODO: verify in C64 ROM
 
 ![](docs/cbmbus/jiffydos.png =601x301)
-
-### Sending Bytes
 
 ### LOAD
 
 ## Discussion
 
-### ...
+### No formal specification
+
+* compliance means staying within the timing bounds of all existing implementations
+
+### C64/1541-specific
+
+* bit order and negation based on C64/1541 ports
+* all non-C64/1541 devices are faster, so they can handle the overhead
+* not symmetric, can't do one-to-many
+	* but that's not solvable if it's always the C64 that needs to initiate a byte transmission
+
+### Protocol not optimal
+
+* 37 µs slows down everything
+* device should prepare the data before, then signal that it's ready
+* this allows faster implementations
+
+* also, 2 bits can be done in 8 µs instead of 10/11
+* or even faster: LDA zp, STA $1800, LDA zp, STA $1800; LDA $DD00, PHA, LDA $DD00, PHA...
+* or the standard LDA $DD00, LSR, LSR, EOR $DD00
+* C128/1581 (both 2 MHz) suffer from delays everywhere
+* even if C64/1541 have to do pre-/post-processing, they could be as fast by shifting complexity out of the transmission loop
+* so C128/1571 would benefit from the faster loop
+
+* 10/10/11/10/11 is ugly - check with other implementations
+
+### LOAD protocol not suitable for IRQs
+
+* once-per-block status transmission doesn't wait for host
+* host must be in a tight loop with IRQs off
+
+### Layer violation
+
+* technically, signalling specifically on TALK and LISTEN violates the layering
+* some implementation signal on all bytes under ATN, which is cleaner
+* but it's spec-compliant to send the TALK/LISTEN secondary will be sent without the signal
+* so device that turns Jiffy on/off based on whether last ATN byte had signal or not would not work right
+* -> it's okay to send the signal with every ATN, but the device must detect it only on TALK/LISTEN
 
 ### Conclusion
 

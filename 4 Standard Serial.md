@@ -2,11 +2,11 @@
 
 In the [series about the variants of the Commodore Peripheral Bus family](https://www.pagetable.com/?p=1018), this article covers the lowest two layers (electrical and byte transfer) of the "Standard Serial" bus as found on the VIC-20/C64 as the main bus, but also supported by all other Commodore home computers.
 
-![](docs/cbmbus/serial_layers.png =371x241)
+![](docs/cbmbus/serial_layers.png =211x241)
 
 <hr/>
 
-> **_NOTE:_**  I am releasing one part every once in a while, at which time links will be added to the bullet points below. The articles will also be announced on my Twitter account <a href="https://twitter.com/pagetable">@pagetable</a> and my Mastodon account <a href="https://mastodon.social/@pagetable">@pagetable&#64;mastodon.social</a>.
+> **_NOTE:_**  I am releasing one part every once in a while, at which time links will be added to the bullet points below. The articles will also be announced on the Twitter account <a href="https://twitter.com/pagetable">@pagetable</a> and the Mastodon account <a href="https://mastodon.social/@pagetable">@pagetable&#64;mastodon.social</a>.
 
 <hr/>
 
@@ -16,7 +16,7 @@ In the [series about the variants of the Commodore Peripheral Bus family](https:
 * [Part 3: The Commodore DOS Layer](https://www.pagetable.com/?p=1038)
 * **Part 4: Standard Serial (IEC) [VIC-20, C64; 1981]** ← *this article*
 * [Part 5: TCBM](https://www.pagetable.com/?p=1324) [C16, C116, Plus/4; 1984]
-* Part 6: JiffyDOS [1985] *(coming soon)*
+* [Part 6: JiffyDOS](https://www.pagetable.com/?p=1387) [1985]
 * Part 7: Fast Serial [C128; 1985] *(coming soon)*
 * Part 8: CBDOS [C65; 1991] *(coming soon)*
 
