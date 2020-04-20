@@ -27,7 +27,7 @@ In the [series about the variants of the Commodore Peripheral Bus family](https:
 	* Mark Fellows, 1985
 	* ROM replacements
 	* available for all Commodore computers and practically all IEC disk drives
-	* supported by modern devices ike SD2IEC
+	* supported by modern devices like SD2IEC
 	* as of 2020, JiffyDOS ROMs for all supported computers are drives are still commercially available
 * software-only faster protocol
 
@@ -67,9 +67,16 @@ In the [series about the variants of the Commodore Peripheral Bus family](https:
 
 ## Byte Transfer
 
+* byte transmission starts out and ends with the sender holding CLK and the receiver holding DATA
+	* just like with the original protocol
+	* -> interoperability
 * not symmetric
+	* controller has to signal t=0 because of the C64's tricky timing
+	* device is real-time capable, C64 is not
 
 ### Sending Bytes
+
+When the controller sends data to the device, it transmits two bits at a time roughly every 13 µs using the CLK and DATA lines, with no handshake. For each byte, the device signals that it is ready to receive, following by the controller signaling it is ready to send, this starting the timing critical window of about 75 µs.
 
 The following animation shows a byte being sent from the controller to the device.
 
@@ -200,6 +207,8 @@ Let's go through it step by step:
 * so device that turns Jiffy on/off based on whether last ATN byte had signal or not would not work right
 * -> it's okay to send the signal with every ATN, but the device must detect it only on TALK/LISTEN
 
+### Error handling?
+
 ### Conclusion
 
 ...
@@ -212,3 +221,13 @@ Part 7 of the series of articles on the Commodore Peripheral Bus family will cov
 
 
 # References
+
+* http://www.nlq.de
+* https://web.archive.org/web/20130128220953/http://hem.passagen.se/harlekin/download.htm
+* https://sites.google.com/site/h2obsession/CBM/C128/JiffySoft128
+* https://www.c64-wiki.com/wiki/SJLOAD
+* http://www.baltissen.org/newhtm/sourcecodes.htm
+* https://retrocomputing.stackexchange.com/questions/12755/what-is-the-c64-disk-drive-jiffy-protocol
+* https://github.com/rkrajnc/sd2iec/blob/07b7731d3d10ae87c45c29787856b9fee594ce16/src/iec.c
+* https://github.com/rkrajnc/sd2iec/blob/master/src/lpc17xx/fastloader-ll.c
+* https://github.com/gummyworm/skippydos
