@@ -164,6 +164,101 @@ Let's go through it step by step:
 
 ### LOAD
 
+* 1: inter-block
+* 2: block transmission
+	* one-way handshake
+		* device is assumed to always be ready as long as there is data immediately available
+		* i.e. within a block
+	* device can signal end of block
+
+#### 0: Initial State, start of inter-block signaling
+![](docs/cbmbus/jiffydos-25.png =601x131)
+
+Since the JiffyDOS LOAD protocol integrates with the standard serial protocol, its initial state must match the state of the parent protocol at this point: After the "TALK" command, the sender (the device) is holding the CLK line and the receiver (the controller) is holding the DATA line.
+
+This is the "inter-block" part of the protocol, where the device tells the controller whether more data is about to be transmitted, or whether this is the end of the stream or an error has occured. This part is purely-timing based: The device sends flags to the controller with a certain timing, and does not wait for the controller to be ready or to ACK anything.
+
+#### 1: Controller clears DATA wire (not a signal)
+![](docs/cbmbus/jiffydos-26.png =601x131)
+
+First, the controller releases the DATA wire. This is not a signal for the device, but necessary so that the controller can read the DATA line in step 3 - for the next few steps, the device will send timed information on both wires. The controller can therefore choose to release the wire as late as in step 3, just before reading it.
+
+#### 2: Device puts "end of data?" flag onto DATA
+![](docs/cbmbus/jiffydos-27.png =601x131)
+
+Next, the device puts a flag whether there is more data to be transmitted onto the DATA line. 1 means there is more data, while 0 means that there is no more data: the end of the stream has been reached or there has been an error.
+
+#### 3: Device signals flag is valid – hold for 80 µs
+![](docs/cbmbus/jiffydos-28.png =601x131)
+
+To signal that the state of the DATA line is now valid, the device releases the CLK line and holds this state for 80 µs.
+
+#### 4: Device puts "end of block?" flag onto CLK
+![](docs/cbmbus/jiffydos-29.png =601x131)
+
+
+#### 5: Device signals flag is valid
+![](docs/cbmbus/jiffydos-30.png =601x131)
+
+
+#### 6: Controller signals Go! for 12+ µs
+![](docs/cbmbus/jiffydos-31.png =601x131)
+
+
+#### 7: Controller clears DATA wire (not a signal)
+![](docs/cbmbus/jiffydos-32.png =601x131)
+
+
+#### 8: Device puts data bits #0 and #1 onto wires
+![](docs/cbmbus/jiffydos-33.png =601x131)
+
+
+#### 9: Device puts data bits #2 and #3 onto wires
+![](docs/cbmbus/jiffydos-34.png =601x131)
+
+
+#### 10: Device puts data bits #4 and #5 onto wires
+![](docs/cbmbus/jiffydos-35.png =601x131)
+
+
+#### 11: Device puts data bits #6 and #7 onto wires
+![](docs/cbmbus/jiffydos-36.png =601x131)
+
+
+#### 4': Device puts "end of block?" flag onto CLK
+![](docs/cbmbus/jiffydos-37.png =601x131)
+
+
+#### 5': Device signals flag is valid (ignored by controller)
+![](docs/cbmbus/jiffydos-38.png =601x131)
+
+
+#### 6-11: 
+
+#### 4a: Device puts "end of block?" flag onto CLK
+![](docs/cbmbus/jiffydos-39.png =601x131)
+
+
+#### 5a: Device signals flag is valid (ignored by controller)
+![](docs/cbmbus/jiffydos-40.png =601x131)
+
+
+#### 2a: Device puts "end of data?" flag onto DATA
+![](docs/cbmbus/jiffydos-41.png =601x131)
+
+
+#### 3a: Device signals flag is valid – hold for 80 µs
+![](docs/cbmbus/jiffydos-42.png =601x131)
+
+
+#### 3b: Device signals EOI within 1100 µs – hold for 100 µs
+![](docs/cbmbus/jiffydos-43.png =601x131)
+
+
+### Canceling
+
+* ATN in any state will be respected by the device
+
 ## Discussion
 
 ### No formal specification
@@ -174,10 +269,12 @@ Let's go through it step by step:
 
 * bit order and negation based on C64/1541 ports
 	* send case: high nybble decoded by device, low-nybble encoded by controller
-	* 
+	* receive case: encoded by device
 * all non-C64/1541 devices are faster, so they can handle the overhead
 * not symmetric, can't do one-to-many
 	* but that's not solvable if it's always the C64 that needs to initiate a byte transmission
+	* in general: one-to-many not possible if there are ready-*windows*
+	* if all participants have to say they are ready, by the time the last participant is ready, one of the other participant may not be ready any more
 
 ### Protocol not optimal
 
@@ -185,7 +282,9 @@ Let's go through it step by step:
 * device should prepare the data before, then signal that it's ready
 * this allows faster implementations
 
-* also, 2 bits can be done in 8 µs instead of 10/11
+* then again, only the LOAD case really matters...
+
+* 2 bits can be done in 8 µs instead of 10/11
 * or even faster: LDA zp, STA $1800, LDA zp, STA $1800; LDA $DD00, PHA, LDA $DD00, PHA...
 * or the standard LDA $DD00, LSR, LSR, EOR $DD00
 * C128/1581 (both 2 MHz) suffer from delays everywhere
@@ -201,7 +300,7 @@ Let's go through it step by step:
 
 ### Layer violation
 
-* technically, signalling specifically on TALK and LISTEN violates the layering
+* technically, signaling specifically on TALK and LISTEN violates the layering
 * some implementation signal on all bytes under ATN, which is cleaner
 * but it's spec-compliant to send the TALK/LISTEN secondary will be sent without the signal
 * so device that turns Jiffy on/off based on whether last ATN byte had signal or not would not work right
