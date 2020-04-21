@@ -176,7 +176,7 @@ Let's go through it step by step:
 
 Since the JiffyDOS LOAD protocol integrates with the standard serial protocol, its initial state must match the state of the parent protocol at this point: After the "TALK" command, the sender (the device) is holding the CLK line and the receiver (the controller) is holding the DATA line.
 
-This is the "inter-block" part of the protocol, where the device tells the controller whether more data is about to be transmitted, or whether this is the end of the stream or an error has occured. This part is purely-timing based: The device sends flags to the controller with a certain timing, and does not wait for the controller to be ready or to ACK anything.
+This is the "inter-block" phase of the protocol, where the device tells the controller whether more data is about to be transmitted, or whether this is the end of the stream or an error has occured. This part is purely-timing based: The device sends flags to the controller with a certain timing, and does not wait for the controller to be ready or to ACK anything.
 
 #### 1: Controller clears DATA wire (not a signal)
 ![](docs/cbmbus/jiffydos-26.png =601x131)
@@ -188,60 +188,112 @@ First, the controller releases the DATA wire. This is not a signal for the devic
 
 Next, the device puts a flag whether there is more data to be transmitted onto the DATA line. 1 means there is more data, while 0 means that there is no more data: the end of the stream has been reached or there has been an error.
 
+Let's continue with "more data".
+
 #### 3: Device signals flag is valid – hold for 80 µs
 ![](docs/cbmbus/jiffydos-28.png =601x131)
 
 To signal that the state of the DATA line is now valid, the device releases the CLK line and holds this state for 80 µs.
 
-#### 4: Device puts "end of block?" flag onto CLK
+#### 4: Device clears DATA wire
 ![](docs/cbmbus/jiffydos-29.png =601x131)
 
+After the device has indicated that there is more data, the protocol goes into the "block data" phase.
 
-#### 5: Device signals flag is valid
+First, the device releases DATA in order to clear the wire, so that the controller can use it later.
+
+#### 5: Device puts "end of block?" flag onto CLK
 ![](docs/cbmbus/jiffydos-30.png =601x131)
 
+At the beginning of the loop for each data byte, the device signals whether the end of the block has been reached.
 
-#### 6: Controller signals Go! for 12+ µs
+If this is the end of the block, the device sets CLK to 1. If there are more bytes to be transmitted within this block, it sets CLK to 0.
+
+The value of CLK has to be valid no later than 25 µs after step 4.
+
+#### 6: Controller signals "Go!" for 12+ µs
 ![](docs/cbmbus/jiffydos-31.png =601x131)
 
+Triggered by DATA being 0, but no earlier than CLK being valid from the step before, the controller pulls the DATA line for at least 12 µs, telling the device to immediately start the transmission of the 8 data bits.
 
 #### 7: Controller clears DATA wire (not a signal)
 ![](docs/cbmbus/jiffydos-32.png =601x131)
 
+In order to be able to read the data bits from both DATA and CLK in the next steps, the controller releases DATA before it reads the first pair of bits. Like in step 0, this is not a signal for the device.
 
 #### 8: Device puts data bits #0 and #1 onto wires
 ![](docs/cbmbus/jiffydos-33.png =601x131)
 
+Triggered by DATA being 1 (step 6), the device puts the first two data bits onto the two wires:
+
+* CLK = NOT #0
+* DATA = NOT #1
+
+The bits are sent starting with the least significant bit, and all bit values are inverted.
+
+The controller reads the wires exactly 16 µs after the controller sets DATA to 1 (step 6).
 
 #### 9: Device puts data bits #2 and #3 onto wires
 ![](docs/cbmbus/jiffydos-34.png =601x131)
 
+Based solely on timing, the device puts the second pair of data bits onto the wires:
+
+* CLK = NOT #2
+* DATA = NOT #3
+
+The controller reads the wires exactly 26 µs after the controller sets DATA to 1 (step 6).
 
 #### 10: Device puts data bits #4 and #5 onto wires
 ![](docs/cbmbus/jiffydos-35.png =601x131)
 
+The device puts the third pair of data bits onto the wires:
+
+* CLK = NOT #4
+* DATA = NOT #5
+
+The controller reads the wires exactly 37 µs after the controller sets DATA to 1 (step 6).
 
 #### 11: Device puts data bits #6 and #7 onto wires
 ![](docs/cbmbus/jiffydos-36.png =601x131)
 
+The device puts the final pair of data bits onto the wires:
 
-#### 4': Device puts "end of block?" flag onto CLK
+* CLK = NOT #6
+* DATA = NOT #7
+
+The controller reads the wires exactly 48 µs after the controller sets DATA to 1 (step 6).
+
+#### 4': Device clears DATA wire
 ![](docs/cbmbus/jiffydos-37.png =601x131)
 
+At this point, the protocol loops back to step 4, the first step of the "block data" phase.
 
-#### 5': Device signals flag is valid (ignored by controller)
+First, the device clears the DATA wire again (which contained the last bit of the previous data byte), so the controller can use it to signal "Go!" in step 6.
+
+#### 5': Device puts "end of block?" flag onto CLK
 ![](docs/cbmbus/jiffydos-38.png =601x131)
 
+Let's assume there is one more byte in this block, so the device sets CLK to 0.
 
-#### 6-11: 
+Again, the validity is based purely on timing: At the earliest, the controller reads the CLK wire 88 µs after the previous "Go!" signal, but may read it as late as it chooses - the device will hold it until the controller signals "Go!" again (step 6).
 
-#### 4a: Device puts "end of block?" flag onto CLK
+#### 6-11: Repeat for next byte
+
+The second byte is transmitted the same way as before.
+
+#### 4a: Device clears DATA wire
 ![](docs/cbmbus/jiffydos-39.png =601x131)
 
+At the start of the third iteration of the "block data" loop, the device again signals whether the end of the block has been reached.
 
-#### 5a: Device signals flag is valid (ignored by controller)
+This time, let's assume the end of the block has been reached, so the device sets CLK to 1.
+
+(The DATA line still reflects the last bit of the byte transmitted before.)
+
+#### 5a: Device puts "end of block?" flag onto CLK
 ![](docs/cbmbus/jiffydos-40.png =601x131)
 
+The device releases the DATA line in step 5, but in all but the first iteration, this is not to indicate the validity of the value in the CLK line, but to clear DATA line, so the controller can use it to signal "Go!" in step 6.
 
 #### 2a: Device puts "end of data?" flag onto DATA
 ![](docs/cbmbus/jiffydos-41.png =601x131)
