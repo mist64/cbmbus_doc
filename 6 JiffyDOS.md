@@ -82,17 +82,19 @@ The following animation shows a byte being sent from the controller to the devic
 
 ![](docs/cbmbus/jiffydos-send.gif =601x344)
 
+Let's go through it step by step:
+
 #### 0: Initial State
 ![](docs/cbmbus/jiffydos-13.png =601x131)
 
-Since the JiffyDOS LOAD protocol integrates with the standard serial protocol, its initial state must match the state of the parent protocol at this point: After the "LISTEN"/"SECOND" command, the sender (the controller) is holding the CLK line and the receiver (the device) is holding the DATA line.
+Since the JiffyDOS protocol integrates with the Standard Serial protocol, its initial state must match the state of the parent protocol at this point: After the "LISTEN"/"SECOND" command, the sender (the controller) is holding the CLK line and the receiver (the device) is holding the DATA line.
 
 #### 1: Device is ready to receive
 ![](docs/cbmbus/jiffydos-14.png =601x131)
 
 Transmission of a new byte is initiated by the device, indicating that it is ready to receive by releasing the DATA line.
 
-#### 2: Controller is starting to send
+#### 2: Controller sends the "Go!" signal
 ![](docs/cbmbus/jiffydos-15.png =601x131)
 
 Triggered by DATA being 1, the controller indicates that it will start sending a data byte by releasing the CLK line - this is the "Go!" signal. During the transmission of the byte, both lines will be owned by the controller, and the sequence of steps is purely based on timing; there are no ACK signals.
@@ -139,67 +141,128 @@ The controller puts the final pair of data bits onto the two wires:
 
 The wires have to be valid between 51 and 58 µs after the "Go!" signal.
 
-#### 7: Controller is now busy again
+#### 7: Controller signals no EOI, and is now busy again
 ![](docs/cbmbus/jiffydos-20.png =601x131)
 
-Still timing-based, the controller releases the DATA line and pulls the CLK line, signaling that it is not ready to send the next byte. (For the EOI case, see the next section.)
+Still timing-based, the controller releases the DATA line so it can be operated by the device again, and pulls the CLK line, signaling that there is no EOI. A pulled CLK line also means that the controller is now busy again, so the transmission of the next data byte cannot start.
 
-The CLK line has to be pulled no later than 64 µs after the "Go!" signal.
+The wires have to be valid no later than 64 µs after the "Go!" signal.
 
 #### 8: Device is now busy again
 ![](docs/cbmbus/jiffydos-21.png =601x131)
 
-Also timing-based, the device pulls the DATA line as soon as it has read the CLK line.
+Also timing-based, the device pulls the DATA line as soon as it has read the CLK line. This is the same as the initial state, so the protocol continues with step 1 for the next data byte.
 
+### End of Stream (Send)
 
-### End of Stream
+An EOI event is signaled through the CLK line in step 7.
 
-The EOI signal indicating the end of the stream is transmitted through a timing sidechannel. Instead of pulling the CLK line at 64 µs, the controller keeps CLK released at least 64 µs and 71 µs and pulls it afterwards.
+#### 7a: Controller signals EOI status
+![](docs/cbmbus/jiffydos-10.png =601x131)
+
+If there is an EOI, instead of pulling the CLK line at 64 µs, the controller keeps CLK released at least between 64 µs and 71 µs.
+
+#### 7b: Controller is now busy again
+![](docs/cbmbus/jiffydos-11.png =601x131)
+
+At 71 µs, the controller can now pull the CLK line, signaling that it is busy again and transmission of the next data byte cannot start.
 
 ![](docs/cbmbus/jiffydos-send.png =601x301)
 
 ### Receiving Bytes
 
+When the device sends data to the controller, it transmits two bits at a time roughly every 11 µs using the CLK and DATA lines, with no handshake. For each byte, the device signals that it is ready to send, followed by the controller signaling the device to start the transmission, thus starting the timing critical window of about 55 µs.
+
+Compared to the byte send case, the ownership of the CLK and DATA lines outside the core data transmission is swapped, but it is the controller that sends the "Go!" signal in both cases.
+
 The following animation shows a byte being received by the controller from the device.
 
 ![](docs/cbmbus/jiffydos-receive.gif =601x344)
 
-Let's go through it step by step:
+Again, let's go through it step by step:
 
 #### 0: Initial State
 ![](docs/cbmbus/jiffydos-01.png =601x131)
 
+Like in the "send" case, the initial state is the same is with Standard Serial, since this is the natural state after the "LISTEN"/"SECOND" command: The sender (the device) is holding the CLK line and the receiver (the controller) is holding the DATA line.
+
 #### 1: Device is ready to send
 ![](docs/cbmbus/jiffydos-02.png =601x131)
 
-#### 2: Controller is ready to receive
+Transmission of a new byte is initiated by the device, indicating that it is ready to send by releasing the CLK line.
+
+#### 2: Controller sends the "Go!" signal
 ![](docs/cbmbus/jiffydos-03.png =601x131)
+
+Triggered by CLK being 1, the controller indicates that the device must now start sending a data byte by releasing the DATA line - this is the "Go!" signal. During the transmission of the byte, both lines will be owned by the device, and the sequence of steps is purely based on timing; there are no ACK signals.
 
 #### 3: Device puts data bits #0 and #1 onto wires
 ![](docs/cbmbus/jiffydos-04.png =601x131)
 
+First, the device puts the first pair of data bits onto the two wires:
+
+* CLK = #0
+* DATA = #1
+
+The wires have to be valid 15 µs after the "Go!" signal.
+
+In the receive case, the bits are sent in the order 0-1/2-3/4-5/6-7.
+
 #### 4: Device puts data bits #2 and #3 onto wires
 ![](docs/cbmbus/jiffydos-05.png =601x131)
+
+The device puts the second pair of data bits onto the two wires:
+
+* CLK = #2
+* DATA = #3
+
+The wires have to be valid 25 µs after the "Go!" signal.
 
 #### 5: Device puts data bits #4 and #5 onto wires
 ![](docs/cbmbus/jiffydos-06.png =601x131)
 
+The device puts the third pair of data bits onto the two wires:
+
+* CLK = #4
+* DATA = #5
+
+The wires have to be valid 36 µs after the "Go!" signal.
+
 #### 6: Device puts data bits #6 and #7 onto wires
 ![](docs/cbmbus/jiffydos-07.png =601x131)
 
-#### 7: Device is now busy again
+The device puts the final pair of data bits onto the two wires:
+
+* CLK = #6
+* DATA = #7
+
+The wires have to be valid 47 µs after the "Go!" signal.
+
+#### 7: Device signals no EOI, and is now busy again
 ![](docs/cbmbus/jiffydos-08.png =601x131)
+
+Still timing-based, the device releases the DATA line so it can be operated by the controller again, and pulls the CLK line, signaling that there is no EOI. A pulled CLK line also means that the device is now busy again, so the transmission of the next byte cannot start.
+
+The CLK line has to be pulled no later than 58 µs after the "Go!" signal.
 
 #### 8: Controller is now busy again
 ![](docs/cbmbus/jiffydos-09.png =601x131)
 
-### End of Stream
+Also timing-based, the controller pulls the DATA line as soon as it has read the CLK line. This is the same as the initial state, so the protocol continues with step 1 for the next data byte.
+
+### End of Stream (Receive)
+
+An EOI event is signaled through the CLK line in step 7.
 
 #### 7a: Device signals EOI status
 ![](docs/cbmbus/jiffydos-10.png =601x131)
 
+If there is an EOI, instead of pulling the CLK line at 58 µs, the device keeps CLK released at least between 58 µs and 71 µs.
+
 #### 7b: Device is now busy again
 ![](docs/cbmbus/jiffydos-11.png =601x131)
+
+At 71 µs, the device can now pull the CLK line, signaling that it is busy again and transmission of the next data byte cannot start.
 
 ![](docs/cbmbus/jiffydos-receive.png =601x301)
 
