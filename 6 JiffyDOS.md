@@ -17,7 +17,7 @@ In the [series about the variants of the Commodore Peripheral Bus family](https:
 * [Part 3: The Commodore DOS Layer](https://www.pagetable.com/?p=1038)
 * [Part 4: Standard Serial (IEC)](https://www.pagetable.com/?p=1135) [VIC-20, C64; 1981]
 * [Part 5: TCBM](https://www.pagetable.com/?p=1324) [C16, C116, Plus/4; 1984]
-* **Part 6: JiffyDOS [1985]** ← *this article*
+* **Part 6: JiffyDOS [1986]** ← *this article*
 * Part 7: Fast Serial [C128; 1985] *(coming soon)*
 * Part 8: CBDOS [C65; 1991] *(coming soon)*
 
@@ -34,20 +34,26 @@ In the [series about the variants of the Commodore Peripheral Bus family](https:
 # Overview
 
 * same connector, same wires (ATN, CLK, DATA)
-* faster byte send
-* same ATN command protocol above
+* fully backwards compatible, any combination of JD and non-JD controller and devices
+* 10x faster point-to-point byte stream transmission protocol if controller and device support it
+* ATN command layer identical, using the slow byte transmission protocol
+
+* secret handshake between controller and device during TALK/LISTEN command to detect whether both sides support JD
+* if supported on both sides, faster byte send protocol during TALK and LISTEN sessions
+* point-to-point between controller and one device; does not allow one-to-many
 
 * new byte send protocol
-	* send 2 bits at a time
-	* every 10 µs
+	* two-way handshake after every byte
+	* transmission of byte timing based: 2 bits at a time, every 11-13 µs
+* controller must guarantee 75 µs window without interruptions
+* device must be real-time
+
 * original protocol has a "no slower than" requirement
 * JiffyDOS has a "no faster or slower than" requirement
-* sender and receiver must guarantee 85 µs window without interruptions
 * within 7 µs windows, receiver must be able to read two bits every 10 µs
-* two-way handshake after every byte
 
-* point-to-point between controller and one device
-
+* supports EOI and timeout flags (Consistent with IEEE-488, this event is called "EOI", "End Or Identify".)
+ 
 * backwards compatibility
 	* devices that can speak JiffyDOS and devices that can't can share the same bus
 	* all devices that speak JiffyDOS also speak the original protocol
@@ -59,11 +65,12 @@ In the [series about the variants of the Commodore Peripheral Bus family](https:
 
 ## Detection
 
-* controller waits TODO µs (400?) between bit 6 and 7 of LISTEN or TALK
-* -> device will speak fast protocol in this TALK/LISTEN session
-* addressed device pulls DATA for at least TODO µs
-* -> controller knows device will speak fast protocol
-* controller will wait for DATA being released
+* controller delays 400 µs (at least 218 µs) between bit 6 and 7 of LISTEN or TALK commands
+* addressed device pulls DATA for 100 µs
+* protocol resumes with bit 7
+* -> controller and device will speak JD protocol in this TALK/LISTEN session
+
+![](docs/cbmbus/jiffydos-detection.png =601x301)
 
 ## Byte Transfer
 
@@ -73,6 +80,7 @@ In the [series about the variants of the Commodore Peripheral Bus family](https:
 * not symmetric
 	* controller has to signal t=0 because of the C64's tricky timing
 	* device is real-time capable, C64 is not
+* dedicated "LOAD" protocol does away with the two-way-handshake, makes it one-way, and adds a device-to-host "escape" flag to switch to a different phase of the protocol
 
 ### Sending Bytes
 
@@ -152,6 +160,8 @@ The wires have to be valid no later than 64 µs after the "Go!" signal.
 ![](docs/cbmbus/jiffydos-21.png =601x131)
 
 Also timing-based, the device pulls the DATA line as soon as it has read the CLK line. This is the same as the initial state, so the protocol continues with step 1 for the next data byte.
+
+Of course, the controller can alternatively pull ATN at this point, and send an "UNLISTEN" command, for example.
 
 ### End of Stream (Send)
 
@@ -249,6 +259,8 @@ The CLK line has to be pulled no later than 58 µs after the "Go!" signal.
 ![](docs/cbmbus/jiffydos-09.png =601x131)
 
 Also timing-based, the controller pulls the DATA line as soon as it has read the CLK line. This is the same as the initial state, so the protocol continues with step 1 for the next data byte.
+
+As with the send case, the controller can alternatively pull ATN at this point, and send an "UNTALK" command, for example.
 
 ### End of Stream (Receive)
 
@@ -491,3 +503,4 @@ Part 7 of the series of articles on the Commodore Peripheral Bus family will cov
 * https://github.com/rkrajnc/sd2iec/blob/07b7731d3d10ae87c45c29787856b9fee594ce16/src/iec.c
 * https://github.com/rkrajnc/sd2iec/blob/master/src/lpc17xx/fastloader-ll.c
 * https://github.com/gummyworm/skippydos
+* https://web.archive.org/web/20060718184600/http://cmdrkey.com/cbm/misc/history.html
