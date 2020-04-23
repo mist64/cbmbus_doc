@@ -52,3 +52,7 @@ convert -crop 1200x600+0+0\! -bordercolor black -border 1 /tmp/JiffyDOS/JiffyDOS
 convert -crop 1200x600+0+0\! -bordercolor black -border 1 /tmp/JiffyDOS/JiffyDOS.024.png  ../docs/cbmbus/jiffydos-send.png
 
 convert -crop 1200x600+0+0\! -bordercolor black -border 1 /tmp/JiffyDOS/JiffyDOS.043.png  ../docs/cbmbus/jiffydos-detection.png
+
+convert -crop 1200x600+0+0\! -bordercolor black -border 1 /tmp/JiffyDOS/JiffyDOS.044.png  ../docs/cbmbus/jiffydos-send-receive.png
+
+convert -crop 1200x332+0+0\! -bordercolor black -border 1 /tmp/JiffyDOS/JiffyDOS.045.png  ../docs/cbmbus/jiffydos-vs-serial.png
