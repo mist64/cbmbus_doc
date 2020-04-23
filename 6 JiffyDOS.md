@@ -48,15 +48,35 @@ JiffyDOS adds three alternative byte transmission protocols to layer 2. These pr
 
 Since a bus can have JiffyDOS and non-JiffyDOS devices, commands (ATN=1) that the controller sends to all devices always use the Standard Serial byte transmission protocol.
 
+All three new byte transmission protocols only work between the controller and a single device. One-to-many transmissions, like with the original protocol, is not supported.
+
 # Detection
 
-* controller delays 400 µs (at least 218 µs) between bit 6 and 7 of LISTEN or TALK commands
-* addressed device pulls DATA for 100 µs
-* protocol resumes with bit 7
-* -> controller and device will speak JD protocol in this TALK/LISTEN session
+The new protocols can only be used if both the controller and the device support it. Before every TALK or LISTEN session, the controller and the device therefore negotiate whether they both support JiffyDOS.
+
+This negotiation is done through a timing sidechannel during the TALK or LISTEN command sent by the controller:
 
 ![](docs/cbmbus/jiffydos-detection.png =601x301)
 
+Like all commands, TALK and LISTEN are sent using the Standard Serial byte transmission protocol. The sender, which in this case is the controller, puts the eight bits onto DATA bus, one after the other. Whenever the DATA line is valid, it releases CLK for 60 µs, and between bits, it pulls CLK for 60 µs.
+
+These are the command codes for TALK and LISTEN:
+
+| hex           | binary      | description   |
+|---------------|-------------|---------------|
+| `0x20` + _pa_ | `%001aaaaa` | `LISTEN`      |
+| `0x40` + _pa_ | `%010aaaaa` | `TALK`        |
+
+The codes are sent starting with the least significant bit, so the 5 bits of the device's primary address (`aaaaa`) are sent first, followed by the bits 1 followed by 0 (LISTEN) or 0 followed by 1 (TALK). The last bit will always be 0: The command codes `%101aaaaa` (`0xA0` + _pa_) and `%110aaaaa` (`0xC0` + _pa_) are unassigned.
+
+
+So by the time 7 of the 8 bits are transmitted, the specified device effectively already knows that it is being addressed, and that it's a TALK or LISTEN command.
+
+Now if the controller supports JiffyDOS, the delay with CLK=1 between the 6th and the 7th (the last) bit will instead be 400 µs[^1]. If the devide detects this delays, it will pull the DATA line, hold this state for 100 µs, and release the DATA line again.
+
+Both devices now know that the other supports JiffyDOS, and the transmission of the TALK or LISTEN command will resume with the last bit.
+
+Commands are always received by all devices on the bus, which will just ignore the extra communication. The extra delay by the controller is within the specification – the controller can be as slow as it wants – and the DATA line pulled by the device will be ignored, since it is only considered valid while CLK is released.
 
 # Byte Transfer
 
@@ -515,3 +535,6 @@ Part 7 of the series of articles on the Commodore Peripheral Bus family will cov
 * https://github.com/rkrajnc/sd2iec/blob/master/src/lpc17xx/fastloader-ll.c
 * https://github.com/gummyworm/skippydos
 * https://web.archive.org/web/20060718184600/http://cmdrkey.com/cbm/misc/history.html
+
+
+[^1]: The 1541 implementation uses a threshold of 218 µs to detect this.
