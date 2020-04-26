@@ -505,7 +505,7 @@ Start:
 | Step | Event                                | Wires               | Type    | Timing                  | Hold For |
 |------|--------------------------------------|---------------------|---------|-------------------------|----------|
 |   1  | Controller clears DATA wire          | DATA = 0            | -       |                         |          |
-|   2  | Device signals EOD = 0/1             | DATA = 1            | -       |                         |          |
+|   2  | Device signals EOD = 0/1             | DATA = 0/1          | -       |                         |          |
 |   3  | Device signals EOD is valid          | CLK = 0             | trigger | 0 - ∞                   | 75 µs    |
 
 * If EOD = 0, "Block Data" follows.
@@ -515,14 +515,14 @@ Start:
 
 | Step | Event                                | Wires               | Type    | Timing                  | Hold For |
 |------|--------------------------------------|---------------------|---------|-------------------------|----------|
-|   3b | Device signals EOI within 1100 µs    | CLK = 1             | trigger | 0 - ∞                   | 100 µs    |
+|   3b | Device signals EOI within 1100 µs    | CLK = 1             | trigger | 0 - ∞                   | 100 µs   |
 
 #### Block Data
 
 | Step | Event                                | Wires               | Type    | Timing                  | Hold For |
 |------|--------------------------------------|---------------------|---------|-------------------------|----------|
-|   4  | Device is ready to send              | DATA = 0            | trigger | 0 - ∞                   |          |
-|   5  | Device signals not end of block flag | CLK = 0             | sample  | 25 µs after step 4      | ∞        |
+|   5  | Device signals EOB = 0/1             | CLK = 0/1           | -       | 0 - ∞                   |          |
+|   4  | Device signald EOB is valid          | DATA = 0            | trigger | 0 - ∞                   |          |
 |   6  | Controller signals "Go"              | DATA = 1            | trigger | 0 - ∞                   | 12 µs    |
 |   7  | Controller clears DATA wire          | DATA = 0            | trigger | not a signal            |          |
 |   8  | Device sends 1st pair of bits        | CLK = #0, DATA = #1 | trigger | 15 µs after step 2      | 1 µs     |
@@ -531,13 +531,7 @@ Start:
 |  11  | Device sends 4th pair of bits        | CLK = #6, DATA = #7 | trigger | 47 µs after step 2      | 1 µs     |
 
 * step 4 is only checked by the host in the first iteration; after that, the device is assumed ready 84 µs after the last "Go"
-
-|   4' | Device clears DATA wire              | DATA = 0            | trigger | 0 - ∞                   | ?        |
-|   5' | Device signals not end of block      | CLK = 0             | trigger | sampled 86+ µs after step 4      | ∞        |
-|   6' | Controller signals "Go"              | DATA = 1            | trigger | 84 µs - ∞ after step 2  | 12 µs    |
-|7-11,4'| (repeat)                            |                     | trigger |                         |          |
-|   5a | Device signals end of block          | CLK = 1             | trigger | ?                       | ?        |
-
+* if EOB = 1, "Inter-Block" follows immediately
 
 
 # Discussion
