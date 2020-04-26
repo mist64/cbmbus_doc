@@ -500,29 +500,27 @@ Start:
 | Step | Event                                | Wires                | Type    | Delay                   | Hold For |
 |------|--------------------------------------|----------------------|---------|-------------------------|----------|
 |   1  | Controller clears DATA wire          | DATA = 0             | -       |                         |          |
-|   2  | Device signals EOD = 0/1 & valid     | DATA = !EOD, CLK = 0 | trigger | 0 - ∞                   | 75 µs    |
+|   2  | Device signals EOI/!EOI & valid      | DATA = !EOI, CLK = 0 | trigger | 0 - ∞                   | 75 µs    |
 
-* If EOD = 0, "Block Data" follows.
-* If EOD = 1, "End" follows.
+* If EOI = 0, "Block Data" follows.
+* If EOI = 1, "End" follows.
 
 #### End
 
 | Step | Event                                | Wires               | Type    | Delay                   | Hold For |
 |------|--------------------------------------|---------------------|---------|-------------------------|----------|
-|   3  | Device signals EOI                   | CLK = 1             | trigger | 0 - 1100 µs             | 100 µs   |
-
-0-1-2-BLOCK-2-BLOCK-2-3
+|   3  | Device signals no error              | CLK = 1             | trigger | 0 - 1100 µs             | 100 µs   |
 
 #### Block Data
 
 | Step | Event                                | Wires               | Type    | Delay                   | Hold For |
 |------|--------------------------------------|---------------------|---------|-------------------------|----------|
-|   A  | Device signals EOB = 0/1 & valid     | CLK = EOB, DATA = 0 | trigger | 0 - 84 µs               | ∞        |
-|   B  | Controller signals "Go", clears DATA | DATA = 1; DATA = 0  | trigger | 0 - ∞                   | 12 µs    |
-|   C  | Device sends 1st pair of bits        | CLK = #0, DATA = #1 | sample  | 15 µs                   | 1 µs     |
-|   D  | Device sends 2nd pair of bits        | CLK = #2, DATA = #3 | sample  | 10 µs                   | 1 µs     |
-|   E  | Device sends 3rd pair of bits        | CLK = #4, DATA = #5 | sample  | 11 µs                   | 1 µs     |
-|   F  | Device sends 4th pair of bits        | CLK = #6, DATA = #7 | sample  | 11 µs                   | 1 µs     |
+|   1  | Device signals EOB/!EOB & valid      | CLK = EOB, DATA = 0 | trigger | 0 - 84 µs               | ∞        |
+|   2  | Controller signals "Go", clears DATA | DATA = 1; DATA = 0  | trigger | 0 - ∞                   | 12 µs    |
+|   3  | Device sends 1st pair of bits        | CLK = #0, DATA = #1 | sample  | 15 µs                   | 1 µs     |
+|   4  | Device sends 2nd pair of bits        | CLK = #2, DATA = #3 | sample  | 10 µs                   | 1 µs     |
+|   5  | Device sends 3rd pair of bits        | CLK = #4, DATA = #5 | sample  | 11 µs                   | 1 µs     |
+|   6  | Device sends 4th pair of bits        | CLK = #6, DATA = #7 | sample  | 11 µs                   | 1 µs     |
 
 * EOB must be signaled no later than 84 µs after the last "Go", so the host can omit the DATA = 0 check if it's later than that
 * if EOB = 1, "Inter-Block" follows after B
