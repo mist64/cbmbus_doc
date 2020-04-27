@@ -48,7 +48,7 @@ for i in 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20 21 22 23 25
 	convert -crop 1200x262+0+84\! -bordercolor black -border 1 /tmp/JiffyDOS/JiffyDOS.0$i.png ../docs/cbmbus/jiffydos-$i.png
 done
 
-convert -crop 1200x600+0+0\! -bordercolor black -border 1 /tmp/JiffyDOS/JiffyDOS.012.png  ../docs/cbmbus/jiffydos-receive.png
+convert -crop 1200x842+0+0\! -bordercolor black -border 1 /tmp/JiffyDOS/JiffyDOS.012.png  ../docs/cbmbus/jiffydos-receive.png
 convert -crop 1200x842+0+0\! -bordercolor black -border 1 /tmp/JiffyDOS/JiffyDOS.024.png  ../docs/cbmbus/jiffydos-send.png
 
 convert -crop 1200x332+0+0\! -bordercolor black -border 1 /tmp/JiffyDOS/JiffyDOS.029.png  ../docs/cbmbus/jiffydos-load-escape.png

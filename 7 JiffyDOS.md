@@ -167,7 +167,7 @@ The wires have to be valid for 7 µs starting after 11 µs.
 
 The controller puts the final pair of data bits onto the two wires (CLK: #2, DATA = #0).
 
-The wires have to be valid for 7 µs starting after 13 µs.
+The wires have to be valid no later than after 13 µs and the state has to remain held.
 
 #### 7: Controller signals no EOI, and is now busy again
 ![](docs/cbmbus/jiffydos-20.png =601x131)
@@ -189,7 +189,7 @@ Of course, the controller can alternatively pull ATN at this point, and send an 
 
 An EOI event is signaled through the CLK line in step 7.
 
-#### 7a: Controller signals EOI status
+#### 7a: Controller signals EOI/Error status
 ![](docs/cbmbus/jiffydos-22.png =601x131)
 
 If there is an EOI or an error, the controller releases CLK.
@@ -203,7 +203,7 @@ As with the regular case, the wires have to be valid no later than after 13 µs.
 #### 7b: Controller is now busy again
 ![](docs/cbmbus/jiffydos-23.png =601x131)
 
-In the EOI case, the controller will then pull the CLK line, signaling that it is busy again and transmission of the next data byte cannot start just yet.
+In the EOI case, the controller will then pull the CLK line, signaling that it is busy again.
 
 EOI/error signaling can be seen as delaying the controller's last step in the sequence by keeping CLK released for some time after the last data bits:
 
@@ -229,21 +229,21 @@ Like in the "send" case, the initial state is the same as with Standard Serial, 
 #### 1: Device is ready to send
 ![](docs/cbmbus/jiffydos-02.png =601x131)
 
-Once the device is has the next data byte at hand, that is, for example, after reading it from a buffer, or after reading a new sector from the media, it indicates that it is ready to send by releasing the CLK line. It may delay this step indefinitely.
+Once the device has the next data byte at hand, that is, for example, after reading it from a buffer, or after reading a new sector from the media, it indicates that it is ready to send by releasing the CLK line. It may delay this step indefinitely.
 
 #### 2: Controller sends the "Go" signal
 ![](docs/cbmbus/jiffydos-03.png =601x131)
 
-Triggered by CLK being 1, the controller indicates that the device must now start sending a data byte by releasing the DATA line - this is the "Go" signal. During the transmission of the byte, both lines will be owned by the device, and the sequence of steps is purely based on timing; there are no ACK signals.
+Triggered by CLK being 0, the controller indicates by releasing the DATA line that the device must now start sending a data byte - this is the "Go" signal. During the transmission of the byte, both lines will be owned by the device, and the sequence of steps is purely based on timing; there are no ACK signals.
 
-The controller may delay this step indefinitely. In practice, it will until it has a guaranteed 55 µs time window without interruptions.
+The controller may delay this step indefinitely. In practice, it will until it has a guaranteed XXX 55 µs time window without interruptions.
 
 #### 3: Device puts data bits #0 and #1 onto wires
 ![](docs/cbmbus/jiffydos-04.png =601x131)
 
 First, the device puts the first pair of data bits onto the two wires (CLK: #0, DATA: #1).
 
-The wires have to be valid 15 µs after the "Go" signal.
+The wires have to be valid for 1 µs after 15 µs.
 
 In the receive case, the bits are sent in the order 0-1/2-3/4-5/6-7.
 
@@ -252,21 +252,21 @@ In the receive case, the bits are sent in the order 0-1/2-3/4-5/6-7.
 
 The device puts the second pair of data bits onto the two wires (CLK: #2, DATA: #3).
 
-The wires have to be valid 25 µs after the "Go" signal.
+The wires have to be valid for 1 µs after 10 µs.
 
 #### 5: Device puts data bits #4 and #5 onto wires
 ![](docs/cbmbus/jiffydos-06.png =601x131)
 
 The device puts the third pair of data bits onto the two wires (CLK: #4, DATA: #5).
 
-The wires have to be valid 36 µs after the "Go" signal.
+The wires have to be valid for 1 µs after 11 µs.
 
 #### 6: Device puts data bits #6 and #7 onto wires
 ![](docs/cbmbus/jiffydos-07.png =601x131)
 
 The device puts the final pair of data bits onto the two wires (CLK: #6, DATA: #7).
 
-The wires have to be valid 47 µs after the "Go" signal.
+The wires have to be valid for 1 µs after 11 µs.
 
 #### 7: Device signals no EOI, and is now busy again
 ![](docs/cbmbus/jiffydos-08.png =601x131)
@@ -275,12 +275,12 @@ Still timing-based, the device pulls the CLK line, signaling that there is no EO
 
 In the no-EOI case, it also releases the DATA line so it can be operated by the controller again.
  
-The CLK line has to be pulled no later than 58 µs after the "Go" signal.
+The wires have to be valid no later than after 11 µs and the state has to remain held.
 
 #### 8: Controller is now busy again
 ![](docs/cbmbus/jiffydos-09.png =601x131)
 
-After reading the CLK line (i.e. no earlier than after 58 µs), the controller pulls the DATA line. This is the same as the initial state, so the protocol continues with step 1 for the next data byte.
+After reading the CLK line, the controller pulls the DATA line. This is the same as the initial state, so the protocol continues with step 1 for the next data byte.
 
 Similarly to the send case, the controller can alternatively pull ATN at this point, and send an "UNTALK" command, for example.
 
@@ -288,21 +288,23 @@ Similarly to the send case, the controller can alternatively pull ATN at this po
 
 An EOI event is signaled through the CLK line in step 7.
 
-#### 7a: Device signals EOI status
+#### 7a: Device signals EOI/Error status
 ![](docs/cbmbus/jiffydos-10.png =601x131)
 
-If there is an EOI, instead of pulling the CLK line at 58 µs, the device keeps CLK released and pulls DATA at least between 58 µs and 71 µs.
+If there is an EOI or an error, the device releases CLK.
 
-If both CLK and DATA are released, this indicates a "timeout" error.
+In the EOI case, DATA is pulled, and in the error case, DATA is released.
+
+As with the regular case, the wires have to be valid no later than after 13 µs. And in this case, they need to be held for 13 µs.
 
 #### 7b: Device is now busy again
 ![](docs/cbmbus/jiffydos-11.png =601x131)
 
-At 71 µs, the device can now pull the CLK line, signaling that it is busy again and transmission of the next data byte cannot start.
+In the EOI case, the device will then pull the CLK line, signaling that it is busy again.
 
-EOI signaling can be seen as delaying the device's last step in the sequence by keeping CLK released for some time after the last data bits:
+EOI/error signaling can be seen as delaying the controller's last step in the sequence by keeping CLK released for some time after the last data bits:
 
-![](docs/cbmbus/jiffydos-receive.png =601x301)
+![](docs/cbmbus/jiffydos-receive.png =601x422)
 
 ## JiffyDOS LOAD
 
