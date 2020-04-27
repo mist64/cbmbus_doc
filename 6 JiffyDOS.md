@@ -326,16 +326,29 @@ So the LOAD protocol consists of two parts: escape mode and byte send mode.
 
 ### Escape Mode
 
-The LOAD protocol starts and ends in "escape mode". It is used to allow the device to signal:
+The LOAD protocol is framed by "escape mode". It is used to allow the device to signal:
 
-* no more data is currently ready, which allows the device to stall (e.g. if it needs to fetch a new block from the media)
-* more data is ready
-* EOI, that is, the end of the file has been reached
-* there has been an error ("timeout")
+* data is ready: switch to the "byte receive" mode
+* data is not ready: this allows the device to stall (e.g. if it needs to fetch a new block from the media)
+* "EOI": the end of the file has been reached
+* "timeout": there has been an error
 
 XXX EOI gets sent *after* the last byte
 
+The following diagram shows the escape mode part of a LOAD protocol session:
+
 ![](docs/cbmbus/jiffydos-load-escape.png =601x167)
+
+* The device signals that data is ready (!EOI) and the protocol switches to byte receive mode.
+* After a certain number of bytes, byte receive mode switches back to escape mode.
+* This can be repeated an arbitrary number of times.
+* As soon as end of the file has been reached, or if there was an error, the device signals EOI.
+
+(An empty file would cause the device to signal EOI in the first iteration of escape mode.)
+
+In practice, one byte receive mode transmits a full block worth of data, as it is cached in the device's RAM. Whenever it runs out of cached data, it switches the protocol to escape mode, stalls in the step that signals EOI/!EOI and reads the next block from the media.
+
+Let's go through the steps of escape mode in detail:
 
 #### 0: Initial State
 ![](docs/cbmbus/jiffydos-25.png =601x131)
@@ -345,21 +358,25 @@ Like the other protocols, JiffyDOS LOAD integrates with the Standard Serial prot
 #### 1: Controller clears DATA wire (not a signal)
 ![](docs/cbmbus/jiffydos-26.png =601x131)
 
-First, the controller releases the DATA wire. This is not a signal for the device, but necessary so that the controller can read the DATA line in step 3 - for the next few steps, the device will send timed information on both wires. The controller can therefore choose to release the wire as late as in step 3, just before reading it.
+First, the controller releases the DATA wire. This is not a signal for the device, but necessary so that the controller can read the DATA line in the next step. The controller can therefore choose to release the wire as late as just before reading it back.
 
 #### 2: Device signals EOI/!EOI– hold for 75 µs 
 ![](docs/cbmbus/jiffydos-27.png =601x131)
 
-Next, the device puts a flag whether there is more data to be transmitted onto the DATA line. 1 means there is more data, while 0 means that there is no more data: the end of the stream has been reached or there has been an error.
+Next, the device puts a flag whether there is more data to be transmitted onto the DATA line. 1 means there is more data, (!EOI) while 0 means that there is no more data (EOI): the end of the stream has been reached or there has been an error.
 
 To signal that the state of the DATA line is valid, the device releases the CLK line and holds this state for 75 µs.
 
-XXX
+The device can delay this step as long as it wishes, e.g. to read data from the media.
+
+If there is more data, the protocol switches to byte receive mode, otherwise it continues with step 3.
 
 #### 3: Device signals no error within 1100 µs – hold for 100 µs
 ![](docs/cbmbus/jiffydos-28.png =601x131)
 
-To indicate that this is an EOI event, that is, the regular end of the stream as opposed to an error event, the device has to pull CLK and hold it for 100 µs no later than 1100 µs after releasing CLK in the previous step.
+In the case of the end of the transmission (EOI), the final step is for the device to signal whether there was an error or whether this is the regular end of the file.
+
+If there is no error, the device pulls CLK and holds it for 100 µs no later than after 1100 µs. (The DATA line was already released in the previous step, because DATA = 0 signaled EOI.)
 
 ### Byte Receive
 
