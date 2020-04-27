@@ -322,23 +322,20 @@ And there are several restrictions:
 
 The difference between the JiffyDOS receive and LOAD protocols is that the LOAD protocol does not have a handshake to wait for the device to be ready to send. Instead, the device can set an "escape" flag at a certain point in the protocol that makes both devices move to a different section of the protocol.
 
-
-
-* 1: escape mode
-* 2: byte send
-	* one-way handshake
-		* device is assumed to always be ready as long as there is data immediately available
-		* i.e. within a block
-	* device can signal end of block
-
-*
-
+So the LOAD protocol consists of two parts: escape mode and byte send mode.
 
 ### Escape Mode
 
-This is the "escape mode" phase of the protocol, where the device tells the controller whether more data is about to be transmitted, or whether this is the end of the stream or an error has occured. This part is purely-timing based: The device sends flags to the controller with a certain timing, and does not wait for the controller to be ready or to ACK anything.
+The LOAD protocol starts and ends in "escape mode". It is used to allow the device to signal:
 
-![](docs/cbmbus/jiffydos-load-inter-block.png =601x167)
+* no more data is currently ready, which allows the device to stall (e.g. if it needs to fetch a new block from the media)
+* more data is ready
+* EOI, that is, the end of the file has been reached
+* there has been an error ("timeout")
+
+XXX EOI gets sent *after* the last byte
+
+![](docs/cbmbus/jiffydos-load-escape.png =601x167)
 
 #### 0: Initial State
 ![](docs/cbmbus/jiffydos-25.png =601x131)
@@ -368,7 +365,7 @@ To indicate that this is an EOI event, that is, the regular end of the stream as
 
 After the device has indicated that there is more data, the protocol goes into the "Byte Receive" phase.
 
-![](docs/cbmbus/jiffydos-load-block-data.png =601x167)
+![](docs/cbmbus/jiffydos-load-receive.png =601x167)
 
 #### 0: Initial State
 ![](docs/cbmbus/jiffydos-30.png =601x131)
