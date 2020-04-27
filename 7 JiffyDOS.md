@@ -23,7 +23,7 @@ In the [series about the variants of the Commodore Peripheral Bus family](https:
 
 # History and Development
 
-Commodore's [Serial Bus](https://www.pagetable.com/?p=1135) from 1981 as used by the VIC-20 and the C64 was supposed to be a cheaper, but similarly fast variant of its earlier parallel IEEE-488 bus. But because of a last minute change to drive the protocol in software in order to work around buggy hardware made it 5x slower on the VIC-20 (1981) than it should have been. With the C64 (1982), the protocol was slowed down by an additional factor of 3, because its shared RAM system architecture did not allow software to reliably detect pulses shorter than 60 µs.
+Commodore's [Serial Bus](https://www.pagetable.com/?p=1135) from 1981 as used by the VIC-20 and the C64 was supposed to be a cheaper, but similarly fast variant of its earlier parallel IEEE-488 bus. But a last minute change to drive the protocol in software in order to work around buggy hardware made it 5x slower on the VIC-20 (1981) than it should have been. With the C64 (1982), the protocol was slowed down by an additional factor of 3, because its shared RAM system architecture did not allow software to reliably detect pulses shorter than 60 µs.
 
 In 1984, the TED series of computers (C16, C116, Plus/4) added [TCBM](https://www.pagetable.com/?p=1324), a new type of parallel bus for disk drives, but it required awkward and ugly cabling, supported only two drives, and was not meant for other types of devices like printers, so these computers still had a regular Serial Bus as well.
 
@@ -112,7 +112,7 @@ All three protocols support reporting the EOI and timeout conditions: EOI ("end 
 
 ### JiffyDOS Byte Send
 
-When the controller sends data to the device, it transmits two bits at a time roughly every 13 µs using the CLK and DATA lines, with no handshake. For each byte, the device signals that it is ready to receive, followed by the controller signaling it is about to start the transmission, thus starting the timing critical window of about XXX 65 µs.
+When the controller sends data to the device, it transmits two bits at a time every 11-13 µs using the CLK and DATA lines, with no handshake. For each byte, the device signals that it is ready to receive, followed by the controller signaling it is about to start the transmission, thus starting the timing critical window of XXX 65 µs.
 
 The following animation shows a byte being sent from the controller to the device.
 
@@ -167,7 +167,7 @@ The wires have to be valid for 7 µs starting after 11 µs.
 
 The controller puts the final pair of data bits onto the two wires (CLK: #2, DATA = #0).
 
-The wires have to be valid no later than after 13 µs and the state has to remain held.
+The wires have to be valid after 13 µs and the state has to remain held.
 
 #### 7: Controller signals no EOI, and is now busy again
 ![](docs/cbmbus/jiffydos-20.png =601x131)
@@ -176,7 +176,7 @@ Still timing-based, the controller pulls the CLK line, signaling that there is n
 
 In the no-EOI case, it also releases the DATA line so it can be operated by the device again.
 
-The wires have to be valid no later than after 13 µs and hold it.
+The wires have to be valid after 13 µs and hold it.
 
 #### 8: Device is now busy again
 ![](docs/cbmbus/jiffydos-21.png =601x131)
@@ -198,7 +198,7 @@ In the EOI case, DATA is pulled, and in the error case, DATA is released.
 
 If both CLK and DATA are released, this indicates a "timeout" error. Note that this combination has been carefully chosen: An idle device would also keep both wires released, and both wires released is also the default bus state if no device is attached, so a non-responsive or nonexistent device would also lead to this case.
 
-As with the regular case, the wires have to be valid no later than after 13 µs. And in this case, they need to be held for 7 µs.
+As with the regular case, the wires have to be valid after 13 µs. And in this case, they need to be held for 7 µs.
 
 #### 7b: Controller is now busy again
 ![](docs/cbmbus/jiffydos-23.png =601x131)
@@ -211,7 +211,7 @@ EOI/error signaling can be seen as delaying the controller's last step in the se
 
 ### JiffyDOS Byte Receive
 
-When the device sends data to the controller, it transmits two bits at a time roughly every 11 µs using the CLK and DATA lines, with no handshake. For each byte, the device signals that it is ready to send, followed by the controller signaling the device to start the transmission, thus starting the timing critical window of about XXX 55 µs.
+When the device sends data to the controller, it transmits two bits at a time every 10-11 µs using the CLK and DATA lines, with no handshake. For each byte, the device signals that it is ready to send, followed by the controller signaling the device to start the transmission, thus starting the timing critical window of XXX 55 µs.
 
 Compared to the byte send case, the ownership of the CLK and DATA lines outside the core data transmission is swapped, but it is the controller that sends the "Go" signal in both the send and the receive case.
 
@@ -241,30 +241,30 @@ The controller may delay this step indefinitely. In practice, it will until it h
 #### 3: Device puts data bits #0 and #1 onto wires
 ![](docs/cbmbus/jiffydos-04.png =601x131)
 
-First, the device puts the first pair of data bits onto the two wires (CLK: #0, DATA: #1).
+First, the device puts the first pair of data bits onto the two wires (CLK: NOT #0, DATA: NOT #1).
 
 The wires have to be valid for 1 µs after 15 µs.
 
-In the receive case, the bits are sent in the order 0-1/2-3/4-5/6-7.
+In the receive case, the bits are sent starting with the least significant bit, and all bit values are inverted.
 
 #### 4: Device puts data bits #2 and #3 onto wires
 ![](docs/cbmbus/jiffydos-05.png =601x131)
 
-The device puts the second pair of data bits onto the two wires (CLK: #2, DATA: #3).
+The device puts the second pair of data bits onto the two wires (CLK: NOT #2, DATA: NOT #3).
 
 The wires have to be valid for 1 µs after 10 µs.
 
 #### 5: Device puts data bits #4 and #5 onto wires
 ![](docs/cbmbus/jiffydos-06.png =601x131)
 
-The device puts the third pair of data bits onto the two wires (CLK: #4, DATA: #5).
+The device puts the third pair of data bits onto the two wires (CLK: NOT #4, DATA: NOT #5).
 
 The wires have to be valid for 1 µs after 11 µs.
 
 #### 6: Device puts data bits #6 and #7 onto wires
 ![](docs/cbmbus/jiffydos-07.png =601x131)
 
-The device puts the final pair of data bits onto the two wires (CLK: #6, DATA: #7).
+The device puts the final pair of data bits onto the two wires (CLK: NOT #6, DATA: NOT #7).
 
 The wires have to be valid for 1 µs after 11 µs.
 
@@ -275,7 +275,7 @@ Still timing-based, the device pulls the CLK line, signaling that there is no EO
 
 In the no-EOI case, it also releases the DATA line so it can be operated by the controller again.
  
-The wires have to be valid no later than after 11 µs and the state has to remain held.
+The wires have to be valid after 11 µs and the state has to remain held.
 
 #### 8: Controller is now busy again
 ![](docs/cbmbus/jiffydos-09.png =601x131)
@@ -295,7 +295,7 @@ If there is an EOI or an error, the device releases CLK.
 
 In the EOI case, DATA is pulled, and in the error case, DATA is released.
 
-As with the regular case, the wires have to be valid no later than after 13 µs. And in this case, they need to be held for 13 µs.
+As with the regular case, the wires have to be valid after 13 µs. And in this case, they need to be held for 13 µs.
 
 #### 7b: Device is now busy again
 ![](docs/cbmbus/jiffydos-11.png =601x131)
@@ -325,20 +325,20 @@ And there are several restrictions:
 * The LOAD protocol requires the complete file to be loaded in one go, there can be no UNTALK/TALK commands to stop and resume transmission.
 * The byte stream that is transmitted through channel 1 skips the first two bytes of the file: The host's implementation is expected to fetch the PRG load address though channel 0 before.
 
-The difference between the JiffyDOS receive and LOAD protocols is that the LOAD protocol does not have a handshake to wait for the device to be ready to send. Instead, the device can set an "escape" flag at a certain point in the protocol that makes both devices move to a different section of the protocol.
+The difference between the JiffyDOS receive and LOAD protocols is that the LOAD protocol does not have a handshake to wait for the device to be ready to send. During the byte transmission loop, the device is always assumed to be ready, but it can set an "escape" flag at the beginning of each iteration that makes both devices move to a different section of the protocol that allows stalling.
 
 So the LOAD protocol consists of two parts: escape mode and byte send mode.
 
-### Escape Mode
+### LOAD: Escape Mode
 
 The LOAD protocol is framed by "escape mode". It is used to allow the device to signal:
 
-* data is ready: switch to the "byte receive" mode
+* data is ready: switch to "byte receive" mode
 * data is not ready: this allows the device to stall (e.g. if it needs to fetch a new block from the media)
 * "EOI": the end of the file has been reached
 * "timeout": there has been an error
 
-XXX EOI gets sent *after* the last byte
+(In the LOAD context, "EOI" does not have the same semantics as all other IEEE-488 derivatives: Instead of *with* the last data byte, it is signaled *after* the last data byte.)
 
 The following diagram shows the escape mode part of a LOAD protocol session:
 
@@ -351,7 +351,7 @@ The following diagram shows the escape mode part of a LOAD protocol session:
 
 (An empty file would cause the device to signal EOI in the first iteration of escape mode.)
 
-In practice, one byte receive mode transmits a full block worth of data, as it is cached in the device's RAM. Whenever it runs out of cached data, it switches the protocol to escape mode, stalls in the step that signals EOI/!EOI and reads the next block from the media.
+In practice, byte receive mode transmits a full block worth of data, as it is cached in the device's RAM. Whenever it runs out of cached data, it switches the protocol to escape mode, stalls in the step that signals EOI/!EOI to be able to read the next block from the media.
 
 Let's go through the steps of escape mode in detail:
 
@@ -368,7 +368,7 @@ First, the controller releases the DATA wire. This is not a signal for the devic
 #### 2: Device signals EOI/!EOI– hold for 75 µs 
 ![](docs/cbmbus/jiffydos-27.png =601x131)
 
-Next, the device puts a flag whether there is more data to be transmitted onto the DATA line. 1 means there is more data, (!EOI) while 0 means that there is no more data (EOI): the end of the stream has been reached or there has been an error.
+Next, the device puts a flag whether there is more data to be transmitted onto the DATA line. 1 means there is more data (!EOI), while 0 means that there is no more data (EOI): the end of the stream has been reached or there has been an error.
 
 To signal that the state of the DATA line is valid, the device releases the CLK line and holds this state for 75 µs.
 
@@ -383,7 +383,7 @@ In the case of the end of the transmission (EOI), the final step is for the devi
 
 If there is no error, the device pulls CLK and holds it for 100 µs no later than after 1100 µs, otherwise, it keeps CLK released for 1100 µs. (The DATA line was already released in the previous step, because DATA = 0 signaled EOI.)
 
-### Byte Receive
+### LOAD: Byte Receive
 
 After the device has indicated that there is more data, the protocol goes into the "Byte Receive" mode, which can transmit zero or more data bytes.
 
@@ -403,7 +403,7 @@ In addition, the device releases the DATA line, so the controller can use it in 
 
 In the first iteration of the byte receive loop, releasing DATA signals that CLK is now valid. In this case, the controller triggers on DATA = 0, which means the device may arbitrarily delay this step.
 
-In subsequent iterations, the controller cannot trigger on DATA, because the value of DATA in the previous step – step 6 of the previous iteration – could have been either 0 or 1, so this step is based on timing: The value of CLK must be valid no later than 11 µs after the previous step. DATA still has to be cleared so that the host can use it in the next step.
+In subsequent iterations, the controller cannot trigger on DATA, because the value of DATA in the previous step – step 6 of the previous iteration – could have been either 0 or 1, so this step is based on timing: The value of CLK must be valid at 11 µs after the previous step. DATA still has to be cleared so that the host can use it in the next step.
 
 #### 2: Controller signals "Go" for 12+ µs
 ![](docs/cbmbus/jiffydos-32.png =601x131)
@@ -420,10 +420,7 @@ In order to be able to read the data bits from both DATA and CLK in the next ste
 #### 3: Device puts data bits #0 and #1 onto wires
 ![](docs/cbmbus/jiffydos-34.png =601x131)
 
-Triggered by the "Go" event, (step 2), the device puts the first two data bits onto the two wires:
-
-* CLK = NOT #0
-* DATA = NOT #1
+Triggered by the "Go" event, (step 2), the device puts the first two data bits onto the two wires (CLK: NOT #0, DATA: NOT #1).
 
 The bits are sent starting with the least significant bit, and all bit values are inverted.
 
@@ -432,30 +429,21 @@ The controller reads the wires exactly 15 µs after "Go" – and they may be se
 #### 4: Device puts data bits #2 and #3 onto wires
 ![](docs/cbmbus/jiffydos-35.png =601x131)
 
-Based solely on timing, the device puts the second pair of data bits onto the wires:
-
-* CLK = NOT #2
-* DATA = NOT #3
+Based solely on timing, the device puts the second pair of data bits onto the wires (CLK: NOT #2, DATA = NOT #3).
 
 The controller reads the wires exactly 10 µs later.
 
 #### 5: Device puts data bits #4 and #5 onto wires
 ![](docs/cbmbus/jiffydos-36.png =601x131)
 
-The device puts the third pair of data bits onto the wires:
-
-* CLK = NOT #4
-* DATA = NOT #5
+The device puts the third pair of data bits onto the wires (CLK: NOT #4, DATA = NOT #5).
 
 The controller reads the wires exactly 11 µs later.
 
 #### 6: Device puts data bits #6 and #7 onto wires
 ![](docs/cbmbus/jiffydos-37.png =601x131)
 
-The device puts the final pair of data bits onto the wires:
-
-* CLK = NOT #6
-* DATA = NOT #7
+The device puts the final pair of data bits onto the wires (CLK: NOT #6, DATA: NOT #7).
 
 The controller reads the wires exactly 11 µs later.
 
