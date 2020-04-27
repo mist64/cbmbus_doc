@@ -394,9 +394,9 @@ The initial state has the device holding DATA and keeping CLK released – this
 
 At the beginning of the loop for each data byte, the device signals whether the protocol should switch back to escape mode. If yes, the device sets CLK to 1. Otherwise, it sets CLK to 0.
 
-To signal that the state of the CLK line is valid and in order to transfer ownership of the DATA line to the controller, the device releases the DATA line.
+In addition, the device releases the DATA line, so the controller can use it in the next step.
 
-In the first iteration of the byte receive loop, the controller triggers on DATA = 0, so the device may arbitrarily delay this step.
+In the first iteration of the byte receive loop, releasing DATA signals that CLK is now valid. In this case, the controller triggers on DATA = 0, which means the device may arbitrarily delay this step.
 
 In subsequent iterations, the controller cannot trigger on DATA, because the value of DATA in the previous step – step 6 of the previous iteration – could have been either 0 or 1, so this step is based on timing: The value of CLK must be valid no later than 11 µs after the previous step. DATA still has to be cleared so that the host can use it in the next step.
 
@@ -422,7 +422,7 @@ Triggered by the "Go" event, (step 2), the device puts the first two data bits o
 
 The bits are sent starting with the least significant bit, and all bit values are inverted.
 
-The controller reads the wires exactly 15 µs after "Go".
+The controller reads the wires exactly 15 µs after "Go" – and they may be set no earlier than 4 µs after the "Go" signal, since the value of ESC in the CLK wire must still be valid 3 µs after the start of the "Go" signal.
 
 #### 4: Device puts data bits #2 and #3 onto wires
 ![](docs/cbmbus/jiffydos-35.png =601x131)
@@ -519,11 +519,9 @@ Start:
 |   5  | Device sends 3rd pair of bits        | CLK = #4, DATA = #5 | sample  | 11 µs                   | 1 µs     |
 |   6  | Device sends 4th pair of bits        | CLK = #6, DATA = #7 | sample  | 11 µs                   | 1 µs     |
 
-* The value of ESC in the CLK wire must still be valid 3 µs after the start of the "Go" signal, so the first pair of data bits must not be put into CLK and DATA earlier than 4 µs after "Go".
+*The value of ESC in the CLK wire must still be valid 3 µs after the start of the "Go" signal, so the first pair of data bits must not be put into CLK and DATA earlier than 4 µs after "Go".
 
-* ESC must be signaled no later than 84 µs after the last "Go", so the host can omit the DATA = 0 check if it's later than that
 * if ESC = 1, "Escape Mode" follows after B
-* the C64 implementation signals "Go" 3 µs *before* sampling ESC
 
 # Discussion
 
