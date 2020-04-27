@@ -376,32 +376,36 @@ If there is more data, the protocol switches to byte receive mode, otherwise it 
 
 In the case of the end of the transmission (EOI), the final step is for the device to signal whether there was an error or whether this is the regular end of the file.
 
-If there is no error, the device pulls CLK and holds it for 100 µs no later than after 1100 µs. (The DATA line was already released in the previous step, because DATA = 0 signaled EOI.)
+If there is no error, the device pulls CLK and holds it for 100 µs no later than after 1100 µs, otherwise, it keeps CLK released for 1100 µs. (The DATA line was already released in the previous step, because DATA = 0 signaled EOI.)
 
 ### Byte Receive
 
-After the device has indicated that there is more data, the protocol goes into the "Byte Receive" phase.
+After the device has indicated that there is more data, the protocol goes into the "Byte Receive" mode, which can transmit zero or more data bytes.
 
 ![](docs/cbmbus/jiffydos-load-receive.png =601x167)
 
 #### 0: Initial State
 ![](docs/cbmbus/jiffydos-30.png =601x131)
 
-#### 1: Device signals EOB/!EOB
+The initial state has the device holding DATA and keeping CLK released – this is the same as step 2 of escape mode after !EOI has been signaled.
+
+#### 1: Device signals ESC/!ESC
 ![](docs/cbmbus/jiffydos-31.png =601x131)
 
-At the beginning of the loop for each data byte, the device signals whether the end of the block has been reached: If this is the end of the block, the device sets CLK to 1. If there are more bytes to be transmitted within this block, it sets CLK to 0.
+At the beginning of the loop for each data byte, the device signals whether the protocol should switch back to escape mode. If yes, the device sets CLK to 1. Otherwise, it sets CLK to 0.
 
-To signal that the state of the CLK line is valid, the device releases the DATA line.
+To signal that the state of the CLK line is valid and in order to transfer ownership of the DATA line to the controller, the device releases the DATA line.
 
-XXX: EOB must be signaled no later than 84 µs after the last "Go", so the host can omit the DATA = 0 check if it's later than that
+In the first iteration of the byte receive loop, the controller triggers on DATA = 0, so the device may arbitrarily delay this step.
+
+In subsequent iterations, the controller cannot trigger on DATA, because the value of DATA in the previous step – step 6 of the previous iteration – could have been either 0 or 1, so this step is based on timing: The value of CLK must be valid no later than 11 µs after the previous step. DATA still has to be cleared so that the host can use it in the next step.
 
 #### 2: Controller signals "Go" for 12+ µs
 ![](docs/cbmbus/jiffydos-32.png =601x131)
 
-Triggered by DATA being 0, the controller pulls the DATA line for at least 12 µs, telling the device to immediately start the transmission of the 8 data bits.
+As soon as the controller can guarantee a window of at least 58 µs of being undisturbed, it pulls the DATA line for at least 12 µs, telling the device to immediately start the transmission of the 8 data bits.
 
-This happens independent of whether EOB was true or false in the previous step. It isn't until after this step that the protocol jumps to step 2 of the escape mode protocol, if the end of the block has been reached.
+This happens independently of whether ESC was true or false in the previous step. It isn't until after this step that the protocol jumps to step 2 of the escape mode protocol if the device set CLK in the previous step.
 
 #### 2b: Controller clears DATA wire (not a signal)
 ![](docs/cbmbus/jiffydos-33.png =601x131)
@@ -508,16 +512,18 @@ Start:
 
 | Step | Event                                | Wires               | Type    | Delay                   | Hold For |
 |------|--------------------------------------|---------------------|---------|-------------------------|----------|
-|   1  | Device signals EOB/!EOB & valid      | CLK = EOB, DATA = 0 | trigger | 0 - 84 µs               | ∞        |
+|   1  | Device signals ESC/!ESC & valid      | CLK = ESC, DATA = 0 | trigger | 0 - 84 µs               | ∞*       |
 |   2  | Controller signals "Go", clears DATA | DATA = 1; DATA = 0  | trigger | 0 - ∞                   | 12 µs    |
-|   3  | Device sends 1st pair of bits        | CLK = #0, DATA = #1 | sample  | 15 µs                   | 1 µs     |
+|   3  | Device sends 1st pair of bits        | CLK = #0, DATA = #1 | sample  | 15 µs*                  | 1 µs     |
 |   4  | Device sends 2nd pair of bits        | CLK = #2, DATA = #3 | sample  | 10 µs                   | 1 µs     |
 |   5  | Device sends 3rd pair of bits        | CLK = #4, DATA = #5 | sample  | 11 µs                   | 1 µs     |
 |   6  | Device sends 4th pair of bits        | CLK = #6, DATA = #7 | sample  | 11 µs                   | 1 µs     |
 
-* EOB must be signaled no later than 84 µs after the last "Go", so the host can omit the DATA = 0 check if it's later than that
-* if EOB = 1, "Escape Mode" follows after B
-* the C64 implementation signals "Go" 3 µs *before* sampling EOB
+* The value of ESC in the CLK wire must still be valid 3 µs after the start of the "Go" signal, so the first pair of data bits must not be put into CLK and DATA earlier than 4 µs after "Go".
+
+* ESC must be signaled no later than 84 µs after the last "Go", so the host can omit the DATA = 0 check if it's later than that
+* if ESC = 1, "Escape Mode" follows after B
+* the C64 implementation signals "Go" 3 µs *before* sampling ESC
 
 # Discussion
 
