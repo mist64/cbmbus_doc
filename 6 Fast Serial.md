@@ -93,4 +93,8 @@
 * Burst
 	* TODO
 
+
+Part 6 of the series of articles on the Commodore Peripheral Bus family will cover the JiffyDOS protocol on layer 2, which shipped as a third party ROM patch for computers and drives, replacing the byte transmission protocol of Standard Serial by using the clock and data lines in a more efficient way.
+
+
 http://the-cbm-files.tripod.com/diskdrive/h1571.htm

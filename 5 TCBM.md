@@ -361,7 +361,7 @@ While TCBM is faster than Standard Serial, it is a huge compromise and certainly
 
 ### Next Up
 
-Part 6 of the series of articles on the Commodore Peripheral Bus family will cover the JiffyDOS protocol on layer 2, which shipped as a third party ROM patch for computers and drives, replacing the byte transmission protocol of Standard Serial by using the clock and data lines in a more efficient way.
+Part 6 of the series of articles on the Commodore Peripheral Bus family will cover Commodore's "Fast Serial" protocol on layer 2, which is supported on the C128 and C65 as well as the 1571 and 1581 drives. Like JiffyDOS, it replaces the byte transmission protocol of Standard Serial with a faster version that uses a previously unused wire in the serial cable.
 
 > This article series is an Open Source project. Corrections, clarifications and additions are **highly** appreciated. I will regularly update the articles from the repository at [https://github.com/mist64/cbmbus_doc](https://github.com/mist64/cbmbus_doc).
 

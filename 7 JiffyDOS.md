@@ -560,7 +560,7 @@ Start:
 * even if C64/1541 have to do pre-/post-processing, they could be as fast by shifting complexity out of the transmission loop
 * so C128/1571 would benefit from the faster loop
 
-* 10/10/11/10/11 is ugly - check with other implementations
+* 10/10/11/10/11 is ugly
 
 ## LOAD protocol not suitable for IRQs
 
@@ -569,11 +569,15 @@ Start:
 
 ## Layer violation
 
-* technically, signaling specifically on TALK and LISTEN violates the layering
-* some implementation signal on all bytes under ATN, which is cleaner
-* but it's spec-compliant to send the TALK/LISTEN secondary will be sent without the signal
-* so device that turns Jiffy on/off based on whether last ATN byte had signal or not would not work right
-* -> it's okay to send the signal with every ATN, but the device must detect it only on TALK/LISTEN
+* detection
+	* technically, signaling specifically on TALK and LISTEN violates the layering
+	* some implementation signal on all bytes under ATN, which is cleaner
+	* but it's spec-compliant to send the TALK/LISTEN secondary will be sent without the signal
+	* so device that turns Jiffy on/off based on whether last ATN byte had signal or not would not work right
+	* -> it's okay to send the signal with every ATN, but the device must detect it only on TALK/LISTEN
+* LOAD
+	* magic channel 1
+	* skips 2 bytes (PRG)
 
 ## Error handling?
 
@@ -583,7 +587,7 @@ Start:
 
 # Next Up
 
-Part 7 of the series of articles on the Commodore Peripheral Bus family will cover Commodore's "Fast Serial" protocol on layer 2, which is supported on the C128 and C65 as well as the 1571 and 1581 drives. Like JiffyDOS, it replaces the byte transmission protocol of Standard Serial with a faster version that uses a previously unused wire in the serial cable.
+Part 8 of the series of articles on the Commodore Peripheral Bus family will cover the CBDOS ("computer-based DOS") bus, as used by the unreleased Commodore 65 computer, which does away with layers 1 and 2, because the drive controllers are integrated into the computer, so layer 3 sits directly on top of function calls that call into the DOS code running on the same CPU.
 
 > This article series is an Open Source project. Corrections, clarifications and additions are **highly** appreciated. I will regularly update the articles from the repository at [https://github.com/mist64/cbmbus_doc](https://github.com/mist64/cbmbus_doc).
 
