@@ -303,30 +303,40 @@ EOI signaling can be seen as delaying the device's last step in the sequence by 
 
 ## JiffyDOS LOAD
 
-* send and receive protocols support one byte at a time
-	* as many TALK/UNTALK sequences as necessary
+The JiffyDOS "LOAD" protocol optimizes for the most common use case on layer 4 of disk drives, Commodore DOS: loading a complete "PRG" file into the host's memory.
 
-* dedicated "LOAD" protocol does away with the two-way-handshake, makes it one-way, and adds a device-to-host "escape" flag to switch to a different phase of the protocol
-* only works on *files*
+PRG files are finite byte streams that start with a two-byte (little endian) "load address", that is, target address in the host's address space. There is a dedicated KERNAL call (`LOAD` at $FFD5) on Commodore computers, and all versions of Commodore BASIC expose it through the `LOAD` statement:
 
-* 1: inter-block
-* 2: block transmission
+	LOAD"PROGRAM",8,1
+
+The LOAD protocol is used under the following conditions:
+
+1. The file has been opened on channel 0.
+2. The TALK command is issued on channel 1.
+
+And there are several restrictions:
+
+* The LOAD protocol cannot be used to transmit anything other than regular files: Buffer channels and the command/status channel have to use the JiffyDOS receive protocol instead. The same is true for directory listing: They are opened like files, but they are not supported by the LOAD protocol.
+* The LOAD protocol requires the complete file to be loaded in one go, there can be no UNTALK/TALK commands to stop and resume transmission.
+* The byte stream that is transmitted through channel 1 skips the first two bytes of the file: The host's implementation is expected to fetch the PRG load address though channel 0 before.
+
+The difference between the JiffyDOS receive and LOAD protocols is that the LOAD protocol does not have a handshake to wait for the device to be ready to send. Instead, the device can set an "escape" flag at a certain point in the protocol that makes both devices move to a different section of the protocol.
+
+
+
+* 1: escape mode
+* 2: byte send
 	* one-way handshake
 		* device is assumed to always be ready as long as there is data immediately available
 		* i.e. within a block
 	* device can signal end of block
 
-* Timing: device holds timed values for at least for a total of 3 µs around the key time.
-
-	(1541: 7-14 -> 17-24; 14-17 = 15.5 +/ 1.5 VS 15)
-	(1541: 17-24 -> 28-35; 24-28 = 26 +- 2 VS 25)
-	(1541: 28-35 -> 38-45; 35-38 = 36.5 +- 1.5 VS 36)
-	(1541: 38-45 -> X; 45- VS 47)
+*
 
 
-### Inter-Block
+### Escape Mode
 
-This is the "inter-block" phase of the protocol, where the device tells the controller whether more data is about to be transmitted, or whether this is the end of the stream or an error has occured. This part is purely-timing based: The device sends flags to the controller with a certain timing, and does not wait for the controller to be ready or to ACK anything.
+This is the "escape mode" phase of the protocol, where the device tells the controller whether more data is about to be transmitted, or whether this is the end of the stream or an error has occured. This part is purely-timing based: The device sends flags to the controller with a certain timing, and does not wait for the controller to be ready or to ACK anything.
 
 ![](docs/cbmbus/jiffydos-load-inter-block.png =601x167)
 
@@ -354,9 +364,9 @@ XXX
 
 To indicate that this is an EOI event, that is, the regular end of the stream as opposed to an error event, the device has to pull CLK and hold it for 100 µs no later than 1100 µs after releasing CLK in the previous step.
 
-### Block Data
+### Byte Receive
 
-After the device has indicated that there is more data, the protocol goes into the "block data" phase.
+After the device has indicated that there is more data, the protocol goes into the "Byte Receive" phase.
 
 ![](docs/cbmbus/jiffydos-load-block-data.png =601x167)
 
@@ -377,7 +387,7 @@ XXX: EOB must be signaled no later than 84 µs after the last "Go", so the host 
 
 Triggered by DATA being 0, the controller pulls the DATA line for at least 12 µs, telling the device to immediately start the transmission of the 8 data bits.
 
-This happens independent of whether EOB was true or false in the previous step. It isn't until after this step that the protocol jumps to step 2 of the inter-block protocol, if the end of the block has been reached.
+This happens independent of whether EOB was true or false in the previous step. It isn't until after this step that the protocol jumps to step 2 of the escape mode protocol, if the end of the block has been reached.
 
 #### 2b: Controller clears DATA wire (not a signal)
 ![](docs/cbmbus/jiffydos-33.png =601x131)
@@ -462,7 +472,7 @@ At this point, the protocol loops back to step 1.
 
 ### LOAD
 
-#### Inter-Block
+#### Escape Mode
 
 Start:
 
@@ -471,7 +481,7 @@ Start:
 |   1  | Controller clears DATA wire          | DATA = 0             | -       |                         |          |
 |   2  | Device signals EOI/!EOI & valid      | DATA = !EOI, CLK = 0 | trigger | 0 - ∞                   | 75 µs    |
 
-* If EOI = 0, "Block Data" follows.
+* If EOI = 0, "Byte Receive" follows.
 * If EOI = 1, "End" follows.
 
 #### End
@@ -480,7 +490,7 @@ Start:
 |------|--------------------------------------|---------------------|---------|-------------------------|----------|
 |   3  | Device signals no error              | CLK = 1             | trigger | 0 - 1100 µs             | 100 µs   |
 
-#### Block Data
+#### Byte Receive
 
 | Step | Event                                | Wires               | Type    | Delay                   | Hold For |
 |------|--------------------------------------|---------------------|---------|-------------------------|----------|
@@ -492,7 +502,7 @@ Start:
 |   6  | Device sends 4th pair of bits        | CLK = #6, DATA = #7 | sample  | 11 µs                   | 1 µs     |
 
 * EOB must be signaled no later than 84 µs after the last "Go", so the host can omit the DATA = 0 check if it's later than that
-* if EOB = 1, "Inter-Block" follows after B
+* if EOB = 1, "Escape Mode" follows after B
 * the C64 implementation signals "Go" 3 µs *before* sampling EOB
 
 # Discussion

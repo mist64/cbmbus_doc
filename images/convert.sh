@@ -51,8 +51,8 @@ done
 convert -crop 1200x600+0+0\! -bordercolor black -border 1 /tmp/JiffyDOS/JiffyDOS.012.png  ../docs/cbmbus/jiffydos-receive.png
 convert -crop 1200x600+0+0\! -bordercolor black -border 1 /tmp/JiffyDOS/JiffyDOS.024.png  ../docs/cbmbus/jiffydos-send.png
 
-convert -crop 1200x332+0+0\! -bordercolor black -border 1 /tmp/JiffyDOS/JiffyDOS.029.png  ../docs/cbmbus/jiffydos-load-inter-block.png
-convert -crop 1200x332+0+0\! -bordercolor black -border 1 /tmp/JiffyDOS/JiffyDOS.038.png  ../docs/cbmbus/jiffydos-load-block-data.png
+convert -crop 1200x332+0+0\! -bordercolor black -border 1 /tmp/JiffyDOS/JiffyDOS.029.png  ../docs/cbmbus/jiffydos-load-escape.png
+convert -crop 1200x332+0+0\! -bordercolor black -border 1 /tmp/JiffyDOS/JiffyDOS.038.png  ../docs/cbmbus/jiffydos-load-receive.png
 
 convert -crop 1200x600+0+0\! -bordercolor black -border 1 /tmp/JiffyDOS/JiffyDOS.039.png  ../docs/cbmbus/jiffydos-detection.png
 
