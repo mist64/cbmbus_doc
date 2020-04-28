@@ -451,6 +451,10 @@ At this point, the protocol loops back to step 1.
 
 ### Timing Summary
 
+![](docs/cbmbus/jiffydos-timing1.png =601x167)
+![](docs/cbmbus/jiffydos-timing2.png =601x167)
+![](docs/cbmbus/jiffydos-timing3.png =601x167)
+
 #### Send
 
 | Step | Event                                | Wires               | Type    | Delay                   | Hold For |
