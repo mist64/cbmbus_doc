@@ -23,7 +23,7 @@ In the [series about the variants of the Commodore Peripheral Bus family](https:
 
 # History and Development
 
-Commodore's [Serial Bus](https://www.pagetable.com/?p=1135) from 1981 as used by the VIC-20 and the C64 was supposed to be a cheaper, but similarly fast variant of its earlier parallel IEEE-488 bus. But a last minute change to drive the protocol in software in order to work around buggy hardware made it 5x slower on the VIC-20 (1981) than it should have been. With the C64 (1982), the protocol was slowed down by an additional factor of 3, because its shared RAM system architecture did not allow software to reliably detect pulses shorter than 60 µs.
+Commodore's [Serial Bus](https://www.pagetable.com/?p=1135) from 1981 as used by the VIC-20 and the C64 was supposed to be a cheaper, but similarly fast variant of its earlier parallel IEEE-488 bus. To work around buggy hardware, a last minute change to drive the protocol in software made it 5x slower on the VIC-20 (1981) than it should have been. With the C64 (1982), the protocol was slowed down by an additional factor of 3, because its shared RAM system architecture did not allow software to reliably detect pulses shorter than 60 µs.
 
 In 1984, the TED series of computers (C16, C116, Plus/4) added [TCBM](https://www.pagetable.com/?p=1324), a new type of parallel bus for disk drives, but it required awkward and ugly cabling, supported only two drives, and was not meant for other types of devices like printers, so these computers still had a regular Serial Bus as well.
 
@@ -31,7 +31,7 @@ The C128 (1985) went back to the idea of the Serial Bus and added an optional fa
 
 In late 1986, Mark Fellows (Fellows Inc.) released JiffyDOS, and a year later, it became the flagship product of the new company Creative Micro Designs (CMD), which went on to becoming popular for releasing new floppy drives (FD-2000/FD-4000) as well as hard drives (HD Series) for Commodore systems.
 
-Similarly to fast loader systems that were either built into games and applications or available as stand-alone utility software, JiffyDOS is a software solution to speed up transmissions on existing hardware and cabling. It was – [and still is](http://store.go4retro.com) – sold as a set of replacement ROM chips available for all Commodore computers with a Serial Bus (originally C64, C128; later also VIC-20 and Plus/4) and practically all disk drives with a Serial Bus. For JiffyDOS to be effective, the operating system ROM of both the computer and the drive(s) has to be replaced. Since they were made by the same company as JiffyDOS, all devices by CMD speak JiffyDOS out of the box, and modern devices like SD2IEC speak it as well.
+Similarly to fast loader systems that were either built into games and applications or available as stand-alone utility software, JiffyDOS is a software solution to speed up transmissions on existing hardware and cabling. It was – [and still is](http://store.go4retro.com) – sold as a set of replacement ROM chips available for all Commodore computers with a Serial Bus (originally C64, C128; later also VIC-20 and Plus/4) and practically all disk drives with a Serial Bus. For JiffyDOS to be effective, the operating system ROM of both the computer and the drive(s) has to be replaced. Since they were made by the same company as JiffyDOS, all devices by CMD speak JiffyDOS out of the box, and modern devices like [SD2IEC](https://www.c64-wiki.com/wiki/sd2iec_(firmware)) speak it as well.
 
 The backwards-compatibility and ubiquity make JiffyDOS the de-facto successor of the Standard Serial protocol.
 
@@ -74,11 +74,11 @@ The codes are sent starting with the least significant bit, so the 5 bits of the
 
 So by the time seven of the eight bits are transmitted, the specified device effectively already knows that it is being addressed, and that it's a TALK or LISTEN command.
 
-Now if the controller supports JiffyDOS, the delay with CLK=1 between the 6th and the 7th (the last) bit will instead be 400 µs[^1]. If the device detects this delay, it will pull the DATA line, hold this state for 100 µs, and release the DATA line again.
+Now if the controller supports JiffyDOS, the delay with CLK=1 between the 6th and the 7th (the last) bit will be 400 µs[^1] instead of 60 µs. If the device detects this delay, it will pull the DATA line, hold this state for 100 µs, and release the DATA line again.
 
-Both devices now know that the other supports JiffyDOS, and the transmission of the TALK or LISTEN command will resume with the last bit.
+Both participants now know that the other supports JiffyDOS, and the transmission of the TALK or LISTEN command will resume with the last bit.
 
-Commands are always received by all devices on the bus, which will just ignore the extra communication: JiffyDOS-aware devices know they are not being addressed, so they don't pull the DATA line. For non-JiffyDOS devices, the extra delay by the controller will be ignored – the controller can be as slow as it wants – and so will be the DATA line pulled by the device, since it is only considered valid while CLK is released.
+Commands are always received by all devices on the bus, which will just ignore the extra communication: JiffyDOS-aware devices know they are not being addressed, and they don't pull the DATA line. For non-JiffyDOS devices, the extra delay by the controller will be ignored – the protocol only specifies a minimum delay of 60 µs, but no maximum – and so will be the DATA line pulled by the device, since it is only considered valid while CLK is released.
 
 Note that this sidechannel communication will be repeated with every TALK and LISTEN command, and the result is only valid for the subsequent TALK/LISTEN session. This is necessary, because a device could be replaced with a different one between sessions, or the JiffyDOS ROM of either the computer or the drive could be switched on or off.
 
@@ -86,7 +86,7 @@ Note that this sidechannel communication will be repeated with every TALK and LI
 
 The new byte transmission protocols all have in common that the CLK and DATA lines are used to transmit two data bits at a time. Since there is now no wire left to signal when the data is valid, the whole transmission is timing-based. After a handshake before every byte, 2 bits are transmitted every 11-13 µs – close to the maximum speed the wires can be driven by a 1 MHz 6502 CPU, which JiffyDOS was designed for. This makes data transmission with JiffyDOS about 10x faster than with Standard Serial.
 
-JiffyDOS considers devices real-time capable. During communication, they must be able to react to any signal within no more than 13 µs and exact to a window of 7 µs. Controllers may have many things going on, like interrupts and DMA and are thus not considered real-time capable[^2]. No matter the transmission direction, it is therefore always the controller that starts the timed transmission window of about XXX 65 µs during which both must be uninterrupted.
+JiffyDOS considers devices real-time capable. During communication, they must be able to react to any signal within no more than 13 µs and exact to a window of 7 µs. Controllers may have many things going on, like interrupts and DMA and are thus not considered real-time capable[^2]. No matter the transmission direction, it is therefore always the controller that starts the timed transmission window of about XXX 65 µs during which both participants must be uninterrupted.
 
 The following graphic illustrates this – it will be described in detail in later sections.
 
@@ -100,7 +100,7 @@ The three new protocols have different use cases:
 * JiffyDOS receive (device to controller, TALK)
 * JiffyDOS LOAD (device to controller, TALK on channel 1)
 
-Because the controller always initiates the timed transmission window, the send and receive protocols of JiffyDOS are not symmetric, which is why unlike with Standard Serial, there are two separate protocols depending on the direction of transmission. This is also why one-to-many communcation is not possible. Whenever JiffyDOS is detected, regular TALK/LISTEN sessions use one of these protocols.
+Because the controller always initiates the timed transmission window, the send and receive protocols of JiffyDOS are not symmetric, which is why, unlike with Standard Serial, there are two separate protocols depending on the direction of transmission. This is also why one-to-many communcation is not possible. Whenever JiffyDOS is detected, regular TALK/LISTEN sessions use one of these protocols.
 
 The dedicated LOAD protocol is a variant of the receive protocol that is optimized for transmitting a complete Commodore DOS "PRG" file in one go. It is used if the controller sends a TALK on the magic channel number 1 if there is an open file on channel 0.
 
@@ -108,7 +108,7 @@ All new protocols have in common that they start with the sender holding CLK and
 
 ![](docs/cbmbus/jiffydos-vs-serial.png =601x167)
 
-All three protocols support reporting the EOI and timeout conditions: EOI ("end of identify") is the end-stream flag of the IEEE-488 family of protocols that gets sent with the last byte of the stream. "Timeout" is the generic error flag, and gets its name from the fact that it is usually signaled by delaying a requested response.
+All three protocols support reporting the EOI and timeout conditions: EOI ("end of identify") is the end-of-stream flag of the IEEE-488 family of protocols that gets sent with the last byte of the stream. "Timeout" is the generic error flag, and gets its name from the fact that it is usually signaled by delaying a requested response.
 
 ### JiffyDOS Byte Send
 
@@ -128,7 +128,7 @@ Since the JiffyDOS protocol integrates with the Standard Serial protocol, its in
 #### 1: Device is ready to receive
 ![](docs/cbmbus/jiffydos-14.png =601x131)
 
-Once the device is done processing the previous data, which may include writing a sector to the media, it indicates that it is ready to receive by releasing the DATA line. It may delay this step indefinitely.
+Once the device is done processing the previous data, which may for instance include writing a sector to the media, it indicates that it is ready to receive by releasing the DATA line. It may delay this step indefinitely.
 
 #### 2: Controller sends the "Go" signal
 ![](docs/cbmbus/jiffydos-15.png =601x131)
@@ -172,7 +172,7 @@ The wires have to be valid after 13 µs and the state has to remain held.
 #### 7: Controller signals no EOI, and is now busy again
 ![](docs/cbmbus/jiffydos-20.png =601x131)
 
-Still timing-based, the controller pulls the CLK line, signaling that there is no EOI. A pulled CLK line also means that the controller is now busy again, so the transmission of the next data byte cannot start yet.
+Still timing-based, the controller pulls the CLK line, signaling that there is no EOI (end-of-stream). A pulled CLK line also means that the controller is now busy again, so the transmission of the next data byte cannot start yet.
 
 In the no-EOI case, it also releases the DATA line so it can be operated by the device again.
 
@@ -308,9 +308,9 @@ EOI/error signaling can be seen as delaying the controller's last step in the se
 
 ## JiffyDOS LOAD
 
-The JiffyDOS "LOAD" protocol optimizes for the most common use case on layer 4 of disk drives, Commodore DOS: loading a complete "PRG" file into the host's memory.
+The JiffyDOS "LOAD" protocol optimizes for the most common use case: loading a complete "PRG" file from a disk drive into the host's memory.
 
-PRG files are finite byte streams that start with a two-byte (little endian) "load address", that is, target address in the host's address space. There is a dedicated KERNAL call (`LOAD` at $FFD5) on Commodore computers, and all versions of Commodore BASIC expose it through the `LOAD` statement:
+In Commodore DOS, which is layer 4 of the protocol stack, PRG files are finite byte streams that start with a two-byte (little endian) "load address", that is, target address in the host's address space. There is a dedicated KERNAL call (`LOAD` at $FFD5) on Commodore computers, and all versions of Commodore BASIC expose it through the `LOAD` statement:
 
 	LOAD"PROGRAM",8,1
 
@@ -325,7 +325,7 @@ And there are several restrictions:
 * The LOAD protocol requires the complete file to be loaded in one go, there can be no UNTALK/TALK commands to stop and resume transmission.
 * The byte stream that is transmitted through channel 1 skips the first two bytes of the file: The host's implementation is expected to fetch the PRG load address though channel 0 before.
 
-The difference between the JiffyDOS receive and LOAD protocols is that the LOAD protocol does not have a handshake to wait for the device to be ready to send. During the byte transmission loop, the device is always assumed to be ready, but it can set an "escape" flag at the beginning of each iteration that makes both devices move to a different section of the protocol that allows stalling.
+The difference between the JiffyDOS receive and LOAD protocols is that the LOAD protocol does not have a handshake to wait for the device to be ready to send. During the byte transmission loop, the device is always assumed to be ready, but it can set an "escape" flag at the beginning of each iteration that makes both participants move to a different section of the protocol that allows stalling.
 
 So the LOAD protocol consists of two parts: escape mode and byte send mode.
 
