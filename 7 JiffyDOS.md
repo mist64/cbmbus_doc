@@ -165,7 +165,7 @@ The wires have to be valid for 7 µs starting after 11 µs.
 #### 6: Controller puts data bits #2 and #0 onto wires
 ![](docs/cbmbus/jiffydos-19.png =601x131)
 
-The controller puts the final pair of data bits onto the two wires (CLK: #2, DATA = #0).
+The controller puts the final pair of data bits onto the two wires (CLK: #2, DATA: #0).
 
 The wires have to be valid after 13 µs and the state has to remain held.
 
@@ -176,7 +176,7 @@ Still timing-based, the controller pulls the CLK line, signaling that there is n
 
 In the no-EOI case, it also releases the DATA line so it can be operated by the device again.
 
-The wires have to be valid after 13 µs and hold it.
+The wires have to be valid after 13 µs and remain held.
 
 #### 8: Device is now busy again
 ![](docs/cbmbus/jiffydos-21.png =601x131)
@@ -310,7 +310,7 @@ EOI/error signaling can be seen as delaying the controller's last step in the se
 
 The JiffyDOS "LOAD" protocol optimizes for the most common use case: loading a complete "PRG" file from a disk drive into the host's memory.
 
-In Commodore DOS, which is layer 4 of the protocol stack, PRG files are finite byte streams that start with a two-byte (little endian) "load address", that is, target address in the host's address space. There is a dedicated KERNAL call (`LOAD` at $FFD5) on Commodore computers, and all versions of Commodore BASIC expose it through the `LOAD` statement:
+In Commodore DOS, which is layer 4 of the protocol stack, PRG files are finite byte streams that start with a two-byte (little endian) "load address", that is, target address in the host's address space. There is a dedicated KERNAL call (`LOAD` at $FFD5) on Commodore computers, and all versions of Commodore BASIC expose it through the `LOAD` statement, e.g.:
 
 	LOAD"PROGRAM",8,1
 
@@ -429,14 +429,14 @@ The controller reads the wires exactly 15 µs after "Go" – and they may be se
 #### 4: Device puts data bits #2 and #3 onto wires
 ![](docs/cbmbus/jiffydos-35.png =601x131)
 
-Based solely on timing, the device puts the second pair of data bits onto the wires (CLK: NOT #2, DATA = NOT #3).
+Based solely on timing, the device puts the second pair of data bits onto the wires (CLK: NOT #2, DATA: NOT #3).
 
 The controller reads the wires exactly 10 µs later.
 
 #### 5: Device puts data bits #4 and #5 onto wires
 ![](docs/cbmbus/jiffydos-36.png =601x131)
 
-The device puts the third pair of data bits onto the wires (CLK: NOT #4, DATA = NOT #5).
+The device puts the third pair of data bits onto the wires (CLK: NOT #4, DATA: NOT #5).
 
 The controller reads the wires exactly 11 µs later.
 
