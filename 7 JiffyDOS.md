@@ -108,7 +108,7 @@ All new protocols have in common that they start with the sender holding CLK and
 
 ![](docs/cbmbus/jiffydos-vs-serial.png =601x167)
 
-All three protocols support reporting the EOI and timeout conditions: EOI ("end of identify") is the end-of-stream flag of the IEEE-488 family of protocols that gets sent with the last byte of the stream. "Timeout" is the generic error flag, and gets its name from the fact that it is usually signaled by delaying a requested response.
+All three protocols support reporting the EOI and timeout conditions: EOI ("end of identify") is the end-of-stream flag of the IEEE-488 family of protocols that gets sent with the last byte of the stream. "Timeout" is the generic error flag – the original IEEE-488 protocol did not have an error flag, so Commodore defined that delaying a requested response should be used to signal an error.
 
 ### JiffyDOS Byte Send
 
@@ -449,10 +449,6 @@ The controller reads the wires exactly 11 µs later.
 
 At this point, the protocol loops back to step 1.
 
-## Canceling
-
-* ATN in any state will be respected by the device
-
 ### Timing Summary
 
 #### Send
@@ -505,25 +501,50 @@ Start:
 
 | Step | Event                                | Wires               | Type    | Delay                   | Hold For |
 |------|--------------------------------------|---------------------|---------|-------------------------|----------|
-|   1  | Device signals ESC/!ESC & valid      | CLK = ESC, DATA = 0 | trigger | 0 - 84 µs               | ∞*       |
+|   1  | Device signals ESC/!ESC & valid      | CLK = ESC, DATA = 0 | trigger | 0 - 84 µs               | ∞<sup>*</sup>|
 |   2  | Controller signals "Go", clears DATA | DATA = 1; DATA = 0  | trigger | 0 - ∞                   | 12 µs    |
-|   3  | Device sends 1st pair of bits        | CLK = #0, DATA = #1 | sample  | 15 µs*                  | 1 µs     |
+|   3  | Device sends 1st pair of bits        | CLK = #0, DATA = #1 | sample  | 15 µs<sup>*</sup>       | 1 µs     |
 |   4  | Device sends 2nd pair of bits        | CLK = #2, DATA = #3 | sample  | 10 µs                   | 1 µs     |
 |   5  | Device sends 3rd pair of bits        | CLK = #4, DATA = #5 | sample  | 11 µs                   | 1 µs     |
 |   6  | Device sends 4th pair of bits        | CLK = #6, DATA = #7 | sample  | 11 µs                   | 1 µs     |
 
-*The value of ESC in the CLK wire must still be valid 3 µs after the start of the "Go" signal, so the first pair of data bits must not be put into CLK and DATA earlier than 4 µs after "Go".
+<sup>*</sup>The value of ESC in the CLK wire must still be valid 3 µs after the start of the "Go" signal, so the first pair of data bits must not be put into CLK and DATA earlier than 4 µs after "Go".
 
 * if ESC = 1, "Escape Mode" follows after B
 
 # Discussion
 
+JiffyDOS is a significant improvement to Standard Serial, and it can be rightly considered the de-fact successor to it. Nevertheless, there are a few points that can be critisized.
+
 ## No formal specification
 
-* there is no formal specification
-* the C64 and 1541 implementations are considered the reference implementations
-* a lot is timing-based
-	* ...
+No official formal specification of JiffyDOS has ever been released. In practice, this was never much of a problem, since official versions of JiffyDOS were available for practically all computers and devices with a Commodore Serial Bus. Nevertheless, modern JiffyDOS-compatible projects such as SD2IEC and [open-roms](https://github.com/MEGA65/open-roms) had to reverse-engineer the protocols from either reverse-engineering the code or analyzing the data on the wires.
+
+This document could now be considered the formal specification, even though it's not official. But the problem is that this is just the C64 and 1541 reference implementations converted into English, which is not the same as a formal specification.
+
+The timing data above states for example that when sending data bits, the controller needs to hold the wire state for 7 µs. The reason for this is that the 1541 implementation uses a loop like this to check for the "Go" signal that started the transmission:
+
+	:	cpx $1800 ; GPIO
+		beq :-
+
+One iteration of this loop takes 7 clock cycles, which is 7 µs on a 1 MHz 1541. In the best case, the GPIO pins get read in the very first cycle they changed, and in the worst case, the change one cycle after the read, introcuing a latency of 7 µs.
+
+This means that the 1541 can measure the start time of the "Go" signal only with an accuracy of 0-7 µs. So if the host holds the data wires constant for a 7 µs window, it gives the 1541 a chance to read the value no matter what latency was introduced in the wait loop.
+
+It's different when data gets transmitted from the device to the host though: The timing data above states that the device needs to hold the wire state only for a single µs. Let's look at what C64 code to receive data bits would look like:
+
+		sta $dd00 ; GPIO, "Go" signal
+		nop
+		nop
+		nop
+		nop
+		lda $dd00 ; GPIO
+
+In this case, the GPIO gets read exactly 11 µs after the "Go" signal. The device has to make sure the data bits are on the bus in this very cycle. In practice though, the 1541 code will use the same "cpx $1800" code as above to check for "Go", and then put the data onto the wires fo at least 7 µs, to make sure that in spite of the variable latency, the host will read the correct data at 11 µs.
+
+So all communication has a 7 µs fuzz when a 1541 is involved, but because it's always the host that it initiating timing windows, this fuzz is on the receiver side. Therefore, when sending, values have to be held for 7 µs, and when receiving, they only have to be held for 1 µs.
+
+XXXXX
 
 * compliance means staying within the timing bounds of all existing implementations
 
@@ -592,6 +613,7 @@ Part 8 of the series of articles on the Commodore Peripheral Bus family will cov
 * https://sites.google.com/site/h2obsession/CBM/C128/JiffySoft128
 * https://www.c64-wiki.com/wiki/SJLOAD
 * http://www.baltissen.org/newhtm/sourcecodes.htm
+* https://github.com/MEGA65/open-roms/blob/master/doc/Protocol-JiffyDOS.md
 * https://retrocomputing.stackexchange.com/questions/12755/what-is-the-c64-disk-drive-jiffy-protocol
 * https://github.com/rkrajnc/sd2iec/blob/master/src/iec.c
 * https://github.com/rkrajnc/sd2iec/blob/master/src/lpc17xx/fastloader-ll.c
