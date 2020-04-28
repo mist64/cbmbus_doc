@@ -462,7 +462,7 @@ At this point, the protocol loops back to step 1.
 |   5  | Controller sends 3rd pair of bits    | CLK = #3, DATA = #1 | sample  | 11 µs                   | 7 µs     |
 |   6  | Controller sends 4th pair of bits    | CLK = #2, DATA = #0 | sample  | 13 µs                   | 7 µs     |
 |   7  | Controller signals EOI               | CLK = 1/0, DATA = 0 | sample  | 7 - 13 µs               | ∞        |
-|   8  | Device signals not ready to receive  | DATA = 1            | ?       | 0 - ∞                   | ∞        | XXXX!!!
+|   8  | Device signals not ready to receive  | DATA = 1            | ?       | 0 - ∞                   | ∞        |
 
 #### Receive
 
@@ -474,8 +474,8 @@ At this point, the protocol loops back to step 1.
 |   4  | Device sends 2nd pair of bits        | CLK = #2, DATA = #3 | sample  | 10 µs                   | 1 µs     |
 |   5  | Device sends 3rd pair of bits        | CLK = #4, DATA = #5 | sample  | 11 µs                   | 1 µs     |
 |   6  | Device sends 4th pair of bits        | CLK = #6, DATA = #7 | sample  | 11 µs                   | 1 µs     |
-|   7  | Device signals no EOI                | CLK = 1, DATA = 0   | sample  | 1 - 11 µs               | ∞        | XXXX!!!!
-|   8  | Controller signals not ready to send | DATA = 1            | ?       | 0 - ∞                   | ∞        | XXXX!!!!
+|   7  | Device signals no EOI                | CLK = 1, DATA = 0   | sample  | 1 - 11 µs               | ∞        |
+|   8  | Controller signals not ready to send | DATA = 1            | ?       | 0 - ∞                   | ∞        |
 
 ### LOAD
 
@@ -513,89 +513,6 @@ Start:
 * if ESC = 1, "Escape Mode" follows after B
 
 # Discussion
-
-JiffyDOS is a significant improvement to Standard Serial, and it can be rightly considered the de-fact successor to it. Nevertheless, there are a few points that can be critisized.
-
-## No formal specification
-
-No official formal specification of JiffyDOS has ever been released. In practice, this was never much of a problem, since official versions of JiffyDOS were available for practically all computers and devices with a Commodore Serial Bus. Nevertheless, modern JiffyDOS-compatible projects such as SD2IEC and [open-roms](https://github.com/MEGA65/open-roms) had to reverse-engineer the protocols from either reverse-engineering the code or analyzing the data on the wires.
-
-This document could now be considered the formal specification, even though it's not official. But the problem is that this is just the C64 and 1541 reference implementations converted into English, which is not the same as a formal specification.
-
-The timing data above states for example that when sending data bits, the controller needs to hold the wire state for 7 µs. The reason for this is that the 1541 implementation uses a loop like this to check for the "Go" signal that started the transmission:
-
-	:	cpx $1800 ; GPIO
-		beq :-
-
-One iteration of this loop takes 7 clock cycles, which is 7 µs on a 1 MHz 1541. In the best case, the GPIO pins get read in the very first cycle they changed, and in the worst case, the change one cycle after the read, introcuing a latency of 7 µs.
-
-This means that the 1541 can measure the start time of the "Go" signal only with an accuracy of 0-7 µs. So if the host holds the data wires constant for a 7 µs window, it gives the 1541 a chance to read the value no matter what latency was introduced in the wait loop.
-
-It's different when data gets transmitted from the device to the host though: The timing data above states that the device needs to hold the wire state only for a single µs. Let's look at what C64 code to receive data bits would look like:
-
-		sta $dd00 ; GPIO, "Go" signal
-		nop
-		nop
-		nop
-		nop
-		lda $dd00 ; GPIO
-
-In this case, the GPIO gets read exactly 11 µs after the "Go" signal. The device has to make sure the data bits are on the bus in this very cycle. In practice though, the 1541 code will use the same "cpx $1800" code as above to check for "Go", and then put the data onto the wires fo at least 7 µs, to make sure that in spite of the variable latency, the host will read the correct data at 11 µs.
-
-So all communication has a 7 µs fuzz when a 1541 is involved, but because it's always the host that it initiating timing windows, this fuzz is on the receiver side. Therefore, when sending, values have to be held for 7 µs, and when receiving, they only have to be held for 1 µs.
-
-XXXXX
-
-* compliance means staying within the timing bounds of all existing implementations
-
-## C64/1541-specific
-
-* bit order and negation based on C64/1541 ports
-	* send case: high nybble decoded by device, low-nybble encoded by controller
-	* receive case: encoded by device
-* all non-C64/1541 devices are faster, so they can handle the overhead
-* not symmetric, can't do one-to-many
-	* but that's not solvable if it's always the C64 that needs to initiate a byte transmission
-	* in general: one-to-many not possible if there are ready-*windows*
-	* if all participants have to say they are ready, by the time the last participant is ready, one of the other participant may not be ready any more
-
-## Protocol not optimal
-
-* 37 µs slows down everything
-* device should prepare the data before, then signal that it's ready
-* this allows faster implementations
-
-* then again, only the LOAD case really matters...
-
-* 2 bits can be done in 8 µs instead of 10/11
-* or even faster: LDA zp, STA $1800, LDA zp, STA $1800; LDA $DD00, PHA, LDA $DD00, PHA...
-* or the standard LDA $DD00, LSR, LSR, EOR $DD00
-* C128/1581 (both 2 MHz) suffer from delays everywhere
-* even if C64/1541 have to do pre-/post-processing, they could be as fast by shifting complexity out of the transmission loop
-* so C128/1571 would benefit from the faster loop
-
-* 10/10/11/10/11 is ugly
-
-## LOAD protocol not suitable for IRQs
-
-* once-per-block status transmission doesn't wait for host
-* host must be in a tight loop with IRQs off
-
-## Layer violation
-
-* detection
-	* technically, signaling specifically on TALK and LISTEN violates the layering
-	* some implementation signal on all bytes under ATN, which is cleaner
-	* but it's spec-compliant to send the TALK/LISTEN secondary will be sent without the signal
-	* so device that turns Jiffy on/off based on whether last ATN byte had signal or not would not work right
-	* -> it's okay to send the signal with every ATN, but the device must detect it only on TALK/LISTEN
-* LOAD
-	* magic channel 1
-	* skips 2 bytes (PRG)
-
-## Error handling?
-
-## Conclusion
 
 ...
 
