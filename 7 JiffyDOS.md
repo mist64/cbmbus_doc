@@ -44,7 +44,7 @@ All controllers and devices that support the JiffyDOS protocol are primarily "[S
 * Layer 3: Bus arbitration is done by the controller sending command bytes using the TALK/LISTEN protocol.
 * Layer 4: Disk drives speak the Commodore DOS protocol, support multiple open streams and a command/status channel; other types of devices like printers speak their own protocols on this layer.
 
-The basic idea of JiffyDOS is the following: Layer 2 of the original Serial protocol had to be slowed down for the C64 because the video chip frequently blocked the memory bus, stalling the CPU, which would make it miss deadlines. With JiffyDOS, the controller (i.e. the computer) only initiates the transmission of a data byte when it can guarantee that it will be undisturbed for the duration of the whole byte – which can then be sent way faster. This makes data transmission speedups of 10x possible.
+The basic idea of JiffyDOS is the following: Layer 2 of the original Serial protocol had to be slowed down for the C64 because the video chip frequently blocked the memory bus, stalling the CPU, which would make it miss deadlines. With JiffyDOS, the controller (i.e. the computer) only initiates the transmission of a data byte when it can guarantee that it will be undisturbed for the duration of the whole byte – which can then be sent way faster, enabling a 10x speedup for the whole data transmission.
 
 JiffyDOS adds three alternative byte transmission protocols to layer 2. These protocols also only use the CLK and DATA wires, and they are purely optional – they are used in place of the standard protocol in cases where the involved parties explicitly negotiate their use.
 
