@@ -130,10 +130,10 @@ Since the JiffyDOS protocol integrates with the Standard Serial protocol, its in
 
 Once the device is done processing the previous data, which may for instance include writing a sector to the media, it indicates that it is ready to receive by releasing the DATA line. It may delay this step indefinitely.
 
-#### 2: Controller sends the "Go" signal
+#### 2: Controller sends the *Go* signal
 ![](docs/cbmbus/jiffydos-15.png =601x131)
 
-Triggered by DATA being 1, the controller indicates that it will start sending a data byte by releasing the CLK line - this is the "Go" signal. During the transmission of the byte, both lines will be owned by the controller, and the sequence of steps is purely based on timing; there are no ACK signals.
+Triggered by DATA being 1, the controller indicates that it will start sending a data byte by releasing the CLK line - this is the *Go* signal. During the transmission of the byte, both lines will be owned by the controller, and the sequence of steps is purely based on timing; there are no ACK signals.
 
 XXX but no earlier than 37 µs after DATA turning 1
 
@@ -213,7 +213,7 @@ EOI/error signaling can be seen as delaying the controller's last step in the se
 
 When the device sends data to the controller, it transmits two bits at a time every 10-11 µs using the CLK and DATA lines, with no handshake. For each byte, the device signals that it is ready to send, followed by the controller signaling the device to start the transmission, thus starting the timing critical window of XXX 55 µs.
 
-Compared to the byte send case, the ownership of the CLK and DATA lines outside the core data transmission is swapped, but it is the controller that sends the "Go" signal in both the send and the receive case.
+Compared to the byte send case, the ownership of the CLK and DATA lines outside the core data transmission is swapped, but it is the controller that sends the *Go* signal in both the send and the receive case.
 
 The following animation shows a byte being received by the controller from the device.
 
@@ -231,10 +231,10 @@ Like in the "send" case, the initial state is the same as with Standard Serial, 
 
 Once the device has the next data byte at hand, that is, for example, after reading it from a buffer, or after reading a new sector from the media, it indicates that it is ready to send by releasing the CLK line. It may delay this step indefinitely.
 
-#### 2: Controller sends the "Go" signal
+#### 2: Controller sends the *Go* signal
 ![](docs/cbmbus/jiffydos-03.png =601x131)
 
-Triggered by CLK being 0, the controller indicates by releasing the DATA line that the device must now start sending a data byte - this is the "Go" signal. During the transmission of the byte, both lines will be owned by the device, and the sequence of steps is purely based on timing; there are no ACK signals.
+Triggered by CLK being 0, the controller indicates by releasing the DATA line that the device must now start sending a data byte - this is the *Go* signal. During the transmission of the byte, both lines will be owned by the device, and the sequence of steps is purely based on timing; there are no ACK signals.
 
 The controller may delay this step indefinitely. In practice, it will until it has a guaranteed XXX 55 µs time window without interruptions.
 
@@ -405,7 +405,7 @@ In the first iteration of the byte receive loop, releasing DATA signals that CLK
 
 In subsequent iterations, the controller cannot trigger on DATA, because the value of DATA in the previous step – step 6 of the previous iteration – could have been either 0 or 1, so this step is based on timing: The value of CLK must be valid at 11 µs after the previous step. DATA still has to be cleared so that the host can use it in the next step.
 
-#### 2: Controller signals "Go" for 12+ µs
+#### 2: Controller signals *Go* for 12+ µs
 ![](docs/cbmbus/jiffydos-32.png =601x131)
 
 As soon as the controller can guarantee a window of at least 58 µs of being undisturbed, it pulls the DATA line for at least 12 µs, telling the device to immediately start the transmission of the 8 data bits.
@@ -420,11 +420,11 @@ In order to be able to read the data bits from both DATA and CLK in the next ste
 #### 3: Device puts data bits #0 and #1 onto wires
 ![](docs/cbmbus/jiffydos-34.png =601x131)
 
-Triggered by the "Go" event, (step 2), the device puts the first two data bits onto the two wires (CLK: NOT #0, DATA: NOT #1).
+Triggered by the *Go* event, (step 2), the device puts the first two data bits onto the two wires (CLK: NOT #0, DATA: NOT #1).
 
 The bits are sent starting with the least significant bit, and all bit values are inverted.
 
-The controller reads the wires exactly 15 µs after "Go" – and they may be set no earlier than 4 µs after the "Go" signal, since the value of ESC in the CLK wire must still be valid 3 µs after the start of the "Go" signal.
+The controller reads the wires exactly 15 µs after *Go* – and they may be set no earlier than 4 µs after the *Go* signal, since the value of ESC in the CLK wire must still be valid 3 µs after the start of the *Go* signal.
 
 #### 4: Device puts data bits #2 and #3 onto wires
 ![](docs/cbmbus/jiffydos-35.png =601x131)
@@ -460,7 +460,7 @@ See the "Discussion" section later for some comments on the exact timing.
 | Step | Event                                | Wires               | Type    | Delay                   | Hold For |
 |------|--------------------------------------|---------------------|---------|-------------------------|----------|
 |   1  | Device signals ready-to-receive      | DATA = 0            | trigger | 0 - ∞                   | ∞        |
-|   2  | Controller signals "Go"              | CLK = 0             | trigger | 37 µs - ∞               | ∞        |
+|   2  | Controller signals *Go*              | CLK = 0             | trigger | 37 µs - ∞               | ∞        |
 |   3  | Controller sends 1st pair of bits    | CLK = #4, DATA = #5 | sample  | 14 µs                   | 5 µs     |
 |   4  | Controller sends 2nd pair of bits    | CLK = #6, DATA = #7 | sample  | 13 µs                   | 7 µs     |
 |   5  | Controller sends 3rd pair of bits    | CLK = #3, DATA = #1 | sample  | 11 µs                   | 7 µs     |
@@ -473,7 +473,7 @@ See the "Discussion" section later for some comments on the exact timing.
 | Step | Event                                | Wires               | Type    | Delay                   | Hold For |
 |------|--------------------------------------|---------------------|---------|-------------------------|----------|
 |   1  | Device signals ready-to-send         | DATA = 0            | trigger | 0 - ∞                   | ∞        |
-|   2  | Controller signals "Go"              | CLK = 0             | trigger | 0 - ∞                   | ∞        |
+|   2  | Controller signals *Go*              | CLK = 0             | trigger | 0 - ∞                   | ∞        |
 |   3  | Device sends 1st pair of bits        | CLK = #0, DATA = #1 | sample  | 15 µs                   | 1 µs     |
 |   4  | Device sends 2nd pair of bits        | CLK = #2, DATA = #3 | sample  | 10 µs                   | 1 µs     |
 |   5  | Device sends 3rd pair of bits        | CLK = #4, DATA = #5 | sample  | 11 µs                   | 1 µs     |
@@ -506,13 +506,13 @@ Start:
 | Step | Event                                | Wires               | Type    | Delay                   | Hold For |
 |------|--------------------------------------|---------------------|---------|-------------------------|----------|
 |   1  | Device signals ESC/!ESC & valid      | CLK = ESC, DATA = 0 | trigger | 0 - 84 µs               | ∞<sup>*</sup>|
-|   2  | Controller signals "Go", clears DATA | DATA = 1; DATA = 0  | trigger | 0 - ∞                   | 12 µs    |
+|   2  | Controller signals *Go*, clears DATA | DATA = 1; DATA = 0  | trigger | 0 - ∞                   | 12 µs    |
 |   3  | Device sends 1st pair of bits        | CLK = #0, DATA = #1 | sample  | 15 µs<sup>*</sup>       | 1 µs     |
 |   4  | Device sends 2nd pair of bits        | CLK = #2, DATA = #3 | sample  | 10 µs                   | 1 µs     |
 |   5  | Device sends 3rd pair of bits        | CLK = #4, DATA = #5 | sample  | 11 µs                   | 1 µs     |
 |   6  | Device sends 4th pair of bits        | CLK = #6, DATA = #7 | sample  | 11 µs                   | 1 µs     |
 
-<sup>*</sup>The value of ESC in the CLK wire must still be valid 3 µs after the start of the "Go" signal, so the first pair of data bits must not be put into CLK and DATA earlier than 4 µs after "Go".
+<sup>*</sup>The value of ESC in the CLK wire must still be valid 3 µs after the start of the *Go* signal, so the first pair of data bits must not be put into CLK and DATA earlier than 4 µs after *Go*.
 
 * if ESC = 1, "Escape Mode" follows after B
 
@@ -520,17 +520,17 @@ Start:
 
 JiffyDOS is a significant improvement to Standard Serial, and it can be rightly considered the de-fact successor to it. Nevertheless, there are a few points that can be critisized.
 
-## No formal specification
+## Timing
 
-No official formal specification of JiffyDOS has ever been released. Modern JiffyDOS-compatible projects such as SD2IEC and [open-roms](https://github.com/MEGA65/open-roms) had to reverse-engineer the protocols from either reverse-engineering the code or analyzing the data on the wires.
+No official formal specification of JiffyDOS has ever been released. Modern JiffyDOS-compatible projects such as SD2IEC and [open-roms](https://github.com/MEGA65/open-roms) had to reconstruct the protocols from either reverse-engineering the code or analyzing the data on the wires.
 
-This would be no problem for a protocol like the original IEEE-488: All signals are used as triggers, so the other bus participants can do their next steps. With JiffyDOS, a lot is timing-based, so the required timing has to be reconstructed by counting instructions in the implementations.
+This would be no problem for a protocol like the original IEEE-488: All signals are used as triggers, so the other bus participants can do continue with the next steps. With JiffyDOS, most of the protocol is timing-based, so the required timing has to be reconstructed by counting instructions in the implementations – but this is still tricky.
 
-We could consider the C64 and 1541 implementations the reference implementations, but this does come with problems.
+### Timing Windows
 
-In the timing tables, the hold times on byte send are usually 7 µs, and on byte receive, they are 1 µs: if the host puts data on a wire, it has to hold it for 7 µs for the device to be able to read it, but if the device puts data on a wire, it only has to hold it for 1 µs. Why is this?
+To illustrate this, let's look at a detail in the timing tables above: The hold times on a byte send are usually 7 µs, and on a byte receive, they are 1 µs: if the host puts data on a wire, it has to hold it for 7 µs for the device to be able to read it, but if the device puts data on a wire, it only has to hold it for 1 µs. Why is this?
 
-Let's look at an example of the C64 sending data to the 1541. It sets the "Go" signal for a certain amount of time. Then let's assume it puts new data onto the bus every 20 µs, counting from the beginning of the "Go" signal, and it holds the wire with the data for a certain amount of time as well.
+Let's investigate this with a more generic example of the C64 sending data to the 1541. It sets the *Go* signal for a certain amount of time. Then let's assume it puts new data onto the bus every 20 µs (for simpler numbers), counting from the beginning of the *Go* signal, and then holds the wire with the data for a certain amount of time as well.
 
 The 1541 runs at 1 Mhz, and the C64 runs pretty close to 1 MHz. The minimal loop for the 1541 to detect the signal looks like this:
 
@@ -539,63 +539,65 @@ The 1541 runs at 1 Mhz, and the C64 runs pretty close to 1 MHz. The minimal loop
 
 One iteration of this loop takes 7 clock cycles, which is 7 µs. In the best case, the GPIO pins get read in the very first cycle they changed, and in the worst case, the change one cycle after the read, introducing a latency of 7 µs.
 
-The following diagram shows what ths means for the timing of the transmission:
+The following diagram shows what this means for the timing of the transmission:
 
 ![](docs/cbmbus/jiffydos-timing1.png =601x167)
 
-The 1541 checks for the "Go" signal every 7 µs. The first two times (labeled "?"), the "Go" signal is not detected yet. The third time, (labeled "!"), "Go" is detected. So it knows, the actual time of the "Go" signal is somewhere between now and 7 µs ago.
+The 1541 checks for the *Go* signal every 7 µs. The first two times (labeled "?"), the *Go* signal is not detected yet. The third time (labeled "!"), *Go* is detected, so it knows that the actual time of the *Go* signal is somewhere between now and 7 µs ago.
 
-The 1541 has no better idea about the exact time of the "Go" signal, so it will read the data from the bus 20 µs after the *detected* Go signal.
+The 1541 has no better idea about the exact time of the *Go* signal, so it will read the data from the bus 20 µs after the **detected** *Go* signal.
 
-* In the case the 1541 detected the "Go" signal in the very first moment, it would read the data wire exactly 20 µs after "Go".
-* In the worst case, the 1541 would detect "Go" 7 µs late, so it would read it 20 + 7 µs after "Go".
+* In the case the 1541 detected the *Go* signal in the very first moment, it would read the data wire exactly 20 µs after *Go*.
+* In the worst case, the 1541 would detect *Go* 7 µs late, so it would read it 20 + 7 µs after *Go*.
 
-The C64 therefore has to hold the data wire for 7 µs starting 20 µs after "Go".
+Therefore, the C64 has to hold the data wire for 7 µs starting 20 µs after *Go*.
 
 Now let's look at the receive case:
 
 ![](docs/cbmbus/jiffydos-timing2.png =601x167)
 
-The C64 will read the data wire 20 µs after it has sent the "Go" signal. The 1541 is again not sure when exactly "Go" happened, it might have been just now, or 7 µs ago. Therefore, it has to write the data onto the wire 20 µs from the earliest possible time "Go" could have happened, and hold it for 7 µs so the C64's read is guaranteed to hit it.
+The C64 will read the data wire 20 µs after it has sent the *Go* signal. The 1541 is again not sure when exactly *Go* happened, it might have been just now, or 7 µs ago. Therefore, it has to write the data onto the wire 20 µs from the earliest possible time *Go* could have happened, and hold it for 7 µs so the C64's read is guaranteed to hit it.
 
-This looks symmetric, but since it is always the host that signals "Go", it isn't.
-
-Imagine a device with a very different CPU or a higher clock speed that can detect "Go" with an accuracy of 0-2 µs:
+This looks symmetric, but since it is always the host that signals *Go*, it isn't. Imagine a device with a very different CPU or a higher clock speed that can detect *Go* with an accuracy of 0-2 µs:
 
 ![](docs/cbmbus/jiffydos-timing3.png =601x167)
 
 For the host to be guaranteed to hit the window where the data on the wire is valid, the device has to put the data onto the wire after 20 - 2 µs, and hold it for only 2 µs. The extreme case would be a device that can react within 1 µs, so it could put the data onto the wire for the exact µs that the C64 is reading it.
 
-This is not the same for the send case though: Any host implementation will have to hold the wires for 7 µs, otherwise the 1541 wouldn't work.
+This is not the same for the send case though: Any host implementation will have to hold the wire for 7 µs, otherwise the 1541 wouldn't work. But a device only **has** to hold it for 1 µs – it's the only device's own accuracy, and therefore an implementation detail how long it has to hold it in practice.
 
----
+### Minimum Timing Windows
 
-There are two sides to each step of this protocol: For example, the 1541 implementation might hold some wire state for 13 µs, and the C64 implementation might require it to be held for at least 7 µs. Should the numbers in the specification reflect the minimum hold times required to make the C64 implementation work, or the actual hold times of the 1541 protocol?
+So if the 1541 implementation requires a wire to be held for at least 7 µs, we should use this number for the formal specification. But it's not that easy.
 
-It's all a question of what is required from a compatible reimplementation. If I implement JiffyDOS for a new device, I could write code that holds it for 7 µs. This will work with a C64 as the host, but may break with other host implementations that require a longer hold time than 7 µs, but work with the 1541, since it has a hold time of 13 µs.
+The C64 implementation holds the wire for more than the necessary 7 µs. (In order to be able to work with simpler numbers, let's assume again that the next value has to be valid 20 µs after the first one.) The C64 will effectively hold the wire for the full 20 µs until it sends the new value to the GPIO:
 
-If I implement JiffyDOS for a new host, and the clock speed and instruction set make it impossible to read the value unless the hold time was at least 8 µs, the implementation would be in violation of the spec. But it would work with the 1541, and all other devices that hold it for at least 8 µs.
+		sta $dd00
+		nop
+		nop
+		nop
+		nop
+		nop
+		nop
+		nop
+		nop
+		stx $dd00
 
-The hold time that should therefore be written down in the specification is somewhere in the range of 7 µs and 13 µs in this example, which would require looking and more than just these two implementations. All JiffyDOS **host** implementations that we consider standards compliant should be looked at. For this case, this would give us the minimal hold time that works with all hosts. (For all cases where the host holds a wire and the device responds to it, we have to look at all JiffyDOS **device** implementations.)
+This means that an drive implementation reading the wire 1 µs later would also work with a C64 – and maybe all other JiffyDOS hosts. Does this mean such an implementation is also compliant?
 
-Nevertheless, for all numbers in the "Timing" section, only the C64 and the 1541 implementations have been looked at so far. The host implementations for the PAL VIC-20 (1.1 MHz) and the TED (1.77 MHz) should also be checked; the NTSC VIC-20 and the C128 run at the same clock speed as the C64, so the same timing can be assumed. Since all Commodore drives, their clones, and all CMD drives run at 1 or 2 MHz, their timing is probably identical with the 1541.
+As an alternative we could say that any implementation will have to hold the wire for a full 20 µs, just like the 1541 implementation. This would guarantee all hosts that work with a 1541 will also work with a device that confirms to this strict specification. But this would unnecessarily lock out hardware that is unable to meet these strict rules, e.g. one based on a CPU architecture that can only hold the wire for 19 µs, for some reason or another, even though it's compatible with all known host implementations.
 
----
+So the hold time that should be written down in the specification should, in our example, be somewhere in the range of 7 µs and 20 µs.
 
+Compliance with a protocol that is not formally defined could be defined as staying within the timing bounds of all existing implementations.
 
-
-
-
-
+So all JiffyDOS **host** implementations that we consider standards compliant could be looked at. Analyzing the time offsets of the read operations, this would give us the minimal hold time that works with all hosts. And for all cases where the host holds a wire and the device responds to it, we have to look at all JiffyDOS **device** implementations.
 
 
 
+<!--- Nevertheless, for all numbers in the "Timing" section, only the C64 and the 1541 implementations have been looked at so far. The host implementations for the PAL VIC-20 (1.1 MHz) and the TED (1.77 MHz) should also be checked; the NTSC VIC-20 and the C128 run at the same clock speed as the C64, so the same timing can be assumed. Since all Commodore drives, their clones, and all CMD drives run at 1 or 2 MHz, their timing is probably identical with the 1541. --->
 
 
-
-
-
-* compliance means staying within the timing bounds of all existing implementations
 
 ## C64/1541-specific
 
@@ -673,4 +675,4 @@ Part 8 of the series of articles on the Commodore Peripheral Bus family will cov
 
 [^1]: The 1541 implementation uses a threshold of 218 µs to detect this.
 
-[^2]: On the C64 – the computer which JiffyDOS was designed for – the CPU is halted by the video chip for 40 µs on every 8th raster line (504 µs); as well as for a little while on all raster lines that contain sprites. The C64 implemenation disables all sprites during a transmission and delays the "Go" signal whenever video chip DMA is anticipated.
+[^2]: On the C64 – the computer which JiffyDOS was designed for – the CPU is halted by the video chip for 40 µs on every 8th raster line (504 µs); as well as for a little while on all raster lines that contain sprites. The C64 implemenation disables all sprites during a transmission and delays the *Go* signal whenever video chip DMA is anticipated.
