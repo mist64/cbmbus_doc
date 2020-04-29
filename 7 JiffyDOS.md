@@ -451,9 +451,9 @@ At this point, the protocol loops back to step 1.
 
 ### Timing Summary
 
-![](docs/cbmbus/jiffydos-timing1.png =601x167)
-![](docs/cbmbus/jiffydos-timing2.png =601x167)
-![](docs/cbmbus/jiffydos-timing3.png =601x167)
+XXX 
+
+See the "Discussion" section later for some comments on the exact timing.
 
 #### Send
 
@@ -518,7 +518,148 @@ Start:
 
 # Discussion
 
+JiffyDOS is a significant improvement to Standard Serial, and it can be rightly considered the de-fact successor to it. Nevertheless, there are a few points that can be critisized.
+
+## No formal specification
+
+No official formal specification of JiffyDOS has ever been released. Modern JiffyDOS-compatible projects such as SD2IEC and [open-roms](https://github.com/MEGA65/open-roms) had to reverse-engineer the protocols from either reverse-engineering the code or analyzing the data on the wires.
+
+This would be no problem for a protocol like the original IEEE-488: All signals are used as triggers, so the other bus participants can do their next steps. With JiffyDOS, a lot is timing-based, so the required timing has to be reconstructed by counting instructions in the implementations.
+
+We could consider the C64 and 1541 implementations the reference implementations, but this does come with problems.
+
+There are two sides to each step of this protocol: For example, the 1541 implementation might hold some wire state for 13 µs, and the C64 implementation might require it to be held for at least 7 µs. Should the numbers in the specification reflect the minimum hold times required to make the C64 implementation work, or the actual hold times of the 1541 protocol?
+
+It's all a question of what is required from a compatible reimplementation. If I implement JiffyDOS for a new device, I could write code that holds it for 7 µs. This will work with a C64 as the host, but may break with other host implementations that require a longer hold time than 7 µs, but work with the 1541, since it has a hold time of 13 µs.
+
+If I implement JiffyDOS for a new host, and the clock speed and instruction set make it impossible to read the value unless the hold time was at least 8 µs, the implementation would be in violation of the spec. But it would work with the 1541, and all other devices that hold it for at least 8 µs.
+
+The hold time that should therefore be written down in the specification is somewhere in the range of 7 µs and 13 µs in this example, which would require looking and more than just these two implementations. All JiffyDOS **host** implementations that we consider standards compliant should be looked at. For this case, this would give us the minimal hold time that works with all hosts. (For all cases where the host holds a wire and the device responds to it, we have to look at all JiffyDOS **device** implementations.)
+
+Nevertheless, for all numbers in the "Timing" section, only the C64 and the 1541 implementations have been looked at so far. The host implementations for the PAL VIC-20 (1.1 MHz) and the TED (1.77 MHz) should also be checked; the NTSC VIC-20 and the C128 run at the same clock speed as the C64, so the same timing can be assumed. Since all Commodore drives, their clones, and all CMD drives run at 1 or 2 MHz, their timing is probably identical with the 1541.
+
+In the timing tables, the hold times on byte send are usually 7 µs, and on byte receive, they are 1 µs: if the host puts data on a wire, it has to hold it for 7 µs for the device to be able to read it, but if the device puts data on a wire, it only has to hold it for 1 µs. Why is this?
+
+Let's look at an example of the C64 sending data to the 1541. It sets the "Go" signal for a certain amount of time. Then let's assume it puts new data onto the bus every 20 µs, counting from the beginning of the "Go" signal, and it holds the wire with the data for a certain amount of time as well.
+
+The 1541 runs at 1 Mhz, and the C64 runs pretty close to 1 MHz. The minimal loop for the 1541 to detect the signal looks like this:
+
+	:	cpx $1800 ; GPIO
+		beq :-
+
+One iteration of this loop takes 7 clock cycles, which is 7 µs. In the best case, the GPIO pins get read in the very first cycle they changed, and in the worst case, the change one cycle after the read, introducing a latency of 7 µs.
+
+The following diagram shows what ths means for the timing of the transmission:
+
+![](docs/cbmbus/jiffydos-timing1.png =601x167)
+
+The 1541 checks for the "Go" signal every 7 µs. The first two times (labeled "?"), the "Go" signal is not detected yet. The third time, (labeled "!"), "Go" is detected. So it knows, the actual time of the "Go" signal is somewhere between now and 7 µs ago.
+
+The 1541 has no better idea about the exact time of the "Go" signal, so it will read the data from the bus 20 µs after the *detected* Go signal.
+
+* In the case the 1541 detected the "Go" signal in the very first moment, it would read the data wire exactly 20 µs after "Go".
+* In the worst case, the 1541 would detect "Go" 7 µs late, so it would read it 20 + 7 µs after "Go".
+
+The C64 therefore has to hold the data wire for 7 µs starting 20 µs after "Go".
+
+The receive case is not symmetric though:
+
+![](docs/cbmbus/jiffydos-timing2.png =601x167)
+
+
+
+![](docs/cbmbus/jiffydos-timing3.png =601x167)
+
+
+
+
+
+
+
+
+
+
+
+No official formal specification of JiffyDOS has ever been released. In practice, this was never much of a problem, since official versions of JiffyDOS were available for practically all computers and devices with a Commodore Serial Bus. Nevertheless, modern JiffyDOS-compatible projects such as SD2IEC and [open-roms](https://github.com/MEGA65/open-roms) had to reverse-engineer the protocols from either reverse-engineering the code or analyzing the data on the wires.
+
+This document could now be considered the formal specification, even though it's not official. But the problem is that this is just the C64 and 1541 reference implementations converted into English, which is not the same as a formal specification.
+
+The timing data above states for example that when sending data bits, the controller needs to hold the wire state for 7 µs. The reason for this is that the 1541 implementation uses a loop like this to check for the "Go" signal that started the transmission:
+
+	:	cpx $1800 ; GPIO
+		beq :-
+
+
+This means that the 1541 can measure the start time of the "Go" signal only with an accuracy of 0-7 µs. So if the host holds the data wires constant for a 7 µs window, it gives the 1541 a chance to read the value no matter what latency was introduced in the wait loop.
+
+It's different when data gets transmitted from the device to the host though: The timing data above states that the device needs to hold the wire state only for a single µs. Let's look at what C64 code to receive data bits would look like:
+
+		sta $dd00 ; GPIO, "Go" signal
+		nop
+		nop
+		nop
+		nop
+		lda $dd00 ; GPIO
+
+In this case, the GPIO gets read exactly 11 µs after the "Go" signal. The device has to make sure the data bits are on the bus in this very cycle. In practice though, the 1541 code will use the same "cpx $1800" code as above to check for "Go", and then put the data onto the wires fo at least 7 µs, to make sure that in spite of the variable latency, the host will read the correct data at 11 µs.
+
+So all communication has a 7 µs fuzz when a 1541 is involved, but because it's always the host that it initiating timing windows, this fuzz is on the receiver side. Therefore, when sending, values have to be held for 7 µs, and when receiving, they only have to be held for 1 µs.
+
+XXXXX
+
+* compliance means staying within the timing bounds of all existing implementations
+
+## C64/1541-specific
+
+* bit order and negation based on C64/1541 ports
+	* send case: high nybble decoded by device, low-nybble encoded by controller
+	* receive case: encoded by device
+* all non-C64/1541 devices are faster, so they can handle the overhead
+* not symmetric, can't do one-to-many
+	* but that's not solvable if it's always the C64 that needs to initiate a byte transmission
+	* in general: one-to-many not possible if there are ready-*windows*
+	* if all participants have to say they are ready, by the time the last participant is ready, one of the other participant may not be ready any more
+
+## Protocol not optimal
+
+* 37 µs slows down everything
+* device should prepare the data before, then signal that it's ready
+* this allows faster implementations
+
+* then again, only the LOAD case really matters...
+
+* 2 bits can be done in 8 µs instead of 10/11
+* or even faster: LDA zp, STA $1800, LDA zp, STA $1800; LDA $DD00, PHA, LDA $DD00, PHA...
+* or the standard LDA $DD00, LSR, LSR, EOR $DD00
+* C128/1581 (both 2 MHz) suffer from delays everywhere
+* even if C64/1541 have to do pre-/post-processing, they could be as fast by shifting complexity out of the transmission loop
+* so C128/1571 would benefit from the faster loop
+
+* 10/10/11/10/11 is ugly
+
+## LOAD protocol not suitable for IRQs
+
+* once-per-block status transmission doesn't wait for host
+* host must be in a tight loop with IRQs off
+
+## Layer violation
+
+* detection
+	* technically, signaling specifically on TALK and LISTEN violates the layering
+	* some implementation signal on all bytes under ATN, which is cleaner
+	* but it's spec-compliant to send the TALK/LISTEN secondary will be sent without the signal
+	* so device that turns Jiffy on/off based on whether last ATN byte had signal or not would not work right
+	* -> it's okay to send the signal with every ATN, but the device must detect it only on TALK/LISTEN
+* LOAD
+	* magic channel 1
+	* skips 2 bytes (PRG)
+
+## Error handling?
+
+## Conclusion
+
 ...
+
 
 # Next Up
 
