@@ -135,8 +135,6 @@ Once the device is done processing the previous data, which may for instance inc
 
 Triggered by DATA being 1, the controller indicates that it will start sending a data byte by releasing the CLK line - this is the *Go* signal. During the transmission of the byte, both lines will be owned by the controller, and the sequence of steps is purely based on timing; there are no ACK signals.
 
-XXX but no earlier than 37 µs after DATA turning 1
-
 The controller may delay this step indefinitely. In practice, it will until it has a guaranteed XXX 65 µs time window without interruptions.
 
 #### S3: Controller puts data bits #4 and #5 onto wires
@@ -455,31 +453,43 @@ XXX
 
 See the "Discussion" section later for some comments on the exact timing.
 
+* ranges
+	* for writes, it means: held in this range, upper value is exclusive
+	* for reads, it means check in this range
+* (+7) fuzz of 7, i.e. can be 0-7 late
+
 #### Send
 
-| Step | Event                                | Wires               | Type    | Delay      | Hold For | C64    | 1541    |
-|------|--------------------------------------|---------------------|---------|------------|----------|--------|---------|
-|   1  | Device signals ready-to-receive      | DATA = 0            | trigger | 0 - ∞      | ∞        | ?      | ?       |
-|   2  | Controller signals *Go*              | CLK = 0             | trigger | 37 µs - ∞  | ∞        | ?      | ?       |
-|   3  | Controller sends 1st pair of bits    | CLK = #4, DATA = #5 | sample  | 14 µs      | 5 µs     | @11    | @13(+7) |
-|   4  | Controller sends 2nd pair of bits    | CLK = #6, DATA = #7 | sample  | 13 µs      | 7 µs     | @13    | @13     |
-|   5  | Controller sends 3rd pair of bits    | CLK = #3, DATA = #1 | sample  | 11 µs      | 7 µs     | @11    | @11     |
-|   6  | Controller sends 4th pair of bits    | CLK = #2, DATA = #0 | sample  | 13 µs      | 7 µs     | @13    | @13     |
-|   7  | Controller signals EOI               | CLK = 1/0, DATA = 0 | sample  | 7 - 13 µs  | ∞        | @13/14 | @13     |
-|   8  | Device signals not ready to receive  | DATA = 1            | ?       | 0 - ∞      | ∞        | ?      | @7      |
+| Step | Event                                | Wires               | Type    | Delay      | Hold For | C64    | VIC-20 | 1541    |
+|------|--------------------------------------|---------------------|---------|------------|----------|--------|--------|---------|
+|   1  | Device: ready-to-receive             | DATA = 0            | trigger | 0 - ∞      | ∞        | -      | -      | -       |
+|   2  | Controller: *Go*                     | CLK = 0             | trigger | 0 - ∞      | ∞        | 31-∞   | 32.7   | 3-∞     |
+|   3  | Controller: 1st pair of bits         | CLK = #4, DATA = #5 | sample  | 14         | 5        | 11-N   | 11.8-N | 13(+7)  |
+|   4  | Controller: 2nd pair of bits         | CLK = #6, DATA = #7 | sample  | 13         | 7        | 13-N   | 11.8-N | 13      |
+|   5  | Controller: 3rd pair of bits         | CLK = #3, DATA = #1 | sample  | 11         | 7        | 11-N   | 11.8-N | 11      |
+|   6  | Controller: 4th pair of bits         | CLK = #2, DATA = #0 | sample  | 13         | 7        | 13-N   | 11.8-N | 13      |
+|   7  | Controller: EOI/!EOI                 | CLK = 0/1, DATA = 0 | sample  | 7 - 13     | ∞        | 13(+1)-N|11.8(+.9)-N| 13      |
+|   X  | Controller: no *Go*                  | CLK = 1             | -       |            |          | 15-∞   | 15.5-∞ | -       |
+|   8  | Device: OK/!OK                       | DATA = 1/0          | sample  | 0 - ∞      | ∞        | 3      | 2.7    | 7-∞ after 7 |
+
+* XXX if not DATA = 1 in step 8, it's the host cancels with a timeout
+* XXX 8 doubles as not ready to receive for the next iteration
+* XXX VIC-20 means PAL
 
 #### Receive
 
-| Step | Event                                | Wires               | Type    | Delay      | Hold For | C64    | 1541    |
-|------|--------------------------------------|---------------------|---------|------------|----------|--------|---------|
-|   1  | Device signals ready-to-send         | DATA = 0            | trigger | 0 - ∞      | ∞        | ?      | ?       |
-|   2  | Controller signals *Go*              | CLK = 0             | trigger | 0 - ∞      | ∞        | ?      | ?       |
-|   3  | Device sends 1st pair of bits        | CLK = #0, DATA = #1 | sample  | 15 µs      | 1 µs     | @15    | @6(+7)  |
-|   4  | Device sends 2nd pair of bits        | CLK = #2, DATA = #3 | sample  | 10 µs      | 1 µs     | @10    | @10     |
-|   5  | Device sends 3rd pair of bits        | CLK = #4, DATA = #5 | sample  | 11 µs      | 1 µs     | @11    | @11     |
-|   6  | Device sends 4th pair of bits        | CLK = #6, DATA = #7 | sample  | 11 µs      | 1 µs     | @11    | @10     |
-|   7  | Device signals no EOI                | CLK = 1, DATA = 0   | sample  | 1 - 11 µs  | ∞        | @11    | @11     |
-|   8  | Controller signals not ready to send | DATA = 1            | ?       | 0 - ∞      | ∞        | @5     | @3      |
+| Step | Event                                | Wires               | Type    | Delay      | Hold For | C64    | VIC-20 | 1541    |
+|------|--------------------------------------|---------------------|---------|------------|----------|--------|--------|---------|
+|   1  | Device: ready-to-send                | DATA = 0            | trigger | 0 - ∞      | ∞        | -      |        | -       |
+|   2  | Controller: *Go*                     | CLK = 0             | trigger | 0 - ∞      | ∞        | -      |        | -       |
+|   3  | Device: 1st pair of bits             | CLK = #0, DATA = #1 | sample  | 15         | 1        | 15     | 14.5   | 6-16(+7)|
+|   4  | Device: 2nd pair of bits             | CLK = #2, DATA = #3 | sample  | 10         | 1        | 10     | 10.9   | 10-21   |
+|   5  | Device: 3rd pair of bits             | CLK = #4, DATA = #5 | sample  | 11         | 1        | 11     | 10     | 11-21   |
+|   6  | Device: 4th pair of bits             | CLK = #6, DATA = #7 | sample  | 11         | 1        | 11     | 10.9   | 10-21   |
+|   7  | Device: EOI/!EOI                     | CLK = 0/1, DATA = 0 | sample  | 1 - 11     | ∞        | 11     | 10     | 11-?    |
+|   8  | Controller: not ready to send        | DATA = 1            | ?       | 0 - ∞      | ∞        | 5-∞    | 4.5-∞  | 3-∞     |
+
+* 8: C64 sets DATA = 1 at 5 µs, 1541 waits for DATA = 1 starting at 3 µs.
 
 ### LOAD
 
@@ -487,31 +497,31 @@ See the "Discussion" section later for some comments on the exact timing.
 
 Start:
 
-| Step | Event                                | Wires                | Type    | Delay      | Hold For | C64    | 1541    |
-|------|--------------------------------------|----------------------|---------|------------|----------|--------|---------|
-|  E1  | Controller clears DATA wire          | DATA = 0             | -       |            |          |        |         |
-|  E2  | Device signals EOI/!EOI & valid      | DATA = !EOI, CLK = 0 | trigger | 0 - ∞      | 75 µs    |        |         |
+| Step | Event                                | Wires                | Type    | Delay      | Hold For | C64    | VIC-20 | 1541    |
+|------|--------------------------------------|----------------------|---------|------------|----------|--------|--------|---------|
+|  E1  | Controller clears DATA wire          | DATA = 0             | -       |            |          |        |        |         |
+|  E2  | Device: EOI/!EOI & valid             | DATA = !EOI, CLK = 0 | trigger | 0 - ∞      | 75       |        |        |         |
 
 * If EOI = 0, "Byte Receive" follows.
 * If EOI = 1, "End" follows.
 
 #### End
 
-| Step | Event                                | Wires               | Type    | Delay      | Hold For | C64    | 1541    |
-|------|--------------------------------------|---------------------|---------|------------|----------|--------|---------|
-|  E3  | Device signals no error              | CLK = 1             | trigger | 0 - 1100 µs| 100 µs   |        |         |
+| Step | Event                                | Wires               | Type    | Delay      | Hold For | C64    | VIC-20 | 1541    |
+|------|--------------------------------------|---------------------|---------|------------|----------|--------|--------|---------|
+|  E3  | Device: no error                     | CLK = 1             | trigger | 0 - 1100   | 100      |        |        |         |
 
 #### Byte Receive
 
 | Step | Event                                | Wires               | Type    | Delay      | Hold For | C64    | VIC-20 | 1541    |
 |------|--------------------------------------|---------------------|---------|------------|----------|--------|--------|---------|
-|  B1  | Device signals ESC/!ESC & valid      | CLK = ESC, DATA = 0 | trigger | 0 - 84 µs  |∞<sup>*</sup>|     |        |         |
-|  B2  | Controller signals *Go*, clears DATA | DATA = 1; DATA = 0  | trigger | 0 - ∞      | 12 µs    |        |        |         |
-|  B2b | Controller reads ESC/!ESC            |                     |         |            |          | @3     |        |         |
-|  B3  | Device sends 1st pair of bits        | CLK = #0, DATA = #1 | sample  | 15 µs<sup>*</sup>|1 µs| @15(Go)|        | @7      |
-|  B4  | Device sends 2nd pair of bits        | CLK = #2, DATA = #3 | sample  | 10 µs      | 1 µs     | @10    |        | @10     |
-|  B5  | Device sends 3rd pair of bits        | CLK = #4, DATA = #5 | sample  | 11 µs      | 1 µs     | @11    |        | @11     |
-|  B6  | Device sends 4th pair of bits        | CLK = #6, DATA = #7 | sample  | 11 µs      | 1 µs     | @11    |        | @10     |
+|  B1  | Device: ESC/!ESC & valid             | CLK = ESC, DATA = 0 | trigger | 0 - 84     | ∞        |        |        |         |
+|  B2  | Controller: *Go*, clears DATA        | DATA = 1; DATA = 0  | trigger | 0 - ∞      | 12       |        |        |         |
+|  B2x | Controller reads ESC/!ESC<sup>*</sup>|                     |         |            |          | 3      | 4.5    |         |
+|  B3  | Device: 1st pair of bits             | CLK = #0, DATA = #1 | sample  | 15         | 1        | 15(Go) |13.6(Go)| 7-17    |
+|  B4  | Device: 2nd pair of bits             | CLK = #2, DATA = #3 | sample  | 10         | 1        | 10     | 10.9   | 10-21   |
+|  B5  | Device: 3rd pair of bits             | CLK = #4, DATA = #5 | sample  | 11         | 1        | 11     | 11.8   | 11-21   |
+|  B6  | Device: 4th pair of bits             | CLK = #6, DATA = #7 | sample  | 11         | 1        | 11     | 10.0   | 10-?    |
 
 <sup>*</sup>The value of ESC in the CLK wire must still be valid 3 µs after the start of the *Go* signal, so the first pair of data bits must not be put into CLK and DATA earlier than 4 µs after *Go*.
 
