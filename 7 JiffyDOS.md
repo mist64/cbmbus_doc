@@ -591,11 +591,11 @@ So the hold time that should be written down in the specification should, in our
 
 Compliance with a protocol that is not formally defined could be defined as staying within the timing bounds of all existing implementations.
 
-So all JiffyDOS **host** implementations that we consider standards compliant could be looked at. Analyzing the time offsets of the read operations, this would give us the minimal hold time that works with all hosts. And for all cases where the host holds a wire and the device responds to it, we have to look at all JiffyDOS **device** implementations.
+So all JiffyDOS **host** implementations that we consider standards compliant could be looked at. Analyzing the time offsets of the read operations of the different implementations would give us the minimal hold time that works with all hosts. And for all cases where the host holds a wire and the device responds to it, we have to look at all JiffyDOS **device** implementations.
 
 
 
-<!--- Nevertheless, for all numbers in the "Timing" section, only the C64 and the 1541 implementations have been looked at so far. The host implementations for the PAL VIC-20 (1.1 MHz) and the TED (1.77 MHz) should also be checked; the NTSC VIC-20 and the C128 run at the same clock speed as the C64, so the same timing can be assumed. Since all Commodore drives, their clones, and all CMD drives run at 1 or 2 MHz, their timing is probably identical with the 1541. --->
+<!--- The host implementations for the PAL VIC-20 (1.1 MHz) and the TED (1.77 MHz) should be checked; the NTSC VIC-20 and the C128 run at the same clock speed as the C64, so the same timing can be assumed. Since all Commodore drives, their clones, and all CMD drives run at 1 or 2 MHz, their timing is probably identical with the 1541. --->
 
 
 
