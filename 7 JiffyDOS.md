@@ -504,7 +504,7 @@ Start:
 | Step | Event                                | Wires                | Type    | Delay      | Hold For | C64    | VIC-20 | 1541    |
 |------|--------------------------------------|----------------------|---------|------------|----------|--------|--------|---------|
 |  E1  | Controller clears DATA wire          | DATA = 0             | -       | 0 - ∞      |          | -      |        | -       |
-|  E2  | Device: EOI/!EOI & valid             | DATA = !EOI, CLK = 0 | trigger | 0 - ∞      | 75       | 7-∞    | 7.3-∞  | 0-∞     |
+|  E2  | Device: EOI/!EOI & valid             | DATA = !EOI, CLK = 0 | trigger | 0 - ∞      | 75       | 7-∞    | 7.3-∞  | 0-∞; hold:75|
 
 * If EOI = 0, "Byte Receive" follows.
 * If EOI = 1, "End" follows.
@@ -636,28 +636,17 @@ In practice, this is not really a problem though. Even in 1985, it was clear tha
 
 ## Protocol not Optimal
 
+All JiffyDOS byte transmission protocols are timing-based, and the timing properties are based on the C64 and 1541 implementations. This means that the protocols have a fixed maximum speed (e.g. 12.5 KB/sec for JiffyDOS LOAD), even if both the host and the device were faster. If for instance the host did the LOAD receive loop in less than 80 µs, it would break with a 1541 as a device – it might work with other devices, but it just wouldn't be JiffyDOS-compliant.
 
+Additionally, the original C64 and 1541 implementations, which defined the protocols, are not even optimal. At least 10 µs could have been shaved off the 1541 implementation, which would have allowed a device to do the LOAD receive loop in 70 µs and still be compliant.
 
-* 37 µs slows down everything
-* device should prepare the data before, then signal that it's ready
-* this allows faster implementations
+## LOAD Protocol not Suitable for IRQs
 
-* then again, only the LOAD case really matters...
+JiffyDOS requires the host to be completely undisturbed – from DMA and from interrupts – during byte transmission, i.e. for XXX 65 µs. Interrupts have to be off during this short amount of time, which causes some added interrupt latency, but in practice, this should never cause any interrupts to be missed.
 
-* 2 bits can be done in 8 µs instead of 10/11
-* or even faster: LDA zp, STA $1800, LDA zp, STA $1800; LDA $DD00, PHA, LDA $DD00, PHA...
-* or the standard LDA $DD00, LSR, LSR, EOR $DD00
-* C128/1581 (both 2 MHz) suffer from delays everywhere
-* even if C64/1541 have to do pre-/post-processing, they could be as fast by shifting complexity out of the transmission loop
-* so C128/1571 would benefit from the faster loop
+No other phases of the protocols should require such strict timing, but some do: After step E1 of LOAD escape mode, the host waits for the device, usually to read another block from the media. Once the device is ready, it pulls DATA – but just for 75 µs. The host must not miss this, so it must have interrupts disabled while the device is busy. With a 1541, the wait time is in the order of 1/20 of a second for every block transmitted, for a total of about 2/3 of the total load time, in which interrupts will be missed. In the C64 case, for example, this causes the KERNAL real-time clock (`SETTIM`/`RDTIM` calls) to be slow, and it makes it impossible[^3] to play music while loading.
 
-
-## LOAD protocol not suitable for IRQs
-
-* once-per-block status transmission doesn't wait for host
-* host must be in a tight loop with IRQs off
-
-## Layer violation
+## Layer Violation
 
 * detection
 	* technically, signaling specifically on TALK and LISTEN violates the layering
@@ -699,3 +688,5 @@ Part 8 of the series of articles on the Commodore Peripheral Bus family will cov
 [^1]: The 1541 implementation uses a threshold of 218 µs to detect this.
 
 [^2]: On the C64 – the computer which JiffyDOS was designed for – the CPU is halted by the video chip for 40 µs on every 8th raster line (504 µs); as well as for a little while on all raster lines that contain sprites. The C64 implemenation disables all sprites during a transmission and delays the *Go* signal whenever video chip DMA is anticipated.
+
+[^3]: C64 music playback usually updates the state of the sound chip every 1/50 of a second. One approach of working around this would be detecting the signal from the device by having an NMI every 75 µs that checks the wire. Each NMI would eat up about 30 µs, effectively halving the CPU throughput in this state.
