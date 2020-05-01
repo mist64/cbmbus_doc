@@ -1,6 +1,6 @@
 # Commodore Peripheral Bus: Part 6: JiffyDOS
 
-In the [series about the variants of the Commodore Peripheral Bus family](https://www.pagetable.com/?p=1018), this article covers the third party "JiffyDOS" extension to the Commodore Serial Bus protocol, which shipped as a ROM patch for computers and drives, replacing the byte transmission protocol of Standard Serial by using the clock and data lines in a more efficient way.
+In the [series about the variants of the Commodore Peripheral Bus family](https://www.pagetable.com/?p=1018), this article covers the third party "JiffyDOS" extension to the Commodore Serial Bus protocol, which shipped as a ROM patch for computers and drives, replacing the byte transmission protocol of Standard Serial ("IEC") by using the clock and data lines in a more efficient way.
 
 
 ![](docs/cbmbus/jiffydos_layers.png =291x241)
@@ -648,12 +648,30 @@ No other phases of the protocols should require such strict timing, but some do:
 
 ## Layer Violation
 
-* detection
-	* technically, signaling specifically on TALK and LISTEN violates the layering
-	* some implementation signal on all bytes under ATN, which is cleaner
-	* but it's spec-compliant to send the TALK/LISTEN secondary will be sent without the signal
-	* so device that turns Jiffy on/off based on whether last ATN byte had signal or not would not work right
-	* -> it's okay to send the signal with every ATN, but the device must detect it only on TALK/LISTEN
+The IEEE-488 family of protocols is strictly layered:
+
+* Layer 1 defines the connectors and signal.
+* Layer 2 defines the byte transmission protocol.
+* Layer 3 defines who's talking to who (bus arbitration).
+* Layer 4 defines a file access API for disk drives.
+
+The beauty of this design allows lower layers to be replaced without the higher layers having to care. Layers 1 and 2 can be
+
+* IEEE-488 (Commodore PET)
+* Standard Serial (VIC-20, C64, C128, ...)
+* TCBM (TED, i.e. Plus/4, ...)
+* ...
+
+and the layer 4 protocol would remain identical. Applications using the layer 4 protocol would not know the difference.
+
+In theory, this should also be possible the other way round. Layer 3 should be replaceable in a way that layer 2 does not have to care. I could create a new protocol stack and decide that I like the connectors and byte transmission protocols (layers 1 and 2) of IEEE-488 and Standard Serial, but I have a better idea for a bus arbitration protocol on layer 3. This would be possible, because layer 2 has no knowledge of the workings of layer 3 – and doesn't require any.
+
+This is not the case with JiffyDOS though. The detection protocol has knowledge of "TALK/LISTEN" protocol on layer 3, and the LOAD protocol is even specific to the Commodore DOS protocol on layer 4.
+
+The detection protocol delays the last bit when transmitting a TALK or a LISTEN command. On the device side, the Standard Serial bit receive code (layer 2) has to detect the delayed last bit, but then decide whether it was a TALK or LISTEN directed to it (layer 3). On the host side, the layer 2 send code must also be conditionalized on whether it's a layer 3 TALK or LISTEN[^4].
+
+XXX host does detection on ALL commands
+
 * LOAD
 	* magic channel 1
 	* skips 2 bytes (PRG)
@@ -690,3 +708,5 @@ Part 8 of the series of articles on the Commodore Peripheral Bus family will cov
 [^2]: On the C64 – the computer which JiffyDOS was designed for – the CPU is halted by the video chip for 40 µs on every 8th raster line (504 µs); as well as for a little while on all raster lines that contain sprites. The C64 implemenation disables all sprites during a transmission and delays the *Go* signal whenever video chip DMA is anticipated.
 
 [^3]: C64 music playback usually updates the state of the sound chip every 1/50 of a second. One approach of working around this would be detecting the signal from the device by having an NMI every 75 µs that checks the wire. Each NMI would eat up about 30 µs, effectively halving the CPU throughput in this state.
+
+[^4]: While it would be spec-compliant to do the JiffyDOS capablity signaling on all commands, the "yes I can speak JiffyDOS" reply from the device must only be considered if it happened during a TALK or LISTEN command.
