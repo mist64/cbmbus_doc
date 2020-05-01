@@ -449,7 +449,7 @@ The controller reads the wires exactly 11 µs later.
 
 At this point, the protocol loops back to step B1.
 
-### Timing Summary
+# Timing
 
 XXX 
 
@@ -462,7 +462,7 @@ See the "Discussion" section later for some comments on the exact timing.
 	* for reads, it means check in this range
 * (+7) fuzz of 7, i.e. can be 0-7 late
 
-#### Send
+## Send
 
 | Step | Event                                | Wires               | Type    | Delay      | Hold For | C64    | VIC-20     | 1541    |
 |------|--------------------------------------|---------------------|---------|------------|----------|--------|------------|---------|
@@ -480,7 +480,7 @@ See the "Discussion" section later for some comments on the exact timing.
 * XXX 8 doubles as not ready to receive for the next iteration
 * XXX VIC-20 means PAL
 
-#### Receive
+## Receive
 
 | Step | Event                                | Wires               | Type    | Delay      | Hold For | C64    | VIC-20 | 1541    |
 |------|--------------------------------------|---------------------|---------|------------|----------|--------|--------|---------|
@@ -495,9 +495,9 @@ See the "Discussion" section later for some comments on the exact timing.
 
 * 8: C64 sets DATA = 1 at 5 µs, 1541 waits for DATA = 1 starting at 3 µs.
 
-### LOAD
+## LOAD
 
-#### Escape Mode
+### Escape Mode
 
 Start:
 
@@ -505,17 +505,13 @@ Start:
 |------|--------------------------------------|----------------------|---------|------------|----------|--------|--------|---------|
 |  E1  | Controller clears DATA wire          | DATA = 0             | -       | 0 - ∞      |          | -      |        | -       |
 |  E2  | Device: EOI/!EOI & valid             | DATA = !EOI, CLK = 0 | trigger | 0 - ∞      | 75       | 7-∞    | 7.3-∞  | 0-∞; hold:75|
-
-* If EOI = 0, "Byte Receive" follows.
-* If EOI = 1, "End" follows.
-
-#### End
-
-| Step | Event                                | Wires               | Type    | Delay      | Hold For | C64         | VIC-20        | 1541    |
-|------|--------------------------------------|---------------------|---------|------------|----------|-------------|---------------|---------|
 |  E3  | Device: no error                     | CLK = 1             | trigger | 0 - 1100   | 100      |10-∞; to:1100|12.7-∞; to:1082| hold:100|
 
-#### Byte Receive
+* E2:
+	* If EOI = 0, "Byte Receive" follows.
+	* If EOI = 1, "End" follows.
+
+### Byte Receive
 
 | Step | Event                                | Wires               | Type    | Delay      | Hold For | C64         | VIC-20        | 1541    |
 |------|--------------------------------------|---------------------|---------|------------|----------|-------------|---------------|---------|
@@ -531,15 +527,7 @@ Start:
 
 * if ESC = 1, "Escape Mode" follows after B
 
-# Errors
-
-XXX dead man's switch
-
-# Discussion
-
-JiffyDOS is a significant improvement to Standard Serial, and it can be rightly considered the de-fact successor to it. Nevertheless, there are a few points that can be critisized.
-
-## Timing
+-----
 
 No official formal specification of JiffyDOS has ever been released. Modern JiffyDOS-compatible projects such as SD2IEC and [open-roms](https://github.com/MEGA65/open-roms) had to reconstruct the protocols from either reverse-engineering the code or analyzing the data on the wires.
 
@@ -547,9 +535,7 @@ This would be no problem for a protocol like the original IEEE-488: All signals 
 
 ### Timing Windows
 
-To illustrate this, let's look at a detail in the timing tables above: The hold times on a byte send are usually 7 µs, and on a byte receive, they are 1 µs: if the host puts data on a wire, it has to hold it for 7 µs for the device to be able to read it, but if the device puts data on a wire, it only has to hold it for 1 µs. Why is this?
-
-Let's investigate this with a more generic example of the C64 sending data to the 1541. It sets the *Go* signal for a certain amount of time. Then let's assume it puts new data onto the bus every 20 µs (for simpler numbers), counting from the beginning of the *Go* signal, and then holds the wire with the data for a certain amount of time as well.
+Let's look at wire hold times by looking at the C64 sending data to the 1541. It sets the *Go* signal for a certain amount of time. Then it puts new data onto the bus every, say, 20 µs (for simpler numbers), counting from the beginning of the *Go* signal, and then holds the wire with the data for a certain amount of time as well.
 
 The 1541 runs at 1 Mhz, and the C64 runs pretty close to 1 MHz. The minimal loop for the 1541 to detect the signal looks like this:
 
@@ -581,9 +567,9 @@ This looks symmetric, but since it is always the host that signals *Go*, it isn'
 
 ![](docs/cbmbus/jiffydos-timing3.png =601x167)
 
-For the host to be guaranteed to hit the window where the data on the wire is valid, the device has to put the data onto the wire after 20 - 2 µs, and hold it for only 2 µs. The extreme case would be a device that can react within 1 µs, so it could put the data onto the wire for the exact µs that the C64 is reading it.
+For the host to be guaranteed to hit the window where the data on the wire is valid, the device has to put the data onto the wire after 20 - 2 µs, and hold it for only 2 µs. The extreme case would be a device that can react immediately, so it could put the data onto the wire just for the exact time that the C64 is reading it.
 
-This is not the same for the send case though: Any host implementation will have to hold the wire for 7 µs, otherwise the 1541 wouldn't work. But a device only **has** to hold it for 1 µs – it's the only device's own accuracy, and therefore an implementation detail how long it has to hold it in practice.
+This is not the same for the send case though: Any host implementation will have to hold the wire for 7 µs, otherwise the 1541 wouldn't work. But a device only has to hold it at the exact point the host samples it – it's the only device's own accuracy, and therefore an implementation detail how long it has to hold it in practice.
 
 ### Minimum Timing Windows
 
@@ -604,7 +590,7 @@ The C64 implementation holds the wire for more than the necessary 7 µs. (In ord
 
 This means that an drive implementation reading the wire 1 µs later would also work with a C64 – and maybe all other JiffyDOS hosts. Does this mean such an implementation is also compliant?
 
-As an alternative we could say that any implementation will have to hold the wire for a full 20 µs, just like the 1541 implementation. This would guarantee all hosts that work with a 1541 will also work with a device that confirms to this strict specification. But this would unnecessarily lock out hardware that is unable to meet these strict rules, e.g. one based on a CPU architecture that can only hold the wire for 19 µs, for some reason or another, even though it's compatible with all known host implementations.
+As the other extreme, we could say that any implementation will have to hold the wire for a full 20 µs, just like the 1541 implementation. This would guarantee all hosts that work with a 1541 will also work with a device that confirms to this strict specification. But this would unnecessarily lock out hardware that is unable to meet these strict rules, e.g. one based on a CPU architecture that can only hold the wire for 19 µs, for some reason or another, even though it's compatible with all known host implementations.
 
 So the hold time that should be written down in the specification should, in our example, be somewhere in the range of 7 µs and 20 µs.
 
@@ -612,11 +598,22 @@ Compliance with a protocol that is not formally defined could be defined as stay
 
 So all JiffyDOS **host** implementations that we consider standards compliant could be looked at. Analyzing the time offsets of the read operations of the different implementations would give us the minimal hold time that works with all hosts. And for all cases where the host holds a wire and the device responds to it, we have to look at all JiffyDOS **device** implementations.
 
+That's why the timing tables contain the measured numbers of several devices:
 
+* C64: the host reference implementation at 1 MHz. Implementations on other 1 MHz devices (NTSC VIC-20, C128[^3]) are assumed to have the same timing.
+* PAL VIC-20: a host implementation running at 1.1 MHz
+* TED (C16, C116, Plus/4): a host implementation running at 1.77 MHz
+* 1541: the device reference implementation at 1 MHz. All other JiffyDOS-supported drives run at 1 MHz or 2 MHz and are assumed to have the same timing.
 
-<!--- The host implementations for the PAL VIC-20 (1.1 MHz) and the TED (1.77 MHz) should be checked; the NTSC VIC-20 and the C128 run at the same clock speed as the C64, so the same timing can be assumed. Since all Commodore drives, their clones, and all CMD drives run at 1 or 2 MHz, their timing is probably identical with the 1541. --->
+The specification timing contains the minimal hold times that are compatible with these implementations.
 
+# Errors
 
+XXX dead man's switch
+
+# Discussion
+
+JiffyDOS is a significant improvement to Standard Serial, and it can be rightly considered the de-fact successor to it. Nevertheless, there are a few points that can be critisized.
 
 ## C64/1541-specific
 
@@ -644,7 +641,7 @@ Additionally, the original C64 and 1541 implementations, which defined the proto
 
 JiffyDOS requires the host to be completely undisturbed – from DMA and from interrupts – during byte transmission, i.e. for XXX 65 µs. Interrupts have to be off during this short amount of time, which causes some added interrupt latency, but in practice, this should never cause any interrupts to be missed.
 
-No other phases of the protocols should require such strict timing, but some do: After step E1 of LOAD escape mode, the host waits for the device, usually to read another block from the media. Once the device is ready, it pulls DATA – but just for 75 µs. The host must not miss this, so it must have interrupts disabled while the device is busy. With a 1541, the wait time is in the order of 1/20 of a second for every block transmitted, for a total of about 2/3 of the total load time, in which interrupts will be missed. In the C64 case, for example, this causes the KERNAL real-time clock (`SETTIM`/`RDTIM` calls) to be slow, and it makes it impossible[^3] to play music while loading.
+No other phases of the protocols should require such strict timing, but some do: After step E1 of LOAD escape mode, the host waits for the device, usually to read another block from the media. Once the device is ready, it pulls DATA – but just for 75 µs. The host must not miss this, so it must have interrupts disabled while the device is busy. With a 1541, the wait time is in the order of 1/20 of a second for every block transmitted, for a total of about 2/3 of the total load time, in which interrupts will be missed. In the C64 case, for example, this causes the KERNAL real-time clock (`SETTIM`/`RDTIM` calls) to be slow, and it makes it impossible[^4] to play music while loading.
 
 ## Layer Violation
 
@@ -686,4 +683,6 @@ Part 8 of the series of articles on the Commodore Peripheral Bus family will cov
 
 [^2]: On the C64 – the computer which JiffyDOS was designed for – the CPU is halted by the video chip for 40 µs on every 8th raster line (504 µs); as well as for a little while on all raster lines that contain sprites. The C64 implemenation disables all sprites during a transmission and delays the *Go* signal whenever video chip DMA is anticipated.
 
-[^3]: C64 music playback usually updates the state of the sound chip every 1/50 of a second. One approach of working around this would be detecting the signal from the device by having an NMI every 75 µs that checks the wire. Each NMI would eat up about 30 µs, effectively halving the CPU throughput in this state.
+[^3]: The C128 implementation runs in 1 Mhz mode to be compatible with the VIC-II video chip.
+
+[^4]: C64 music playback usually updates the state of the sound chip every 1/50 of a second. One approach of working around this would be detecting the signal from the device by having an NMI every 75 µs that checks the wire. Each NMI would eat up about 30 µs, effectively halving the CPU throughput in this state.
