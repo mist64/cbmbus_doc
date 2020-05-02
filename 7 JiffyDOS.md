@@ -423,7 +423,7 @@ At this point, the protocol loops back to step B1.
 
 No official formal specification of JiffyDOS has ever been released. Modern JiffyDOS-compatible projects such as SD2IEC and [open-roms](https://github.com/MEGA65/open-roms) had to reconstruct the protocols from either reverse-engineering the code or analyzing the data on the wires.
 
-This would be no problem for a protocol like the original IEEE-488: All signals are used as triggers, so the other bus participants can do continue with the next steps. With JiffyDOS, most of the protocol is timing-based, so the required timing has to be reconstructed by counting instructions in the implementations – but this is still tricky.
+This would be no problem for a protocol like the original IEEE-488: All signals are always triggers, so the other bus participants can continue with the next steps. With JiffyDOS, most of the protocol is timing-based, so the required timing has to be reconstructed by counting instructions in the implementations – but this is still tricky.
 
 ### Timing Windows
 
@@ -434,7 +434,7 @@ The 1541 runs at 1 Mhz, and the C64 runs pretty close to 1 MHz. The minimal loop
 	:	cpx $1800 ; GPIO
 		beq :-
 
-One iteration of this loop takes 7 clock cycles, which is 7 µs. In the best case, the GPIO pins get read in the very first cycle they changed, and in the worst case, the change one cycle after the read, introducing a latency of 7 µs.
+One iteration of this loop takes 7 clock cycles, which is 7 µs. In the best case, the GPIO pins get read in the very first cycle they changed, and in the worst case, they change one cycle after the read, introducing a latency of 7 µs.
 
 The following diagram shows what this means for the timing of the transmission:
 
@@ -444,7 +444,7 @@ The 1541 checks for the *Go* signal every 7 µs. The first two times (labeled "?
 
 The 1541 has no better idea about the exact time of the *Go* signal, so it will read the data from the bus 20 µs after the **detected** *Go* signal.
 
-* In the case the 1541 detected the *Go* signal in the very first moment, it would read the data wire exactly 20 µs after *Go*.
+* In the best case, the 1541 detected the *Go* signal in the very first moment, so it would read the data wire exactly 20 µs after *Go*.
 * In the worst case, the 1541 would detect *Go* 7 µs late, so it would read it 20 + 7 µs after *Go*.
 
 Therefore, the C64 has to hold the data wire for 7 µs starting 20 µs after *Go*.
@@ -453,7 +453,7 @@ Now let's look at the receive case:
 
 ![](docs/cbmbus/jiffydos-timing2.png =601x167)
 
-The C64 will read the data wire 20 µs after it has sent the *Go* signal. The 1541 is again not sure when exactly *Go* happened, it might have been just now, or 7 µs ago. Therefore, it has to write the data onto the wire 20 µs from the earliest possible time *Go* could have happened, and hold it for 7 µs so the C64's read is guaranteed to hit it.
+The C64 will read the data wire 20 µs after it has sent the *Go* signal. The 1541 is again not sure when exactly *Go* happened, it might have been just now, or 7 µs ago. Therefore, it has to write the data onto the wire 20 µs from the earliest possible time *Go* **could** have happened, and hold it for 7 µs so the C64's read is guaranteed to hit it.
 
 This looks symmetric, but since it is always the host that signals *Go*, it isn't. Imagine a device with a very different CPU or a higher clock speed that can detect *Go* with an accuracy of 0-2 µs:
 
@@ -461,7 +461,7 @@ This looks symmetric, but since it is always the host that signals *Go*, it isn'
 
 For the host to be guaranteed to hit the window where the data on the wire is valid, the device has to put the data onto the wire after 20 - 2 µs, and hold it for only 2 µs. The extreme case would be a device that can react immediately, so it could put the data onto the wire just for the exact time that the C64 is reading it.
 
-This is not the same for the send case though: Any host implementation will have to hold the wire for 7 µs, otherwise the 1541 wouldn't work. But a device only has to hold it at the exact point the host samples it – it's the only device's own accuracy, and therefore an implementation detail how long it has to hold it in practice.
+This is not the same for the send case though: Any host implementation will have to hold the wire for 7 µs, otherwise the 1541 wouldn't work. But a device only has to hold it at the exact point the host samples it – it's only the device's own accuracy, and therefore an implementation detail how long it has to hold it in practice.
 
 ### Minimum Timing Windows
 
@@ -480,15 +480,15 @@ The C64 implementation holds the wire for more than the necessary 7 µs. (In ord
 		nop
 		stx $dd00
 
-This means that an drive implementation reading the wire 1 µs later would also work with a C64 – and maybe all other JiffyDOS hosts. Does this mean such an implementation is also compliant?
+This means that a drive implementation reading the wire 1 µs later would also work with a C64 – and maybe all other JiffyDOS hosts. Does this mean such an implementation is also compliant?
 
-As the other extreme, we could say that any implementation will have to hold the wire for a full 20 µs, just like the 1541 implementation. This would guarantee all hosts that work with a 1541 will also work with a device that confirms to this strict specification. But this would unnecessarily lock out hardware that is unable to meet these strict rules, e.g. one based on a CPU architecture that can only hold the wire for 19 µs, for some reason or another, even though it's compatible with all known host implementations.
+As the other extreme, we could say that any implementation will have to hold the wire for a full 20 µs, just like the 1541 implementation. This would guarantee that all hosts that work with a 1541 will also work with a device that conforms to this strict specification. But this would unnecessarily lock out hardware that is unable to meet these strict rules, e.g. one based on a CPU architecture that can only hold the wire for 19 µs, for some reason or another, even though it's compatible with all known host implementations.
 
 So the hold time that should be written down in the specification should, in our example, be somewhere in the range of 7 µs and 20 µs.
 
 Compliance with a protocol that is not formally defined could be defined as staying within the timing bounds of all existing implementations.
 
-So all JiffyDOS **host** implementations that we consider standards compliant could be looked at. Analyzing the time offsets of the read operations of the different implementations would give us the minimal hold time that works with all hosts. And for all cases where the host holds a wire and the device responds to it, we have to look at all JiffyDOS **device** implementations.
+So all JiffyDOS **host** implementations that we consider compliant should be looked at. Analyzing the time offsets of the read operations of the different implementations would give us the minimal hold time that works with all hosts. And for all cases where the host holds a wire and the device responds to it, we have to look at all JiffyDOS **device** implementations.
 
 That's why the timing tables contain the measured numbers of several devices:
 
@@ -497,21 +497,30 @@ That's why the timing tables contain the measured numbers of several devices:
 * TED (C16, C116, Plus/4): a host implementation running at 1.77 MHz
 * 1541: the device reference implementation at 1 MHz. All other JiffyDOS-supported drives run at 1 MHz or 2 MHz and are assumed to have the same timing.
 
-The specification timing contains the minimal hold times that are compatible with these implementations.
+The following reverse-engineered timing tables contain the minimal hold times that are compatible with these implementations.
 
 ## Timing Tables
 
 The following tables summarize the complete timing data of the three protocols.
 
-* "trigger" means that one peer is waiting for the other one in a tight loop.
-* "sample" means that one peer reads the wire(s) at a specific time.
+The "type" column can have the following contents:
+
+* "trigger": in this step, one peer is **waiting** for the other one in a tight loop.
+* "sample": in this step, one peer reads the wire(s) once, at a specific time.
+* "-": the active peer clears a line; the passive peer does not care
+
+The "timing" column contains a start point or start range, and an optional duration:
+
 * All numbers are in microseconds (µs).
-* The "-" (minus) character means that an event needs to happen, or that a duration needs to start in a certain time range
-* The "~" (tilda) characters means that the the wire state needs to be held, or a loop needs to last for a certain time. No number after it means: until it is changed in some later step. a number after "+" (plus) is the duration.
+* The "-" (minus) character means the event happens or starts in this range
+* The "~" (tilda) characters means that the state will be held, or a loop needs to last for a certain time. If no number follows, this means: until it is changed in some later step. If there is a number after "+" (plus), it is the duration.
 
 Examples:
-* In S2 ("Controller: *Go*"), "4-∞~" means that the controller has send the *Go* signal no earlier than 4 µs after the previous step, but may delay it indefinitely. A new device implementation must be able to react to this 4 µs after the previous step.
-* In S3 ("Controller: 1st pair of bits"), "13~+7" means that the controller will have put the data on the wires no later than 13 µs after the previous step and no shorter than for 7 µs. The device can read it at any point within this range.
+* In S2 ("Controller: *Go*"), "4-∞~" means: The controller sets the wire contents between 4 µs and infinity after the previous step, and hold the state it until a later step changes it.
+* In S3 ("Controller: 1st pair of bits"), "13~+7" means: The controller set the wire contents 13 µs after the previous step, and hold it for 7 µs.
+
+
+means that the controller will have put the data on the wires no later than 13 µs after the previous step and no shorter than for 7 µs. The device can read it at any point within this range.
 
 ### Send
 
@@ -623,21 +632,21 @@ So if a device is turned off during transmission, the host will automatically de
 
 # Discussion
 
-JiffyDOS is a significant improvement to Standard Serial, and it can be rightly considered the de-fact successor to it. Nevertheless, there are a few points that can be critisized.
+JiffyDOS is a significant improvement to Standard Serial, and it can be rightly considered the de-facto successor to it. Nevertheless, there are a few points that can be criticized.
 
 ## C64/1541-specific
 
 As the de-facto successor of Standard Serial, it's a little ugly that the C64/1541 background bleeds through so much.
 
 The protocol always has the host signaling "Go", because the C64's design makes it incapable of a guaranteed timely reaction. The 1541 can spin in a tight loop without distractions though. While this is C64/1541-specific, it does make sense in the more general case: Devices are real-time hardware, 
-after all, they usually need to read sectors from disk by hand, which requires very tight timing and cannot tolerate interruptions. The same cannot be said about hosts, which often share the memory bsu with video hardware.
+after all, they usually need to read sectors from disk by hand, which requires very tight timing and cannot tolerate interruptions. The same cannot be said about hosts, which often share the memory bus with video hardware.
 
-But because it's the host that signals "Go" instead of the current sender, this causes an inherent asymmetry in the protocol. This, as well as some other design decisions make it so that one-to-many transmissions, which are possible with IEEE-488 and Standard Serial, can't be done with the fast JiffyDOS protocols. To be fair, nobody ever used this with Standard Serial anyway. It was a feature carries over from the original (pre-Commodore!) IEEE-488 design, allowing an measurement instrument saving its data onto storage and printing it at the same time, but it was simply unnecessary in the home computer scenario. But the original protocol can still be used with JiffyDOS setups, so if this feature is required, one can just fall back to Standard Serial.
+But because it's the host that signals "Go" instead of the current sender, this causes an inherent asymmetry in the protocol. This, as well as some other design decisions make it so that one-to-many transmissions, which are possible with IEEE-488 and Standard Serial, can't be done with the fast JiffyDOS protocols. To be fair, nobody ever used this with Standard Serial anyway. It was a feature carried over from the original (pre-Commodore!) IEEE-488 design, allowing an measurement instrument saving its data onto storage and printing it at the same time, but it was simply unnecessary in the home computer scenario. But the original protocol can still be used with JiffyDOS setups, so if this feature is required, one can just fall back to Standard Serial.
 
 Another detail of the asymmetry is the bit order in different protocols: The order from the device to the host is 0-1/2-3/4-5/6-7, which makes sense – except that all bits are inverted. And from the host to the device, the order is 4-5/6-7/3-1/2-0, and no bit inversion. Both of these details are directly connected to the properties of the GPIO registers of the C64 and 1541:
 
-* Commodore saved on hardware to invert the CLK and DATA values on their way in order for them to have the correct logical value. Therefore the JiffyDOS just has the drive send inverted bits, so that the computer doesn't have to invert the final value.
-* The bit layout of the 1541 GPIO register is suboptimal for efficient loading of two bits and combining them with the other bits. The protocol design has therefore the host encode the order of the bits in such a way that some work is offloaded from the 1541.
+* Commodore saved on hardware to invert the CLK and DATA values on their way in order for them to have the correct logical value. Therefore JiffyDOS just has the drive send inverted bits, so that the computer doesn't have to invert the final value.
+* The bit layout of the 1541 GPIO register is suboptimal for efficient loading of two bits and combining them with the other bits. The protocol design therefore has the host encode the order of the bits in such a way that some work is offloaded from the 1541.
 
 In practice, this is not really a problem though. Even in 1985, it was clear that the 1541 would always be the weakest device in terms of CPU power and that all successors would therefore be able to bear the overhead of reordering the bits.
 
@@ -649,7 +658,7 @@ Additionally, the original C64 and 1541 implementations, which defined the proto
 
 ## LOAD Protocol not Suitable for IRQs
 
-JiffyDOS requires the host to be completely undisturbed – from DMA and from interrupts – during byte transmission, i.e. for 63 µs. Interrupts have to be off during this short amount of time, which causes some added interrupt latency, but in practice, this should never cause any interrupts to be missed.
+JiffyDOS requires the host to be completely undisturbed – from DMA and from interrupts – during byte transmission, which is up to 63 µs. Interrupts have to be off during this short amount of time, which may cause some added interrupt latency, but should never cause any interrupts to be missed in practice.
 
 No other phases of the protocols should require such strict timing, but some do: After step E1 of LOAD escape mode, the host waits for the device, usually to read another block from the media. Once the device is ready, it pulls DATA – but just for 75 µs. The host must not miss this, so it must have interrupts disabled while the device is busy. With a 1541, the wait time is in the order of 1/20 of a second for every block transmitted, for a total of about 2/3 of the total load time, in which interrupts will be missed. In the C64 case, for example, this causes the KERNAL real-time clock (`SETTIM`/`RDTIM` calls) to be slow, and it makes it impossible[^4] to play music while loading.
 
@@ -657,7 +666,7 @@ No other phases of the protocols should require such strict timing, but some do:
 
 The IEEE-488 family of protocols is strictly layered. This allows, for example, to use IEEE-488, Standard Serial or TCBM for layers 1 and 2 without any changes to layers 3 and 4.
 
-In theory, this should also be possible the other way round. Layer 3 (bus arbitration) should be replaceable in a way that layer 2 does not have to care. I could create a new protocol stack and decide that I like the connectors and byte transmission protocols (layers 1 and 2) of IEEE-488 and Standard Serial, but I have a better idea for a bus arbitration protocol on layer 3. This would be possible, because layer 2 has no knowledge of the workings of layer 3 – and doesn't require any.
+In theory, this should also be possible the other way round. Layer 3 (bus arbitration) should be replaceable in a way that layer 2 does not have to care. One could create a new protocol stack and decide that the connectors and byte transmission protocols (layers 1 and 2) of IEEE-488 and Standard Serial are fine, the bus arbitration protocol on layer 3 should be redesigned. This would be possible, because layer 2 has no knowledge of the workings of layer 3 – and doesn't require any.
 
 This is not the case with JiffyDOS though. The detection protocol needs knowledge of the "TALK/LISTEN" protocol on layer 3: On the device side, the Standard Serial bit receive code (layer 2) for commands has to detect the delayed last bit, and check whether it was a TALK or LISTEN command addressed to itself.
 
