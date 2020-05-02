@@ -465,32 +465,33 @@ XXX
 
 ## Send
 
-| Step | Event                                | Wires               | Type    | Delay      | Hold For |
-|------|--------------------------------------|---------------------|---------|------------|----------|
-|  S1  | Device: ready-to-receive             | DATA = 0            | trigger | 0 - ∞      | ∞        |
-|  S2  | Controller: *Go*                     | CLK = 0             | trigger | 4 - ∞      | ∞        |
-|  S3  | Controller: 1st pair of bits         | CLK = #4, DATA = #5 | sample  | 13         | 7        |
-|  S4  | Controller: 2nd pair of bits         | CLK = #6, DATA = #7 | sample  | 13         | 7        |
-|  S5  | Controller: 3rd pair of bits         | CLK = #3, DATA = #1 | sample  | 11         | 7        |
-|  S6  | Controller: 4th pair of bits         | CLK = #2, DATA = #0 | sample  | 13         | 7        |
-|  S7  | Controller: EOI/!EOI                 | CLK = 0/1, DATA = 0 | sample  | 13         | ∞        |
-|  S8  | Device: OK/!OK                       | DATA = 1/0          | sample  | 0 - 19     | ∞        |
-|  SX  | Controller: no *Go*                  | CLK = 1             | -       |            |          |
+| Step | Event                                | Wires               | Type    | Timing     |
+|------|--------------------------------------|---------------------|---------|------------|
+|  S1  | Device: ready-to-receive             | DATA = 0            | trigger | 0-∞~       |
+|  S2  | Controller: *Go*                     | CLK = 0             | trigger | 4-∞~       |
+|  S3  | Controller: 1st pair of bits         | CLK = #4, DATA = #5 | sample  | 13~20      |
+|  S4  | Controller: 2nd pair of bits         | CLK = #6, DATA = #7 | sample  | 13~20      |
+|  S5  | Controller: 3rd pair of bits         | CLK = #3, DATA = #1 | sample  | 11~18      |
+|  S6  | Controller: 4th pair of bits         | CLK = #2, DATA = #0 | sample  | 13~20      |
+|  S7  | Controller: EOI/!EOI                 | CLK = 0/1, DATA = 0 | sample  | 13~20      |
+|  S8  | Device: OK/!OK                       | DATA = 1/0          | sample  | 0-19~      |
+|  SX  | Controller: no *Go*                  | CLK = 1             | -       | ?          |
 
 * S1: At the beginning of a LISTEN session and between bytes, the device sets DATA = 1, the host may check for DATA = 0 at any time, and S1 may be arbitrarily delayed.
 
-| Step | C64    | VIC-20   | TED        | 1541    | Comment      |
-|------|--------|----------|------------|---------|--------------|
-|  S1  | -      | -        | -          | -       |              |
-|  S2  | 30-∞   | 35       | 81         | 4~∞     |              |
-|  S3  | 11~    | 13~      | 9~         | 13(+≤7) |              |
-|  S4  | 13~    | 13~      | 11~        | 13      |              |
-|  S5  | 11~    | 13~      | 10~        | 11      |              |
-|  S6  | 13~    | 13~      | 10~        | 13      |              |
-|  S7  | 13/14~ | 13/14~   | 11/12~     | 13      |              |
-|  S8  | 19     | 21       | 17         | 6~      |              |
-|  SX  | -6~    | -4~      | -3~        | -       | all host impl. set this before S8 |
+| Step | C64    | VIC-20   | TED        | 1541    |
+|------|--------|----------|------------|---------|
+|  S1  | -      | -        | -          | -       |
+|  S2  | 30-∞   | 35       | 81         | 4~∞     |
+|  S3  | 11~    | 13~      | 9~         | 13(+≤7) |
+|  S4  | 13~    | 13~      | 11~        | 13      |
+|  S5  | 11~    | 13~      | 10~        | 11      |
+|  S6  | 13~    | 13~      | 10~        | 13      |
+|  S7  | 13/14~ | 13/14~   | 11/12~     | 13      |
+|  S8  | 19     | 21       | 17         | 6~      |
+|  SX  | -6~    | -4~      | -3~        | -       |
 
+* SX: all host impl. set this before S8
 * XXX if not DATA = 1 in step 8, the host cancels with a timeout
 * XXX S8 doubles as not ready to receive for the next iteration
 * C64:    $FC27
@@ -505,16 +506,16 @@ XXX
 
 ## Receive
 
-| Step | Event                                | Wires               | Type    | Delay      | Hold For |
-|------|--------------------------------------|---------------------|---------|------------|----------|
-|  R1  | Device: ready-to-send                | DATA = 0            | trigger | 0 - ∞      | ∞        |
-|  R2  | Controller: *Go*                     | CLK = 0             | trigger | 0 - ∞      | ∞        |
-|  R3  | Device: 1st pair of bits             | CLK = #0, DATA = #1 | sample  | 15         | 1        |
-|  R4  | Device: 2nd pair of bits             | CLK = #2, DATA = #3 | sample  | 10         | 1        |
-|  R5  | Device: 3rd pair of bits             | CLK = #4, DATA = #5 | sample  | 11         | 1        |
-|  R6  | Device: 4th pair of bits             | CLK = #6, DATA = #7 | sample  | 11         | 1        |
-|  R7  | Device: EOI/!EOI                     | CLK = 0/1, DATA = 0 | sample  | 1 - 11     | ∞        |
-|  R8  | Controller: not ready to send        | DATA = 1            | trigger | 0 - ∞      | ∞        |
+| Step | Event                                | Wires               | Type    | Timing     |
+|------|--------------------------------------|---------------------|---------|------------|
+|  R1  | Device: ready-to-send                | DATA = 0            | trigger | 0-∞~       |
+|  R2  | Controller: *Go*                     | CLK = 0             | trigger | 31-∞~      |
+|  R3  | Device: 1st pair of bits             | CLK = #0, DATA = #1 | sample  | 14~3       |
+|  R4  | Device: 2nd pair of bits             | CLK = #2, DATA = #3 | sample  | 10~2       |
+|  R5  | Device: 3rd pair of bits             | CLK = #4, DATA = #5 | sample  | 10~2       |
+|  R6  | Device: 4th pair of bits             | CLK = #6, DATA = #7 | sample  | 11~1       |
+|  R7  | Device: EOI/!EOI                     | CLK = 0/1, DATA = 0 | sample  | 10~2       |
+|  R8  | Controller: not ready to send        | DATA = 1            | trigger | 0-3~       |
 
 * 8: C64 sets DATA = 1 at 5 µs, 1541 waits for DATA = 1 starting at 3 µs.
 
@@ -522,11 +523,11 @@ XXX
 |------|--------|--------|--------|---------|
 |  R1  | -      | -      |        | -       |
 |  R2  | 31-∞   | 38(+≤8)| 45-∞   | 37~∞    |
-|  R3  | 16     | 16     | 13     | 6~(+≤7) |
-|  R4  | 10     | 12     | 9      | 10~     |
-|  R5  | 11     | 11     | 10     | 11~     |
-|  R6  | 11     | 12     | 10     | 10~     |
-|  R7  | 11     | 11     | 10     | 11~     |
+|  R3  | 16     | 16     | 13     | 6~(+≤7) | 16, 14.5, 14.6
+|  R4  | 10     | 12     | 9      | 10~     | 10, 11,   10.11
+|  R5  | 11     | 11     | 10     | 11~     | 11, 10,   11.2
+|  R6  | 11     | 12     | 10     | 10~     | 11, 11,   11.2
+|  R7  | 11     | 11     | 10     | 11~     | 11, 10,   11.2
 |  R8  | 4~∞    | 4~∞    | 3~∞    | 3~∞     |
 
 * `a~b` held or scanned in this interval
