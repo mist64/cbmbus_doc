@@ -251,7 +251,7 @@ The device puts the final pair of data bits onto the two wires (CLK: NOT #6, DAT
 #### R7: Device signals no EOI, and is now busy again
 ![](docs/cbmbus/jiffydos-08.png =601x131)
 
-Still timing-based, the device pulls the CLK line, signaling that there is no EOI. A pulled CLK line also means that the device is now busy again, so the transmission of the next byte cannot start.
+Still timing-based, the device pulls the CLK line, signaling that there is no EOI. A pulled CLK line also means that the device is now busy again, so the transmission of the next byte cannot start yet.
 
 In the no-EOI case, it also releases the DATA line so it can be operated by the controller again.
  
@@ -611,9 +611,15 @@ For reference, these are the addresses of the implementations in the respective 
 
 # Errors
 
-XXX dead man's switch
+The original pre-Commodore IEEE-488 protocol did not have a way for a device to indicate an error, and the protocol could even hang indefinitely if a device stopped responding. Commodore added the concept of a timeout to detect unresponsive devices. Error signaling was done the same way: If a device wanted to indicate an error, it just stopped responding for a little longer than the host's timeout.
 
-XXX  – the original IEEE-488 protocol did not have an error flag, so Commodore defined that delaying a requested response should be used to signal an error.
+Standard Serial inherited this strategy, and so did JiffyDOS: The bus state in the error case is always identical with the bus state of a nonexistent device:
+
+* Send protocol: In state R7a, the device releases CLK and DATA to indicate an error.
+* Receive Protocol: In state S7a, the device releases CLK and DATA to indicate an error.
+* LOAD Protocol: In state E3, the device releases CLK and DATA to indicate an error.
+
+So if a device is turned off during transmission, the host will automatically detect the error condition.
 
 # Discussion
 
