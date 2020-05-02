@@ -534,7 +534,7 @@ XXX
 * `a~` held from `a` on, until in some later step
 * `-` set some time in this interval
 
-* C64:    $
+* C64:    $FBA5
 * VIC-20: $FBE0
 * TED:    $E7DB
 * 1541:   $FF79
@@ -557,14 +557,14 @@ Start:
 
 | Step | C64         | VIC-20        | TED    | 1541    |
 |------|-------------|---------------|--------|---------|
-|  E1  | -           |               |        | -       |
-|  E2  | 7-∞         | 7.3-∞         |        | 0-∞~    |
-|  E3  |10-∞; to:1100|12.7-∞; to:1082|        | 100~+100|
+|  E1  | -           | -             | -      | -       |
+|  E2  | 8~∞         | 9~∞           | 3~∞    | 0-∞~    |
+|  E3  | 10-∞~1100   | 14-∞~1100     | ?      | 100~+100|
 
 * C64:    $FB3E
 * VIC-20: $FB6E
-* TED:    $E774
-* 1541:  ~$FFA3
+* TED:    $E751
+* 1541:   $FFA3
 
 ### Byte Receive
 
@@ -580,7 +580,7 @@ Start:
 
 <sup>*</sup>The value of ESC in the CLK wire must still be valid 3 µs after the start of the *Go* signal, so the first pair of data bits must not be put into CLK and DATA earlier than 4 µs after *Go*.
 
-* if ESC = 1, "Escape Mode" follows after B
+* if ESC = 1, "Escape Mode" follows after B2
 
 | Step | C64            | VIC-20         | TED               | 1541    |
 |------|----------------|----------------|-------------------|---------|
