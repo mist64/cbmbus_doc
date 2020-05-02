@@ -453,32 +453,58 @@ At this point, the protocol loops back to step B1.
 
 XXX 
 
-See the "Discussion" section later for some comments on the exact timing.
-
 * ranges
 	* for writes, it means:
 		* sample: held in this range, upper value is exclusive
 		* trigger: write some time within this range
+		* -: not checked by the peer
 	* for reads, it means check in this range
 * (+7) fuzz of 7, i.e. can be 0-7 late
 
+* VIC-20 means PAL
+
 ## Send
 
-| Step | Event                                | Wires               | Type    | Delay      | Hold For | C64    | VIC-20     | TED        | 1541    |
-|------|--------------------------------------|---------------------|---------|------------|----------|--------|------------|------------|---------|
-|  S1  | Device: ready-to-receive             | DATA = 0            | trigger | 0 - ∞      | ∞        | -      | -          |            | -       |
-|  S2  | Controller: *Go*                     | CLK = 0             | trigger | 0 - ∞      | ∞        | 31-∞   | 32.7       |            | 3-∞     |
-|  S3  | Controller: 1st pair of bits         | CLK = #4, DATA = #5 | sample  | 14         | 5        | 11-N   | 11.8-N     |            | 13(+7)  |
-|  S4  | Controller: 2nd pair of bits         | CLK = #6, DATA = #7 | sample  | 13         | 7        | 13-N   | 11.8-N     |            | 13      |
-|  S5  | Controller: 3rd pair of bits         | CLK = #3, DATA = #1 | sample  | 11         | 7        | 11-N   | 11.8-N     |            | 11      |
-|  S6  | Controller: 4th pair of bits         | CLK = #2, DATA = #0 | sample  | 13         | 7        | 13-N   | 11.8-N     |            | 13      |
-|  S7  | Controller: EOI/!EOI                 | CLK = 0/1, DATA = 0 | sample  | 7 - 13     | ∞        | 13(+1)-N|11.8(+.9)-N|            | 13      |
-|  SX  | Controller: no *Go*                  | CLK = 1             | -       |            |          | 15-∞   | 15.5-∞     |            | -       |
-|  S8  | Device: OK/!OK                       | DATA = 1/0          | sample  | 0 - ∞      | ∞        | 3      | 2.7        |            | 7-∞ after S7 |
+| Step | Event                                | Wires               | Type    | Delay      | Hold For |
+|------|--------------------------------------|---------------------|---------|------------|----------|
+|  S1  | Device: ready-to-receive             | DATA = 0            | trigger | 0 - ∞      | ∞        |
+|  S2  | Controller: *Go*                     | CLK = 0             | trigger | 0 - ∞      | ∞        |
+|  S3  | Controller: 1st pair of bits         | CLK = #4, DATA = #5 | sample  | 14         | 5        |
+|  S4  | Controller: 2nd pair of bits         | CLK = #6, DATA = #7 | sample  | 13         | 7        |
+|  S5  | Controller: 3rd pair of bits         | CLK = #3, DATA = #1 | sample  | 11         | 7        |
+|  S6  | Controller: 4th pair of bits         | CLK = #2, DATA = #0 | sample  | 13         | 7        |
+|  S7  | Controller: EOI/!EOI                 | CLK = 0/1, DATA = 0 | sample  | 7 - 13     | ∞        |
+|  SX  | Controller: no *Go*                  | CLK = 1             | -       |            |          |
+|  S8  | Device: OK/!OK                       | DATA = 1/0          | sample  | 0 - ∞      | ∞        |
 
-* XXX if not DATA = 1 in step 8, it's the host cancels with a timeout
+* S1: At the beginning of a LISTEN session and between bytes, the device sets DATA = 1, the host may check for DATA = 0 at any time, and S1 may be arbitrarily delayed.
+
+| Step | C64    | VIC-20   | TED        | 1541    | Comment      |
+|------|--------|----------|------------|---------|--------------|
+|  S1  | -      | -        | -          | -       |              |
+|  S2  | 30-∞   | 35       | 81         | 3-∞     |              |
+|  S3  | 11~n   | 13~n     | 9~n        | 13(+7)  |              |
+|  S4  | 13~n   | 13~n     | 11~n       | 13      |              |
+|  S5  | 11~n   | 13~n     | 10~n       | 11      |              |
+|  S6  | 13~n   | 13~n     | 10~n       | 13      |              |
+|  S7  | 13/14~n| 13/14~n  | 11/12~n    | 13      |              |
+|  SX  | 15-∞   | 17-∞     | 14-∞       | -       |              |
+|  S8  | 19     | 21       | 17         | 7-∞     | **after S7** |
+
+* XXX if not DATA = 1 in step 8, the host cancels with a timeout
 * XXX 8 doubles as not ready to receive for the next iteration
-* XXX VIC-20 means PAL
+* C64:    $FC27
+* VIC-20: $FC41
+* TED:    $E854
+* 1541:   $FBC1
+
+
+* VIC PAL:  1.108404
+* TED PAL:  1.768/2
+* TED NTSC: 1.788/2
+
+81/1.768 = 45.814479638
+81/1.788 = 45.3020134228
 
 ## Receive
 
@@ -527,7 +553,8 @@ Start:
 
 * if ESC = 1, "Escape Mode" follows after B
 
------
+## ...
+
 
 No official formal specification of JiffyDOS has ever been released. Modern JiffyDOS-compatible projects such as SD2IEC and [open-roms](https://github.com/MEGA65/open-roms) had to reconstruct the protocols from either reverse-engineering the code or analyzing the data on the wires.
 
