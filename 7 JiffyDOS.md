@@ -505,23 +505,38 @@ XXX
 
 ## Receive
 
-| Step | Event                                | Wires               | Type    | Delay      | Hold For | C64    | VIC-20 | TED    | 1541    |
-|------|--------------------------------------|---------------------|---------|------------|----------|--------|--------|--------|---------|
-|  R1  | Device: ready-to-send                | DATA = 0            | trigger | 0 - ∞      | ∞        | -      | -      |        | -       |
-|  R2  | Controller: *Go*                     | CLK = 0             | trigger | 0 - ∞      | ∞        | 32-∞   | 35.5(+8.1)|     | -       |
-|  R3  | Device: 1st pair of bits             | CLK = #0, DATA = #1 | sample  | 15         | 1        | 15     | 14.5   |        | 6-16(+≤7)|
-|  R4  | Device: 2nd pair of bits             | CLK = #2, DATA = #3 | sample  | 10         | 1        | 10     | 10.9   |        | 10-21   |
-|  R5  | Device: 3rd pair of bits             | CLK = #4, DATA = #5 | sample  | 11         | 1        | 11     | 10     |        | 11-21   |
-|  R6  | Device: 4th pair of bits             | CLK = #6, DATA = #7 | sample  | 11         | 1        | 11     | 10.9   |        | 10-21   |
-|  R7  | Device: EOI/!EOI                     | CLK = 0/1, DATA = 0 | sample  | 1 - 11     | ∞        | 11     | 10     |        | 11-?    |
-|  R8  | Controller: not ready to send        | DATA = 1            | trigger | 0 - ∞      | ∞        | 5-∞    | 4.5-∞  |        | 3-∞     |
+| Step | Event                                | Wires               | Type    | Delay      | Hold For |
+|------|--------------------------------------|---------------------|---------|------------|----------|
+|  R1  | Device: ready-to-send                | DATA = 0            | trigger | 0 - ∞      | ∞        |
+|  R2  | Controller: *Go*                     | CLK = 0             | trigger | 0 - ∞      | ∞        |
+|  R3  | Device: 1st pair of bits             | CLK = #0, DATA = #1 | sample  | 15         | 1        |
+|  R4  | Device: 2nd pair of bits             | CLK = #2, DATA = #3 | sample  | 10         | 1        |
+|  R5  | Device: 3rd pair of bits             | CLK = #4, DATA = #5 | sample  | 11         | 1        |
+|  R6  | Device: 4th pair of bits             | CLK = #6, DATA = #7 | sample  | 11         | 1        |
+|  R7  | Device: EOI/!EOI                     | CLK = 0/1, DATA = 0 | sample  | 1 - 11     | ∞        |
+|  R8  | Controller: not ready to send        | DATA = 1            | trigger | 0 - ∞      | ∞        |
 
 * 8: C64 sets DATA = 1 at 5 µs, 1541 waits for DATA = 1 starting at 3 µs.
 
+| Step | C64    | VIC-20 | TED    | 1541    |
+|------|--------|--------|--------|---------|
+|  R1  | -      | -      |        | -       |
+|  R2  | 31-∞   | 38(+≤8)| 45-∞   | 37~∞    |
+|  R3  | 16     | 16     | 13     | 6~(+≤7) |
+|  R4  | 10     | 12     | 9      | 10~     |
+|  R5  | 11     | 11     | 10     | 11~     |
+|  R6  | 11     | 12     | 10     | 10~     |
+|  R7  | 11     | 11     | 10     | 11~     |
+|  R8  | 4~∞    | 4~∞    | 3~∞    | 3~∞     |
+
+* `a~b` held or scanned in this interval
+* `a~` held from `a` on, until in some later step
+* `-` set some time in this interval
+
 * C64:    $
-* VIC-20: $
-* TED:    $
-* 1541:   $
+* VIC-20: $FBE0
+* TED:    $E7DB
+* 1541:   $FF79
 
 ## LOAD
 
