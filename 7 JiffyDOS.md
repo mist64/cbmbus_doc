@@ -1,4 +1,4 @@
-# Commodore Peripheral Bus: Part 6: JiffyDOS
+# Commodore Peripheral Bus: Part 7: JiffyDOS
 
 In the [series about the variants of the Commodore Peripheral Bus family](https://www.pagetable.com/?p=1018), this article covers the third party "JiffyDOS" extension to the Commodore Serial Bus protocol, which shipped as a ROM patch for computers and drives, replacing the byte transmission protocol of Standard Serial ("IEC") by using the clock and data lines in a more efficient way.
 
@@ -463,6 +463,10 @@ XXX
 
 * VIC-20 means PAL
 
+* `a~b` held or scanned in this interval
+* `a~` held from `a` on, until in some later step
+* `-` set some time in this interval
+
 ## Send
 
 | Step | Event                                | Wires               | Type    | Timing     |
@@ -475,29 +479,14 @@ XXX
 |  S6  | Controller: 4th pair of bits         | CLK = #2, DATA = #0 | sample  | 13~+7      |
 |  S7  | Controller: EOI/!EOI                 | CLK = 0/1, DATA = 0 | sample  | 13~+7      |
 |  S8  | Device: OK/!OK                       | DATA = 1/0          | sample  | 0-19~      |
-|  SX  | Controller: no *Go*                  | CLK = 1             | -       | ?          |
+|  S9  | Controller: no *Go*                  | CLK = 1             | -       | ?          |
 
 * S1: At the beginning of a LISTEN session and between bytes, the device sets DATA = 1, the host may check for DATA = 0 at any time, and S1 may be arbitrarily delayed.
 
-| Step | C64    | VIC-20   | TED        | 1541    |
-|------|--------|----------|------------|---------|
-|  S1  | -      | -        | -          | -       |
-|  S2  | 30-∞   | 35       | 81         | 4~∞     |
-|  S3  | 11~    | 13~      | 9~         | 13(+≤7) |
-|  S4  | 13~    | 13~      | 11~        | 13      |
-|  S5  | 11~    | 13~      | 10~        | 11      |
-|  S6  | 13~    | 13~      | 10~        | 13      |
-|  S7  | 13-14~ | 13-14~   | 11/12~     | 13      |
-|  S8  | 19     | 21       | 17         | 6~      |
-|  SX  | -6~    | -4~      | -3~        | -       |
 
 * SX: all host impl. set this before S8
 * XXX if not DATA = 1 in step 8, the host cancels with a timeout
 * XXX S8 doubles as not ready to receive for the next iteration
-* C64:    $FC27
-* VIC-20: $FC41
-* TED:    $E854
-* 1541:   $FBC1
 
 
 * VIC PAL:  1.108404
@@ -519,25 +508,7 @@ XXX
 
 * 8: C64 sets DATA = 1 at 5 µs, 1541 waits for DATA = 1 starting at 3 µs.
 
-| Step | C64    | VIC-20 | TED    | 1541    |
-|------|--------|--------|--------|---------|
-|  R1  | -      | -      |        | -       |
-|  R2  | 31-∞   | 38(+≤8)| 45-∞   | 37~∞    |
-|  R3  | 16     | 16     | 13     | 6~(+≤7) |
-|  R4  | 10     | 12     | 9      | 10~     |
-|  R5  | 11     | 11     | 10     | 11~     |
-|  R6  | 11     | 12     | 10     | 10~     |
-|  R7  | 11     | 11     | 10     | 11~     |
-|  R8  | 4~∞    | 4~∞    | 3~∞    | 3~∞     |
 
-* `a~b` held or scanned in this interval
-* `a~` held from `a` on, until in some later step
-* `-` set some time in this interval
-
-* C64:    $FBA5
-* VIC-20: $FBE0
-* TED:    $E7DB
-* 1541:   $FF79
 
 ## LOAD
 
@@ -547,43 +518,52 @@ Start:
 
 | Step | Event                                | Wires                | Type    | Delay      | Hold For |
 |------|--------------------------------------|----------------------|---------|------------|----------|
-|  E1  | Controller clears DATA wire          | DATA = 0             | -       | 0 - ∞      |          |
-|  E2  | Device: EOI/!EOI & valid             | DATA = !EOI, CLK = 0 | trigger | 0 - ∞      | 75       |
-|  E3  | Device: no error                     | CLK = 1              | trigger | 0 - 1100   | 100      |
+|  E1  | Controller clears DATA wire          | DATA = 0             | -       | 0-∞        |          |
+|  E2  | Device: EOI/!EOI & valid             | DATA = !EOI, CLK = 0 | trigger | 0-∞~+75    |          |
+|  E3  | Device: no error                     | CLK = 1              | trigger | 0-1100~+100|          |
 
 * E2:
 	* If EOI = 0, "Byte Receive" follows.
 	* If EOI = 1, "End" follows.
 
-| Step | C64         | VIC-20        | TED    | 1541    |
-|------|-------------|---------------|--------|---------|
-|  E1  | -           | -             | -      | -       |
-|  E2  | 8~∞         | 9~∞           | 3~∞    | 0-∞~    |
-|  E3  | 10-∞~1100   | 14-∞~1100     | ?      | 100~+100|
-
-* C64:    $FB3E
-* VIC-20: $FB6E
-* TED:    $E751
-* 1541:   $FFA3
 
 ### Byte Receive
 
-| Step | Event                                | Wires               | Type    | Delay      | Hold For |
-|------|--------------------------------------|---------------------|---------|------------|----------|
-|  B1  | Device: ESC/!ESC & valid             | CLK = ESC, DATA = 0 | trigger | 0 - 84     | ∞        |
-|  B2  | Controller: *Go*, clears DATA        | DATA = 1; DATA = 0  | trigger | 0 - ∞      | 12       |
-|  B2x | Controller reads ESC/!ESC<sup>*</sup>|                     |         |            |          |
-|  B3  | Device: 1st pair of bits             | CLK = #0, DATA = #1 | sample  | 15         | 1        |
-|  B4  | Device: 2nd pair of bits             | CLK = #2, DATA = #3 | sample  | 10         | 1        |
-|  B5  | Device: 3rd pair of bits             | CLK = #4, DATA = #5 | sample  | 11         | 1        |
-|  B6  | Device: 4th pair of bits             | CLK = #6, DATA = #7 | sample  | 11         | 1        |
+| Step | Event                                | Wires               | Type    | Delay      |
+|------|--------------------------------------|---------------------|---------|------------|
+|  B1  | Device: ESC/!ESC & valid             | CLK = ESC, DATA = 0 | trigger | 32~ **after B6** |
+|  B2  | Controller: *Go*, clears DATA        | DATA = 1; DATA = 0  | trigger | 4-∞~12     |
+|  B3  | Device: 1st pair of bits             | CLK = #0, DATA = #1 | sample  | 14~3       |
+|  B4  | Device: 2nd pair of bits             | CLK = #2, DATA = #3 | sample  | 10~1       |
+|  B5  | Device: 3rd pair of bits             | CLK = #4, DATA = #5 | sample  | 11~1       |
+|  B6  | Device: 4th pair of bits             | CLK = #6, DATA = #7 | sample  | 10~2       |
 
 <sup>*</sup>The value of ESC in the CLK wire must still be valid 3 µs after the start of the *Go* signal, so the first pair of data bits must not be put into CLK and DATA earlier than 4 µs after *Go*.
 
 * if ESC = 1, "Escape Mode" follows after B2
 
-| Step | C64            | VIC-20         | TED               | 1541    |
-|------|----------------|----------------|-------------------|---------|
+| Step | C64    | VIC-20   | TED        | 1541    |
+|------|--------|----------|------------|---------|
+|  S1  | -      | -        | -          | -       |
+|  S2  | 30-∞   | 35       | 81         | 4~∞     |
+|  S3  | 11~    | 13~      | 9~         | 13(+≤7) |
+|  S4  | 13~    | 13~      | 11~        | 13      |
+|  S5  | 11~    | 13~      | 10~        | 11      |
+|  S6  | 13~    | 13~      | 10~        | 13      |
+|  S7  | 13-14~ | 13-14~   | 11/12~     | 13      |
+|  S8  | 19     | 21       | 17         | 6~      |
+|  S9  | -6~    | -4~      | -3~        | -       |
+|  R1  | -      | -      |        | -       |
+|  R2  | 31-∞   | 38(+≤8)| 45-∞   | 37~∞    |
+|  R3  | 16     | 16     | 13     | 6~(+≤7) |
+|  R4  | 10     | 12     | 9      | 10~     |
+|  R5  | 11     | 11     | 10     | 11~     |
+|  R6  | 11     | 12     | 10     | 10~     |
+|  R7  | 11     | 11     | 10     | 11~     |
+|  R8  | 4~∞    | 4~∞    | 3~∞    | 3~∞     |
+|  E1  | -           | -             | -      | -       |
+|  E2  | 8~∞         | 9~∞           | 3~∞    | 0-∞~    |
+|  E3  | 10-∞~1100   | 14-∞~1100     | ?      | 100~+100|
 |  B1  | 4 **after B2** | 6 **after B2** | 3 **before B2**   | 75~ after E2, 38-39~ after B6|
 |  B2  | 36 **after B6**| 76 **after B6**| 41-67 **after B6**| 4~∞     |
 |  B3  | 16             | 16             | 13                | 6~      |
@@ -591,7 +571,13 @@ Start:
 |  B5  | 11             | 13             | 10                | 11~     |
 |  B6  | 11             | 11             | 10                | 10~     |
 
-## ...
+| Protocol | C64   | VIC-20 | TED   | 1541  |
+|----------|-------|--------|-------|-------|
+| Send     | $FC27 | $FC41  | $E854 | $FBC1 |
+| Receive  | $FBA5 | $FBE0  | $E7DB | $FF79 |
+| LOAD     | $FAF0 | $FB6E  | $E751 | $FFA3 |
+
+## Timing Notes
 
 
 No official formal specification of JiffyDOS has ever been released. Modern JiffyDOS-compatible projects such as SD2IEC and [open-roms](https://github.com/MEGA65/open-roms) had to reconstruct the protocols from either reverse-engineering the code or analyzing the data on the wires.
