@@ -178,10 +178,12 @@ In the no-EOI case, it also releases the DATA line so it can be operated by the 
 
 The wires have to be valid after 13 µs and remain held.
 
-#### S8: Device is now busy again
+#### S8: Device signals OK/!OK; is now busy again
 ![](docs/cbmbus/jiffydos-21.png =601x131)
 
-After reading the CLK line, the device pulls the DATA line. This is the same as the initial state, so the protocol continues with step S1 for the next data byte.
+After reading the CLK line, if there was no error, the device pulls the DATA line, otherwise it keeps DATA released.
+
+In the OK case, this also means that the device is now busy again, which is the same as the initial state, so the protocol continues with step S1 for the next data byte.
 
 Of course, the controller can alternatively pull ATN at this point, and send an "UNLISTEN" command, for example.
 
@@ -555,14 +557,6 @@ Examples:
 |  S6  | Controller: 4th pair of bits         | CLK = #2, DATA = #0 | sample  | 13~+7      |
 |  S7  | Controller: EOI/!EOI                 | CLK = 0/1, DATA = 0 | sample  | 13~+7      |
 |  S8  | Device: OK/!OK                       | DATA = 1/0          | sample  | 0-19~      |
-|  S9  | Controller: no *Go*                  | CLK = 1             | -       | 0~         |
-
-* S1: At the beginning of a LISTEN session and between bytes, the device sets DATA = 1, the host may check for DATA = 0 at any time, and S1 may be arbitrarily delayed.
-
-
-* S9: all host impl. set this before S8
-* XXX if not DATA = 1 in step 8, the host cancels with a timeout
-* XXX S8 doubles as not ready to receive for the next iteration
 
 ### Receive
 
@@ -577,24 +571,15 @@ Examples:
 |  R7  | Device: EOI/!EOI                     | CLK = 0/1, DATA = 0 | sample  | 10~+2      |
 |  R8  | Controller: not ready to send        | DATA = 1            | trigger | 0-3~       |
 
-* R8: C64 sets DATA = 1 at 5 µs, 1541 waits for DATA = 1 starting at 3 µs.
-
 ### LOAD
 
 #### Escape Mode
-
-Start:
 
 | Step | Event                                | Wires                | Type    | Timing     |
 |------|--------------------------------------|----------------------|---------|------------|
 |  E1  | Controller clears DATA wire          | DATA = 0             | -       | 0-∞        |
 |  E2  | Device: EOI/!EOI & valid             | DATA = !EOI, CLK = 0 | trigger | 0-∞~+75    |
 |  E3  | Device: no error                     | CLK = 1              | trigger | 0-1100~+100|
-
-* E2:
-	* If EOI = 0, "Byte Receive" follows.
-	* If EOI = 1, "End" follows.
-
 
 #### Byte Receive
 
@@ -607,9 +592,7 @@ Start:
 |  B5  | Device: 3rd pair of bits             | CLK = #4, DATA = #5 | sample  | 11~1       |
 |  B6  | Device: 4th pair of bits             | CLK = #6, DATA = #7 | sample  | 10~2       |
 
-<sup>*</sup>The value of ESC in the CLK wire must still be valid 3 µs after the start of the *Go* signal, so the first pair of data bits must not be put into CLK and DATA earlier than 4 µs after *Go*.
-
-* if ESC = 1, "Escape Mode" follows after B2
+* B2: The value of ESC in the CLK wire must still be valid 4 µs after the start of the *Go* signal, so the first pair of data bits must not be put into CLK and DATA earlier than 4 µs after *Go*.
 
 ## Raw Timing Data
 
@@ -617,10 +600,10 @@ The timing tables were created by counting the cycles of the version 6.01 implem
 
 * C64: 0.985249 MHz (PAL) or 1.022727 MHz (NTSC)
 * PAL VIC-20: 1.108404 MHz
-* TED: about 0.89 MHz (PAL and NTSC)
+* TED: about 0.89 MHz (PAL and NTSC; JiffyDOS puts the CPU into half-speed mode)
 * 1541: 1.000 MHz
 
-On the TED series (C16, C116, Plus/4), JiffyDOS runs at the lower of the two possible CPU speeds.
+All numbers in the following table are clock cycles, not microseconds!
 
 | Step | C64            | VIC-20 (PAL)   | TED               | 1541    |
 |------|----------------|----------------|-------------------|---------|
@@ -632,7 +615,6 @@ On the TED series (C16, C116, Plus/4), JiffyDOS runs at the lower of the two pos
 |  S6  | 13~            | 13~            | 10~               | 13      |
 |  S7  | 13-14~         | 13-14~         | 11/12~            | 13      |
 |  S8  | 19             | 21             | 17                | 6~      |
-|  S9  | -6~            | -4~            | -3~               | -       |
 |  R1  | -              | -              |                   | -       |
 |  R2  | 31-∞           | 38-46          | 45-∞              | 37~∞    |
 |  R3  | 16             | 16             | 13                | 6-13~   |
@@ -644,7 +626,7 @@ On the TED series (C16, C116, Plus/4), JiffyDOS runs at the lower of the two pos
 |  E1  | -              | -              | -                 | -       |
 |  E2  | 8~∞            | 9~∞            | 3~∞               | 0-∞~    |
 |  E3  | 10-∞~1100      | 14-∞~1100      | ?                 | 100~+100|
-|  B1  | 4 **after B2** | 6 **after B2** | 3 **before B2**   | 75~ after E2, 38-39~ after B6|
+|  B1  | 4 **after B2** | 6 **after B2** | 3 **before B2**   | 0~ after E2, 38-39~ after B6|
 |  B2  | 36 **after B6**| 76 **after B6**| 41-67 **after B6**| 4~∞     |
 |  B3  | 16             | 16             | 13                | 6~      |
 |  B4  | 10             | 12             | 9                 | 10~     |
