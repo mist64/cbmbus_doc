@@ -82,13 +82,11 @@ Commands are always received by all devices on the bus, which will just ignore t
 
 Note that this sidechannel communication will be repeated with every TALK and LISTEN command, and the result is only valid for the subsequent TALK/LISTEN session. This is necessary, because a device could be replaced with a different one between sessions, or the JiffyDOS ROM of either the computer or the drive could be switched on or off.
 
-XXX it's possible for a device to only support RECEIVE & LOAD, and for a host to only support SEND, or just RECEIVE, or just RECEIVE & LOAD
-
 # Byte Transfer
 
 The new byte transmission protocols all have in common that the CLK and DATA lines are used to transmit two data bits at a time. Since there is now no wire left to signal when the data is valid, the whole transmission is timing-based. After a handshake before every byte, 2 bits are transmitted every 11-13 µs – close to the maximum speed the wires can be driven by a 1 MHz 6502 CPU, which JiffyDOS was designed for. This makes data transmission with JiffyDOS about 10x faster than with Standard Serial.
 
-JiffyDOS considers devices real-time capable. During communication, they must be able to react to any signal within no more than 13 µs and exact to a window of 7 µs. Controllers may have many things going on, like interrupts and DMA and are thus not considered real-time capable[^2]. No matter the transmission direction, it is therefore always the controller that starts the timed transmission window of about XXX 65 µs during which both participants must be uninterrupted.
+JiffyDOS considers devices real-time capable. During communication, they must be able to react to any signal within no more than 13 µs and exact to a window of 7 µs. Controllers may have many things going on, like interrupts and DMA and are thus not considered real-time capable[^2]. No matter the transmission direction, it is therefore always the controller that starts the timed transmission window of 63 µs during which both participants must be uninterrupted.
 
 The following graphic illustrates this – it will be described in detail in later sections.
 
@@ -110,11 +108,11 @@ All new protocols have in common that they start with the sender holding CLK and
 
 ![](docs/cbmbus/jiffydos-vs-serial.png =601x167)
 
-All three protocols support reporting the EOI and timeout conditions: EOI ("end of identify") is the end-of-stream flag of the IEEE-488 family of protocols that gets sent with the last byte of the stream. "Timeout" is the generic error flag – the original IEEE-488 protocol did not have an error flag, so Commodore defined that delaying a requested response should be used to signal an error.
+All three protocols support reporting the EOI and timeout conditions: EOI ("end of identify") is the end-of-stream flag of the IEEE-488 family of protocols that gets sent with the last byte of the stream. "Timeout" is the generic error flag.
 
 ### JiffyDOS Byte Send
 
-When the controller sends data to the device, it transmits two bits at a time every 11-13 µs using the CLK and DATA lines, with no handshake. For each byte, the device signals that it is ready to receive, followed by the controller signaling it is about to start the transmission, thus starting the timing critical window of XXX 65 µs.
+When the controller sends data to the device, it transmits two bits at a time every 11-13 µs using the CLK and DATA lines, with no handshake. For each byte, the device signals that it is ready to receive, followed by the controller signaling it is about to start the transmission, thus starting the timing critical window of 63 µs.
 
 The following animation shows a byte being sent from the controller to the device.
 
@@ -137,7 +135,7 @@ Once the device is done processing the previous data, which may for instance inc
 
 Triggered by DATA being 1, the controller indicates that it will start sending a data byte by releasing the CLK line - this is the *Go* signal. During the transmission of the byte, both lines will be owned by the controller, and the sequence of steps is purely based on timing; there are no ACK signals.
 
-The controller may delay this step indefinitely. In practice, it will until it has a guaranteed XXX 65 µs time window without interruptions.
+The controller may delay this step indefinitely. In practice, it will until it has a guaranteed 63 µs time window without interruptions.
 
 #### S3: Controller puts data bits #4 and #5 onto wires
 ![](docs/cbmbus/jiffydos-16.png =601x131)
@@ -213,7 +211,7 @@ EOI/error signaling can be seen as delaying the controller's last step in the se
 
 ### JiffyDOS Byte Receive
 
-When the device sends data to the controller, it transmits two bits at a time every 10-11 µs using the CLK and DATA lines, with no handshake. For each byte, the device signals that it is ready to send, followed by the controller signaling the device to start the transmission, thus starting the timing critical window of XXX 55 µs.
+When the device sends data to the controller, it transmits two bits at a time every 10-11 µs using the CLK and DATA lines, with no handshake. For each byte, the device signals that it is ready to send, followed by the controller signaling the device to start the transmission, thus starting the timing critical window of 55 µs.
 
 Compared to the byte send case, the ownership of the CLK and DATA lines outside the core data transmission is swapped, but it is the controller that sends the *Go* signal in both the send and the receive case.
 
@@ -238,7 +236,7 @@ Once the device has the next data byte at hand, that is, for example, after read
 
 Triggered by CLK being 0, the controller indicates by releasing the DATA line that the device must now start sending a data byte - this is the *Go* signal. During the transmission of the byte, both lines will be owned by the device, and the sequence of steps is purely based on timing; there are no ACK signals.
 
-The controller may delay this step indefinitely. In practice, it will until it has a guaranteed XXX 55 µs time window without interruptions.
+The controller may delay this step indefinitely. In practice, it will until it has a guaranteed 55 µs time window without interruptions.
 
 #### R3: Device puts data bits #0 and #1 onto wires
 ![](docs/cbmbus/jiffydos-04.png =601x131)
@@ -410,7 +408,7 @@ In subsequent iterations, the controller cannot trigger on DATA, because the val
 #### B2: Controller signals *Go* for 12+ µs
 ![](docs/cbmbus/jiffydos-32.png =601x131)
 
-As soon as the controller can guarantee a window of at least 58 µs of being undisturbed, it pulls the DATA line for at least 12 µs, telling the device to immediately start the transmission of the 8 data bits.
+As soon as the controller can guarantee a window of at least 45 µs of being undisturbed, it pulls the DATA line for at least 12 µs, telling the device to immediately start the transmission of the 8 data bits.
 
 This happens independently of whether ESC was true or false in the previous step. It isn't until after this step that the protocol jumps to step E2 of the escape mode protocol if the device set CLK in the previous step.
 
@@ -645,6 +643,8 @@ For reference, these are the addresses of the implementations in the respective 
 
 XXX dead man's switch
 
+XXX  – the original IEEE-488 protocol did not have an error flag, so Commodore defined that delaying a requested response should be used to signal an error.
+
 # Discussion
 
 JiffyDOS is a significant improvement to Standard Serial, and it can be rightly considered the de-fact successor to it. Nevertheless, there are a few points that can be critisized.
@@ -673,7 +673,7 @@ Additionally, the original C64 and 1541 implementations, which defined the proto
 
 ## LOAD Protocol not Suitable for IRQs
 
-JiffyDOS requires the host to be completely undisturbed – from DMA and from interrupts – during byte transmission, i.e. for XXX 65 µs. Interrupts have to be off during this short amount of time, which causes some added interrupt latency, but in practice, this should never cause any interrupts to be missed.
+JiffyDOS requires the host to be completely undisturbed – from DMA and from interrupts – during byte transmission, i.e. for 63 µs. Interrupts have to be off during this short amount of time, which causes some added interrupt latency, but in practice, this should never cause any interrupts to be missed.
 
 No other phases of the protocols should require such strict timing, but some do: After step E1 of LOAD escape mode, the host waits for the device, usually to read another block from the media. Once the device is ready, it pulls DATA – but just for 75 µs. The host must not miss this, so it must have interrupts disabled while the device is busy. With a 1541, the wait time is in the order of 1/20 of a second for every block transmitted, for a total of about 2/3 of the total load time, in which interrupts will be missed. In the C64 case, for example, this causes the KERNAL real-time clock (`SETTIM`/`RDTIM` calls) to be slow, and it makes it impossible[^4] to play music while loading.
 
