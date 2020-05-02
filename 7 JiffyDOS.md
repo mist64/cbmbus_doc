@@ -321,7 +321,7 @@ The following diagram shows the escape mode part of a LOAD protocol session:
 ![](docs/cbmbus/jiffydos-load-escape.png =601x167)
 
 * The device signals that data is ready (!EOI) and the protocol switches to byte receive mode.
-* After a certain number of bytes, byte receive mode switches back to escape mode.
+* After a certain number of bytes, the device makes both peers switch back to escape mode.
 * This can be repeated an arbitrary number of times.
 * As soon as end of the file has been reached, or if there was an error, the device signals EOI.
 
@@ -434,7 +434,7 @@ The 1541 runs at 1 Mhz, and the C64 runs pretty close to 1 MHz. The minimal loop
 	:	cpx $1800 ; GPIO
 		beq :-
 
-One iteration of this loop takes 7 clock cycles, which is 7 µs. In the best case, the GPIO pins get read in the very first cycle they changed, and in the worst case, they change one cycle after the read, introducing a latency of 7 µs.
+One iteration of this loop takes 7 clock cycles, which is 7 µs. In the best case, the GPIO pins get read in the very first cycle they changed, and in the worst case, the change occurs one cycle after the read, introducing a latency of 7 µs.
 
 The following diagram shows what this means for the timing of the transmission:
 
@@ -490,7 +490,7 @@ Compliance with a protocol that is not formally defined could be defined as stay
 
 So all JiffyDOS **host** implementations that we consider compliant should be looked at. Analyzing the time offsets of the read operations of the different implementations would give us the minimal hold time that works with all hosts. And for all cases where the host holds a wire and the device responds to it, we have to look at all JiffyDOS **device** implementations.
 
-That's why the timing tables contain the measured numbers of several devices:
+That's why the following timing tables contain the measured numbers of several devices:
 
 * C64: the host reference implementation at 1 MHz. Implementations on other 1 MHz devices (NTSC VIC-20, C128[^3]) are assumed to have the same timing.
 * PAL VIC-20: a host implementation running at 1.1 MHz
@@ -505,69 +505,66 @@ The following tables summarize the complete timing data of the three protocols.
 
 The "type" column can have the following contents:
 
-* "trigger": in this step, one peer is **waiting** for the other one in a tight loop.
-* "sample": in this step, one peer reads the wire(s) once, at a specific time.
-* "-": the active peer clears a line; the passive peer does not care
+* "trigger": The active peer sets the wire(s) at some point within the timing window. The passive peer waits for this event.
+* "sample": The active peer sets the wire(s) for a certain timing window. The passive peer reads it once, during this window.
+* "(ignored)": The active peer clears a line; the passive peer does not care.
 
 The "timing" column contains a start point or start range, and an optional duration:
 
 * All numbers are in microseconds (µs).
-* The "-" (minus) character means the event happens or starts in this range
-* The "~" (tilda) characters means that the state will be held, or a loop needs to last for a certain time. If no number follows, this means: until it is changed in some later step. If there is a number after "+" (plus), it is the duration.
+* The "*A*-*B*" part means the event starts somewhere in the range of A µs and B µs.
+* The "→" (arrow) characters means that the state will be held, or a loop needs to last for a certain time. If no number follows, this means: until it is changed in some later step. If there is a number after "+" (plus), it is the duration.
 
 Examples:
-* In S2 ("Controller: *Go*"), "4-∞~" means: The controller sets the wire contents between 4 µs and infinity after the previous step, and hold the state it until a later step changes it.
-* In S3 ("Controller: 1st pair of bits"), "13~+7" means: The controller set the wire contents 13 µs after the previous step, and hold it for 7 µs.
-
-
-means that the controller will have put the data on the wires no later than 13 µs after the previous step and no shorter than for 7 µs. The device can read it at any point within this range.
+* In S2 ("Controller: *Go*"), "4-∞ →" means: The controller sets the wire contents between 4 µs and infinity after the previous step, and holds the state until a later step changes it.
+* In S3 ("Controller: 1st pair of bits"), "13 →+7" means: The controller sets the wire contents 13 µs after the previous step, and holds it for 7 µs.
 
 ### Send
 
 | Step | Event                                | Wires               | Type    | Timing     |
 |------|--------------------------------------|---------------------|---------|------------|
-|  S1  | Device: ready-to-receive             | DATA = 0            | trigger | 0-∞~       |
-|  S2  | Controller: *Go*                     | CLK = 0             | trigger | 4-∞~       |
-|  S3  | Controller: 1st pair of bits         | CLK = #4, DATA = #5 | sample  | 13~+7      |
-|  S4  | Controller: 2nd pair of bits         | CLK = #6, DATA = #7 | sample  | 13~+7      |
-|  S5  | Controller: 3rd pair of bits         | CLK = #3, DATA = #1 | sample  | 11~+7      |
-|  S6  | Controller: 4th pair of bits         | CLK = #2, DATA = #0 | sample  | 13~+7      |
-|  S7  | Controller: EOI/!EOI                 | CLK = 0/1, DATA = 0 | sample  | 13~+7      |
-|  S8  | Device: OK/!OK                       | DATA = 1/0          | sample  | 0-19~      |
+|  S1  | Device: ready-to-receive             | DATA = 0            | trigger | 0-∞ →      |
+|  S2  | Controller: *Go*                     | CLK = 0             | trigger | 4-∞ →      |
+|  S3  | Controller: 1st pair of bits         | CLK = #4, DATA = #5 | sample  | 13 →+7     |
+|  S4  | Controller: 2nd pair of bits         | CLK = #6, DATA = #7 | sample  | 13 →+7     |
+|  S5  | Controller: 3rd pair of bits         | CLK = #3, DATA = #1 | sample  | 11 →+7     |
+|  S6  | Controller: 4th pair of bits         | CLK = #2, DATA = #0 | sample  | 13 →+7     |
+|  S7  | Controller: EOI/!EOI                 | CLK = 0/1, DATA = 0 | sample  | 13 →+7     |
+|  S8  | Device: OK/!OK                       | DATA = 1/0          | sample  | 0-19 →     |
 
 ### Receive
 
 | Step | Event                                | Wires               | Type    | Timing     |
 |------|--------------------------------------|---------------------|---------|------------|
-|  R1  | Device: ready-to-send                | DATA = 0            | trigger | 0-∞~       |
-|  R2  | Controller: *Go*                     | CLK = 0             | trigger | 31-∞~      |
-|  R3  | Device: 1st pair of bits             | CLK = #0, DATA = #1 | sample  | 14~+3      |
-|  R4  | Device: 2nd pair of bits             | CLK = #2, DATA = #3 | sample  | 10~+2      |
-|  R5  | Device: 3rd pair of bits             | CLK = #4, DATA = #5 | sample  | 10~+2      |
-|  R6  | Device: 4th pair of bits             | CLK = #6, DATA = #7 | sample  | 11~+1      |
-|  R7  | Device: EOI/!EOI                     | CLK = 0/1, DATA = 0 | sample  | 10~+2      |
-|  R8  | Controller: not ready to send        | DATA = 1            | trigger | 0-3~       |
+|  R1  | Device: ready-to-send                | DATA = 0            | trigger | 0-∞ →      |
+|  R2  | Controller: *Go*                     | CLK = 0             | trigger | 31-∞ →     |
+|  R3  | Device: 1st pair of bits             | CLK = #0, DATA = #1 | sample  | 14 →+3     |
+|  R4  | Device: 2nd pair of bits             | CLK = #2, DATA = #3 | sample  | 10 →+2     |
+|  R5  | Device: 3rd pair of bits             | CLK = #4, DATA = #5 | sample  | 10 →+2     |
+|  R6  | Device: 4th pair of bits             | CLK = #6, DATA = #7 | sample  | 11 →+1     |
+|  R7  | Device: EOI/!EOI                     | CLK = 0/1, DATA = 0 | sample  | 10 →+2     |
+|  R8  | Controller: not ready to send        | DATA = 1            | trigger | 0-3 →      |
 
 ### LOAD
 
 #### Escape Mode
 
-| Step | Event                                | Wires                | Type    | Timing     |
-|------|--------------------------------------|----------------------|---------|------------|
-|  E1  | Controller clears DATA wire          | DATA = 0             | -       | 0-∞        |
-|  E2  | Device: EOI/!EOI & valid             | DATA = !EOI, CLK = 0 | trigger | 0-∞~+75    |
-|  E3  | Device: no error                     | CLK = 1              | trigger | 0-1100~+100|
+| Step | Event                                | Wires                | Type    | Timing      |
+|------|--------------------------------------|----------------------|---------|-------------|
+|  E1  | Controller clears DATA wire          | DATA = 0             |(ignored)| 0-∞ →       |
+|  E2  | Device: EOI/!EOI & valid             | DATA = !EOI, CLK = 0 | trigger | 0-∞ →+75    |
+|  E3  | Device: no error                     | CLK = 1              | trigger | 0-1100 →+100|
 
 #### Byte Receive
 
 | Step | Event                                | Wires               | Type    | Timing     |
 |------|--------------------------------------|---------------------|---------|------------|
-|  B1  | Device: ESC/!ESC & valid             | CLK = ESC, DATA = 0 | trigger | 32~ **after B6** |
-|  B2  | Controller: *Go*, clears DATA        | DATA = 1; DATA = 0  | trigger | 4-∞~12     |
-|  B3  | Device: 1st pair of bits             | CLK = #0, DATA = #1 | sample  | 14~3       |
-|  B4  | Device: 2nd pair of bits             | CLK = #2, DATA = #3 | sample  | 10~1       |
-|  B5  | Device: 3rd pair of bits             | CLK = #4, DATA = #5 | sample  | 11~1       |
-|  B6  | Device: 4th pair of bits             | CLK = #6, DATA = #7 | sample  | 10~2       |
+|  B1  | Device: ESC/!ESC & valid             | CLK = ESC, DATA = 0 | trigger | 32 → **after B6** |
+|  B2  | Controller: *Go*, clears DATA        | DATA = 1; DATA = 0  | trigger | 4-∞ →+12   |
+|  B3  | Device: 1st pair of bits             | CLK = #0, DATA = #1 | sample  | 14 →+3     |
+|  B4  | Device: 2nd pair of bits             | CLK = #2, DATA = #3 | sample  | 10 →+1     |
+|  B5  | Device: 3rd pair of bits             | CLK = #4, DATA = #5 | sample  | 11 →+1     |
+|  B6  | Device: 4th pair of bits             | CLK = #6, DATA = #7 | sample  | 10 →+2     |
 
 * B2: The value of ESC in the CLK wire must still be valid 4 µs after the start of the *Go* signal, so the first pair of data bits must not be put into CLK and DATA earlier than 4 µs after *Go*.
 
@@ -585,30 +582,30 @@ All numbers in the following table are clock cycles, not microseconds!
 | Step | C64            | VIC-20 (PAL)   | TED               | 1541    |
 |------|----------------|----------------|-------------------|---------|
 |  S1  | -              | -              | -                 | -       |
-|  S2  | 30-∞           | 35             | 81                | 4~∞     |
-|  S3  | 11~            | 13~            | 9~                | 13-20   |
-|  S4  | 13~            | 13~            | 11~               | 13      |
-|  S5  | 11~            | 13~            | 10~               | 11      |
-|  S6  | 13~            | 13~            | 10~               | 13      |
-|  S7  | 13-14~         | 13-14~         | 11/12~            | 13      |
-|  S8  | 19             | 21             | 17                | 6~      |
+|  S2  | 30-∞           | 35             | 81                | 4 →     |
+|  S3  | 11 →           | 13 →           | 9 →               | 13-20   |
+|  S4  | 13 →           | 13 →           | 11 →              | 13      |
+|  S5  | 11 →           | 13 →           | 10 →              | 11      |
+|  S6  | 13 →           | 13 →           | 10 →              | 13      |
+|  S7  | 13-14 →        | 13-14 →        | 11-12 →           | 13      |
+|  S8  | 19             | 21             | 17                | 6 →     |
 |  R1  | -              | -              |                   | -       |
-|  R2  | 31-∞           | 38-46          | 45-∞              | 37~∞    |
-|  R3  | 16             | 16             | 13                | 6-13~   |
-|  R4  | 10             | 12             | 9                 | 10~     |
-|  R5  | 11             | 11             | 10                | 11~     |
-|  R6  | 11             | 12             | 10                | 10~     |
-|  R7  | 11             | 11             | 10                | 11~     |
-|  R8  | 4~∞            | 4~∞            | 3~∞               | 3~∞     |
+|  R2  | 31-∞           | 38-46          | 45-∞              | 37 →    |
+|  R3  | 16             | 16             | 13                | 6-13 →  |
+|  R4  | 10             | 12             | 9                 | 10 →    |
+|  R5  | 11             | 11             | 10                | 11 →    |
+|  R6  | 11             | 12             | 10                | 10 →    |
+|  R7  | 11             | 11             | 10                | 11 →    |
+|  R8  | 4 →            | 4 →            | 3 →               | 3 →     |
 |  E1  | -              | -              | -                 | -       |
-|  E2  | 8~∞            | 9~∞            | 3~∞               | 0-∞~    |
-|  E3  | 10-∞~1100      | 14-∞~1100      | ?                 | 100~+100|
-|  B1  | 4 **after B2** | 6 **after B2** | 3 **before B2**   | 0~ after E2, 38-39~ after B6|
-|  B2  | 36 **after B6**| 76 **after B6**| 41-67 **after B6**| 4~∞     |
-|  B3  | 16             | 16             | 13                | 6~      |
-|  B4  | 10             | 12             | 9                 | 10~     |
-|  B5  | 11             | 13             | 10                | 11~     |
-|  B6  | 11             | 11             | 10                | 10~     |
+|  E2  | 8 →            | 9 →            | 3 →               | 0-∞  →   |
+|  E3  | 10-∞ →1100     | 14-∞ →1100     | ?                 | 100 →+100|
+|  B1  | 4 **after B2** | 6 **after B2** | 3 **before B2**   | *after E2*: 0 → ; *after B6*: 38-39 → |
+|  B2  | 36 **after B6**| 76 **after B6**| 41-67 **after B6**| 4 →     |
+|  B3  | 16             | 16             | 13                | 6 →     |
+|  B4  | 10             | 12             | 9                 | 10 →    |
+|  B5  | 11             | 13             | 10                | 11 →    |
+|  B6  | 11             | 11             | 10                | 10 →    |
 
 For reference, these are the addresses of the implementations in the respective ROMs:
 
@@ -654,7 +651,7 @@ In practice, this is not really a problem though. Even in 1985, it was clear tha
 
 All JiffyDOS byte transmission protocols are timing-based, and the timing properties are based on the C64 and 1541 implementations. This means that the protocols have a fixed maximum speed (e.g. 12.5 KB/sec for JiffyDOS LOAD), even if both the host and the device were faster. If for instance the host did the LOAD receive loop in less than 80 µs, it would break with a 1541 as a device – it might work with other devices, but it just wouldn't be JiffyDOS-compliant.
 
-Additionally, the original C64 and 1541 implementations, which defined the protocols, are not even optimal. At least 10 µs could have been shaved off the 1541 implementation, which would have allowed a device to do the LOAD receive loop in 70 µs and still be compliant.
+Additionally, even the original C64 and 1541 implementations, which defined the protocols, are not optimal. At least 10 µs could have been shaved off the 1541 implementation, which would have allowed a device to do the LOAD receive loop in 70 µs and still be compliant.
 
 ## LOAD Protocol not Suitable for IRQs
 
@@ -668,7 +665,7 @@ The IEEE-488 family of protocols is strictly layered. This allows, for example, 
 
 In theory, this should also be possible the other way round. Layer 3 (bus arbitration) should be replaceable in a way that layer 2 does not have to care. One could create a new protocol stack and decide that the connectors and byte transmission protocols (layers 1 and 2) of IEEE-488 and Standard Serial are fine, the bus arbitration protocol on layer 3 should be redesigned. This would be possible, because layer 2 has no knowledge of the workings of layer 3 – and doesn't require any.
 
-This is not the case with JiffyDOS though. The detection protocol needs knowledge of the "TALK/LISTEN" protocol on layer 3: On the device side, the Standard Serial bit receive code (layer 2) for commands has to detect the delayed last bit, and check whether it was a TALK or LISTEN command addressed to itself.
+This is not the case with JiffyDOS though. The detection protocol uses knowledge of the "TALK/LISTEN" protocol on layer 3: On the device side, the Standard Serial bit receive code (layer 2) for commands has to detect the delayed last bit, and check whether it was a TALK or LISTEN command addressed to itself.
 
 In addition, the LOAD protocol is specific to the Commodore DOS protocol on layer 4, because it is triggered by using the magic DOS channels 0 for opening and 1 for transmission. It is also specific to the PRG file format, which is even above layer 4: Reading from channel 1 skips the first two bytes, the load address of a PRG file.
 
