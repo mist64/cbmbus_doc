@@ -297,17 +297,17 @@ The LOAD protocol is used under the following conditions:
 
 And there are several restrictions:
 
-* The LOAD protocol cannot be used to transmit anything other than regular files: Buffer channels and the command/status channel have to use the JiffyDOS receive protocol instead. The same is true for directory listing: They are opened like files, but they are not supported by the LOAD protocol.
-* The LOAD protocol requires the complete file to be loaded in one go, there can be no UNTALK/TALK commands to stop and resume transmission.
 * The byte stream that is transmitted through channel 1 skips the first two bytes of the file: The host's implementation is expected to fetch the PRG load address though channel 0 before.
+* Because of this, the LOAD protocol cannot be used to transmit anything other than regular files: Buffer channels and the command/status channel have to use the JiffyDOS receive protocol instead. The same is true for directory listing: They are opened like files, but they are not supported by the LOAD protocol.
+* The LOAD protocol requires the complete file to be loaded in one go, there can be no UNTALK/TALK commands to stop and resume transmission.
 
-The difference between the JiffyDOS receive and LOAD protocols is that the LOAD protocol does not have a handshake to wait for the device to be ready to send. During the byte transmission loop, the device is always assumed to be ready, but it can set an "escape" flag at the beginning of each iteration that makes both participants move to a different section of the protocol that allows stalling.
+The difference between the JiffyDOS receive and LOAD protocols is that the LOAD protocol does not wait for the device to be ready to send. During the byte transmission loop, the device is always assumed to be ready, but it can set an "escape" flag at the beginning of each iteration that makes both participants move from the byte transmission loop to a different section of the protocol that allows stalling.
 
 So the LOAD protocol consists of two parts: escape mode and byte send mode.
 
 ### LOAD: Escape Mode
 
-The LOAD protocol is framed by "escape mode". It is used to allow the device to signal:
+The LOAD protocol is framed by "escape mode". It allows the device to signal:
 
 * data is ready: switch to "byte receive" mode
 * data is not ready: this allows the device to stall (e.g. if it needs to fetch a new block from the media)
@@ -350,18 +350,18 @@ To signal that the state of the DATA line is valid, the device releases the CLK 
 
 The device can delay this step as long as it wishes, e.g. to read data from the media.
 
-If there is more data, the protocol switches to byte receive mode (step B0), otherwise it continues with step E3.
+If there is more data (!EOI), the protocol switches to byte receive mode (step B0), otherwise it continues with step E3.
 
 #### E3: Device signals no error within 1100 µs – hold for 100 µs
 ![](docs/cbmbus/jiffydos-28.png =601x131)
 
 In the case of the end of the transmission (EOI), the final step is for the device to signal whether there was an error or whether this is the regular end of the file.
 
-If there is no error, the device pulls CLK and holds it for 100 µs no later than after 1100 µs, otherwise, it keeps CLK released for 1100 µs. (The DATA line was already released in the previous step, because DATA = 0 signaled EOI.)
+If there is no error, the device pulls CLK and holds it for 100 µs within the next 1100 µs, otherwise, it keeps CLK released for 1100 µs. (The DATA line was already released in the previous step, because DATA = 0 signaled EOI.)
 
 ### LOAD: Byte Receive
 
-After the device has indicated that there is more data, the protocol goes into the "Byte Receive" mode, which can transmit zero or more data bytes.
+After the device has indicated that there is more data, both peers switch to the "Byte Receive" mode of the protocol, which can transmit zero or more data bytes.
 
 ![](docs/cbmbus/jiffydos-load-receive.png =601x167)
 
@@ -377,7 +377,7 @@ At the beginning of the loop for each data byte, the device signals whether the 
 
 In addition, the device releases the DATA line, so the controller can use it in the next step.
 
-In the first iteration of the byte receive loop, releasing DATA signals that CLK is now valid. In this case, the controller triggers on DATA = 0, which means the device may arbitrarily delay this step.
+In the first iteration of the byte receive loop, releasing DATA signals that CLK is now valid. The controller triggers on DATA = 0, which means the device may arbitrarily delay this step.
 
 In subsequent iterations, the controller cannot trigger on DATA, because the value of DATA in the previous step – step 6 of the previous iteration – could have been either 0 or 1, so this step is based on timing: The value of CLK must be valid at 11 µs after the previous step. DATA still has to be cleared so that the host can use it in the next step.
 
@@ -386,7 +386,7 @@ In subsequent iterations, the controller cannot trigger on DATA, because the val
 
 As soon as the controller can guarantee a window of at least 45 µs of being undisturbed, it pulls the DATA line, telling the device to immediately start the transmission of the 8 data bits.
 
-This happens independently of whether ESC was true or false in the previous step. It isn't until after this step that the protocol jumps to step E2 of the escape mode protocol if the device set CLK in the previous step.
+This happens independently of whether ESC was true or false in the previous step. It isn't until *after* this step that the protocol jumps to step E2 of the escape mode protocol if the device set CLK in the previous step.
 
 #### B2b: Controller clears DATA wire (not a signal)
 ![](docs/cbmbus/jiffydos-33.png =601x131)
