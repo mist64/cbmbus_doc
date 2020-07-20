@@ -289,7 +289,7 @@ There are many command-channel commands that deal with creating, fixing and modi
 | INITIALIZE     | `I`[_medium_]                                         | Force reading disk metadata     |
 | VALIDATE       | `V`[_medium_]                                         | Re-build block availability map |
 | NEW            | `N`[_medium_]`:`_name_[`,`_id_[`,`_format_]           | Low-level or quick format       |
-| RENAME         | `R`[_path_]`:`_new_name_`=`_old_name_                 | Rename file                     |
+| RENAME         | `R`[_path_]`:`_new_name_`=`[[_path_]`:`]_old_name_    | Rename file                     |
 | SCRATCH        | `S`[_path_]`:`_pattern_[`,`[_path_`:`]_pattern_ [`,`...]] | Delete files                |
 | COPY           | `C`[_path_a_]`:`_target_name_`=`[_path_b_]`:`_source_name_[`,`...] | Copy/concatenate files |
 | COPY           | `C`_dst_medium_`=`_src_medium_                        | Copy all files between disk     |
