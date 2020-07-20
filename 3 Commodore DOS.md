@@ -331,7 +331,7 @@ Devices with partitioning support add the following commands:
 | GET PARTITION  | `GP` _num_                                            | Get information about partition |
 | RENAME-PARTITION | `R-P:`_new_name_`=`_old_name_                       | Rename a partition              |
 
-(There is a variant of `CHANGE PARTITION` with the `P` character shifted (code `0xd0`), which takes a binary-encoded partition number instead of an ASCII-encoded one.)
+(The argument to `GET PARTITION` is binary-encoded. `CHANGE PARTITION` is ASCII-encoded, but there is also a variant with the `P` character shifted (code `0xd0`), which takes a binary-encoded partition number instead.)
 
 There are no commands to create or delete partitions. These functions have to be done through tools that know the internals of the specific device.
 
