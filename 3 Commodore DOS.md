@@ -552,6 +552,8 @@ These are the commands supported on all devices since the 1571[^96]:
 | USER           | `U0>T`                                                | Test ROM checksum               |
 | USER           | `U0>` _pa_                                            | Set unit primary address        |
 
+(All arguments are binary-encoded.)
+
 And some commands supported on all devices since the 1581:
 
 | Name           | Syntax                                                | Description                     |
