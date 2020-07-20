@@ -321,7 +321,9 @@ There are two more commands that got introduced by CMD:
 |----------------|-------------------------------------------------------|---------------------------------|
 | LOCK           | `L`[_path_]`:`_name_                                  | Toggle file write protect       |
 | WRITE PROTECT  | `W-`{`0`&#x7c;`1`}                                    | Set/unset device write protect  |
-| RENAME-HEADER  | `R-H`[_medium_]`:`_new_name_                           | Rename a filesystem             |
+| RENAME-HEADER  | `R-H`[_path_]`:`_new_name_                            | Rename a filesystem/subdirectory header |
+
+`RENAME-HEADER` on a filesystem will change the name of the filesystem. When used on a subdirectory, it changes the "header" of the subdirectory, which will be shown in the title line of the directory listing, but is unrelated to the name of the subdirectory.
 
 Devices with partitioning support add the following commands:
 
